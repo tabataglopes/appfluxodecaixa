@@ -198,6 +198,7 @@
   }
   .pill.in{ color:var(--income); }
   .pill.out{ color:var(--expense); }
+  .cal-cell .cell-dots{ display:none; }
   .cal-cell .bal-preview{
     font-size:10.5px; font-weight:600; color:var(--ink); opacity:1; margin-top:2px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -210,14 +211,17 @@
     .cal-cell .bal-preview{ display:none; }
   }
   @media (max-width:480px){
-    /* not enough room for readable amount pills: collapse to small dots, full detail is one tap away below */
-    .cal-cell .pills{ flex-direction:row; gap:4px; margin-top:auto; }
-    .pill{
-      width:7px; height:7px; min-width:7px; padding:0; border-radius:50%;
-      font-size:0; line-height:0; overflow:hidden; box-shadow:0 0 0 1.5px rgba(0,0,0,0.18);
+    /* not enough room for readable amount pills: switch to one dot per lançamento, full detail is one tap away below */
+    .cal-cell .pills{ display:none; }
+    .cal-cell .cell-dots{
+      display:flex; flex-direction:row; flex-wrap:wrap; gap:3px; margin-top:auto;
     }
-    .pill.in{ background:var(--income); }
-    .pill.out{ background:var(--expense); }
+    .cal-cell .cell-dots .dot{
+      width:7px; height:7px; min-width:7px; flex-shrink:0; border-radius:50%;
+      box-shadow:0 0 0 1.5px rgba(0,0,0,0.18);
+    }
+    .cal-cell .cell-dots .dot.in{ background:var(--income); }
+    .cal-cell .cell-dots .dot.out{ background:var(--expense); }
   }
 
   /* ---------- sidebar ---------- */
@@ -330,6 +334,8 @@
       <span class="proto-note">protótipo &middot; nada é salvo ao recarregar a página</span>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <button class="btn" id="openFixasBtn">Contas/Receitas fixas</button>
+      <button class="btn" id="openAssinBtn">Assinaturas</button>
       <div class="base-chip" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
         <span class="lbl">Saldo de referência <span id="baseDateLbl" class="mono"></span>:</span>
         <span class="val mono" id="baseValLbl"></span>
@@ -398,23 +404,6 @@
     </div>
   </div>
 
-  <div class="recur-columns">
-    <div class="card">
-      <div class="recur-head">
-        <h2>Assinaturas</h2>
-        <button class="btn primary" id="addAssinaturaBtn">+ Nova assinatura</button>
-      </div>
-      <div class="recur-list" id="assinaturasList"></div>
-    </div>
-
-    <div class="card">
-      <div class="recur-head">
-        <h2>Contas/Receitas fixas</h2>
-        <button class="btn primary" id="addContaFixaBtn">+ Nova conta fixa</button>
-      </div>
-      <div class="recur-list" id="contasFixasList"></div>
-    </div>
-  </div>
 
 </div>
 
@@ -451,6 +440,30 @@
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal: lista de assinaturas -->
+<div class="overlay" id="overlayAssinList" hidden>
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-close" data-close="overlayAssinList" aria-label="Fechar">&times;</button>
+    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
+      <h3 style="margin:0;">Assinaturas</h3>
+      <button class="btn primary small" id="addAssinaturaBtn">+ Nova assinatura</button>
+    </div>
+    <div class="recur-list" id="assinaturasList"></div>
+  </div>
+</div>
+
+<!-- Modal: lista de contas/receitas fixas -->
+<div class="overlay" id="overlayFixasList" hidden>
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-close" data-close="overlayFixasList" aria-label="Fechar">&times;</button>
+    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
+      <h3 style="margin:0;">Contas/Receitas fixas</h3>
+      <button class="btn primary small" id="addContaFixaBtn">+ Nova conta fixa</button>
+    </div>
+    <div class="recur-list" id="contasFixasList"></div>
   </div>
 </div>
 
@@ -759,6 +772,16 @@
       if (sumOut>0){ const p=document.createElement('div'); p.className='pill out'; p.textContent='- '+fmtBRL(sumOut); pills.appendChild(p); }
       cell.appendChild(pills);
 
+      // visão mobile: uma bolinha para cada lançamento do dia (em vez de somar tudo em 1 pill só)
+      const dots = document.createElement('div');
+      dots.className = 'cell-dots';
+      for (const o of occ){
+        const d = document.createElement('span');
+        d.className = 'dot ' + (o.tipo==='entrada' ? 'in' : 'out');
+        dots.appendChild(d);
+      }
+      cell.appendChild(dots);
+
       const balPrev = document.createElement('div');
       balPrev.className = 'bal-preview mono' + (bal<0 ? ' neg' : '');
       balPrev.textContent = fmtBRL(bal);
@@ -1035,6 +1058,8 @@
   $('#addOneTimeBtn').addEventListener('click', ()=> openOneModal(state.selectedDate, null));
   $('#addContaFixaBtn').addEventListener('click', ()=> openRecurModal(null));
   $('#addAssinaturaBtn').addEventListener('click', ()=> openAssinModal(null));
+  $('#openFixasBtn').addEventListener('click', ()=> openOverlay('#overlayFixasList'));
+  $('#openAssinBtn').addEventListener('click', ()=> openOverlay('#overlayAssinList'));
 
   $('#oneForm').addEventListener('submit', e=>{
     e.preventDefault();

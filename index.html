@@ -1,8 +1,10 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
 <title>Maré</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -173,8 +175,6 @@
   /* ---------- visão anual ---------- */
   .year-grid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; margin-top:6px; }
   @media (max-width:1000px){ .year-grid{ grid-template-columns:repeat(3, minmax(0,1fr)); } }
-  @media (max-width:760px){ .year-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
-  @media (max-width:460px){ .year-grid{ grid-template-columns:1fr; } }
   .mini-month{ border:1px solid var(--border); border-radius:12px; padding:10px; min-width:0; }
   .mini-month h4{ font-size:13px; text-align:center; margin:0 0 8px; font-family:"Fraunces", serif; font-weight:600; }
   .mini-weekdays{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:2px; margin-bottom:3px; }
@@ -192,26 +192,23 @@
   .mini-cell:hover:not(.empty){ box-shadow:inset 0 0 0 1.5px var(--accent-strong); }
   .mini-cell .day-chip{ line-height:1; }
 
-  /* visão anual no mobile: mais parecida com a do Google Calendar — números soltos
-     com uma bolinha discreta atrás, em vez de um quadrado colorido cobrindo a célula */
+  /* visão anual no mobile: igual ao Google Calendar — o ano inteiro visível de uma vez,
+     numa grade compacta de 3 colunas x 4 linhas de mini-meses, sem precisar rolar mês a mês */
   @media (max-width:480px){
-    .year-view{ padding:14px 10px; }
-    .year-grid{ gap:0; margin-top:4px; }
-    .mini-month{
-      border:none; border-radius:0; padding:10px 0; min-width:0;
-      border-bottom:1px solid var(--border);
-    }
-    .mini-month:last-child{ border-bottom:none; }
-    .mini-month h4{ text-align:left; font-size:14px; margin:0 0 8px; }
-    .mini-weekdays span{ font-size:9.5px; }
-    .mini-grid{ gap:0; row-gap:4px; }
+    .year-view{ padding:12px 8px; }
+    .year-grid{ grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px 6px; margin-top:4px; }
+    .mini-month{ border:none; border-radius:0; padding:0; min-width:0; }
+    .mini-month h4{ text-align:center; font-size:10.5px; margin:0 0 4px; font-weight:600; }
+    .mini-weekdays{ gap:0; margin-bottom:1px; }
+    .mini-weekdays span{ font-size:6px; }
+    .mini-grid{ gap:1px; row-gap:2px; }
     .mini-cell{
-      aspect-ratio:auto; height:26px; background:none !important; border-radius:0;
-      font-size:11.5px; font-weight:500;
+      aspect-ratio:1; height:auto; background:none !important; border-radius:0;
+      font-size:7px; font-weight:500;
     }
     .mini-cell .day-chip{
       display:inline-flex; align-items:center; justify-content:center;
-      width:22px; height:22px; border-radius:50%;
+      width:14px; height:14px; max-width:100%; max-height:100%; border-radius:50%; font-size:7px;
     }
     .mini-cell.ok .day-chip{ background:var(--cal-ok-bg); }
     .mini-cell.negative .day-chip{ background:var(--cal-negative-bg); }
@@ -219,6 +216,9 @@
     .mini-cell.past{ opacity:0.5; }
     .mini-cell.today .day-chip{ box-shadow:inset 0 0 0 1.5px var(--accent); }
     .mini-cell:hover:not(.empty){ box-shadow:none; }
+  }
+  @media (max-width:360px){
+    .mini-cell .day-chip{ width:12px; height:12px; font-size:6.5px; }
   }
 
   .card{
@@ -376,9 +376,6 @@
 
   .empty-cell-fill{ visibility:hidden; }
 </style>
-</head>
-<body>
-
 <div class="shell">
 
   <div class="topbar">
@@ -490,10 +487,6 @@
       <div class="field">
         <label for="oneDesc">Descrição</label>
         <input type="text" id="oneDesc" placeholder="Ex.: Freelance, conta de luz..." required>
-      </div>
-      <div class="field" id="oneCategoriaField">
-        <label for="oneCategoria">Categoria</label>
-        <select id="oneCategoria"></select>
       </div>
       <div class="row2">
         <div class="field">
@@ -739,21 +732,6 @@
   const FREQ_LABELS = { 1:'mensal', 2:'a cada 2 meses', 3:'a cada 3 meses', 4:'a cada 4 meses', 6:'a cada 6 meses', 12:'anual' };
   const freqLabel = n => FREQ_LABELS[n] || 'mensal';
 
-  // categorias de gastos avulsos (ordem alfabética)
-  const CATEGORIAS = [
-    { id:'comida', label:'Comida (mercado, padaria, feira)', short:'Comida' },
-    { id:'compras_online', label:'Compras online', short:'Compras online' },
-    { id:'delivery', label:'Delivery', short:'Delivery' },
-    { id:'imprevistos', label:'Imprevistos', short:'Imprevistos' },
-    { id:'lazer_saida', label:'Lazer/saída', short:'Lazer/saída' },
-    { id:'outros', label:'Outros', short:'Outros' },
-    { id:'pet', label:'Pet', short:'Pet' },
-    { id:'restaurante', label:'Restaurante', short:'Restaurante' },
-    { id:'saude', label:'Saúde (médico, farmácia)', short:'Saúde' },
-    { id:'transporte', label:'Transporte/gasolina', short:'Transporte' },
-    { id:'uber_taxi', label:'Uber/táxi', short:'Uber/táxi' },
-  ];
-  const categoriaShort = id => { const c = CATEGORIAS.find(c=>c.id===id); return c ? c.short : null; };
   const getRecById = id => state.recorrentes.find(r=>r.id===id);
 
   function occurrencesOnDate(iso){
@@ -915,8 +893,7 @@
         const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : 'conta fixa';
         meta.textContent = `${kindLabel} · ${freqLabel(rec ? rec.intervalMeses : 1)} · dia ${iso.split('-')[2]}`;
       } else {
-        const catShort = o.categoria ? categoriaShort(o.categoria) : null;
-        meta.textContent = 'lançamento único' + (catShort ? ` · ${catShort}` : '');
+        meta.textContent = 'lançamento único';
       }
       desc.appendChild(name); desc.appendChild(meta);
       row.appendChild(desc);
@@ -1143,30 +1120,12 @@
       b.classList.toggle('active', b.dataset.tipo===tipo);
     });
   }
-  function updateOneCategoriaVisibility(tipo){
-    $('#oneCategoriaField').style.display = (tipo === 'saida') ? '' : 'none';
-  }
   $('#oneSeg').addEventListener('click', e=>{
     if (e.target.tagName==='BUTTON'){
       setSeg($('#oneSeg'), e.target.dataset.tipo);
-      updateOneCategoriaVisibility(e.target.dataset.tipo);
     }
   });
 
-  // popula o select de categorias (só usado em gastos avulsos do tipo saída)
-  (function populateCategoriaSelect(){
-    const sel = $('#oneCategoria');
-    const optBlank = document.createElement('option');
-    optBlank.value = '';
-    optBlank.textContent = 'Sem categoria';
-    sel.appendChild(optBlank);
-    for (const c of CATEGORIAS){
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.label;
-      sel.appendChild(opt);
-    }
-  })();
   $('#recurSeg').addEventListener('click', e=>{
     if (e.target.tagName==='BUTTON'){ setSeg($('#recurSeg'), e.target.dataset.tipo); }
   });
@@ -1181,14 +1140,10 @@
       $('#oneValor').value = editItem.valor;
       $('#oneData').value = editItem.data;
       $('#oneEditId').value = editItem.id;
-      $('#oneCategoria').value = editItem.categoria || '';
-      updateOneCategoriaVisibility(editItem.tipo);
     } else {
       $('#oneModalTitle').textContent = 'Novo lançamento';
       setSeg($('#oneSeg'), 'entrada');
       $('#oneData').value = prefillDate || state.selectedDate;
-      $('#oneCategoria').value = '';
-      updateOneCategoriaVisibility('entrada');
     }
     openOverlay('#overlayOne');
     $('#oneDesc').focus();
@@ -1259,13 +1214,12 @@
     const valor = parseFloat($('#oneValor').value);
     const data = $('#oneData').value;
     const editId = $('#oneEditId').value;
-    const categoria = (tipo === 'saida') ? ($('#oneCategoria').value || null) : null;
     if (!desc || isNaN(valor) || !data) return;
     if (editId){
       const t = state.oneTime.find(x=>x.id===editId);
-      if (t){ t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.categoria=categoria; }
+      if (t){ t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; }
     } else {
-      state.oneTime.push({ id: nextId(), tipo, desc, valor, data, categoria });
+      state.oneTime.push({ id: nextId(), tipo, desc, valor, data });
       state.selectedDate = data;
     }
     closeOverlay('#overlayOne');

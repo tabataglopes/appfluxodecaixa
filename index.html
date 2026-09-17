@@ -166,7 +166,28 @@
 
   /* ---------- main grid ---------- */
   .main-grid{ display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); gap:16px; align-items:start; }
+  .main-grid[hidden]{ display:none; }
   @media (max-width:900px){ .main-grid{ grid-template-columns:minmax(0,1fr); } }
+
+  /* ---------- visão anual ---------- */
+  .year-grid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; margin-top:6px; }
+  @media (max-width:1000px){ .year-grid{ grid-template-columns:repeat(3, minmax(0,1fr)); } }
+  @media (max-width:760px){ .year-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  @media (max-width:460px){ .year-grid{ grid-template-columns:1fr; } }
+  .mini-month{ border:1px solid var(--border); border-radius:12px; padding:10px; min-width:0; }
+  .mini-month h4{ font-size:13px; text-align:center; margin:0 0 8px; font-family:"Fraunces", serif; font-weight:600; }
+  .mini-weekdays{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:2px; margin-bottom:3px; }
+  .mini-weekdays span{ font-size:8px; text-align:center; color:var(--ink-muted); }
+  .mini-grid{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:2px; }
+  .mini-cell{
+    aspect-ratio:1; min-width:0; border-radius:4px; background:var(--cal-ok-bg);
+    display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:600;
+    color:var(--ink); cursor:pointer;
+  }
+  .mini-cell.negative{ background:var(--cal-negative-bg); }
+  .mini-cell.empty{ background:transparent; cursor:default; }
+  .mini-cell.today{ box-shadow:inset 0 0 0 1.5px var(--accent); }
+  .mini-cell:hover:not(.empty){ box-shadow:inset 0 0 0 1.5px var(--accent-strong); }
 
   .card{
     background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow);
@@ -332,6 +353,7 @@
       <h1>Maré</h1>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <button class="btn" id="toggleViewBtn">Visão anual</button>
       <button class="btn" id="openFixasBtn">Contas/Receitas fixas</button>
       <button class="btn" id="openAssinBtn">Assinaturas</button>
       <div class="base-chip" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
@@ -368,7 +390,7 @@
     </div>
   </div>
 
-  <div class="main-grid">
+  <div class="main-grid" id="monthView">
     <div class="card">
       <div class="month-nav" style="justify-content:space-between; margin-bottom:14px;">
         <button class="nav-arrow" id="prevMonth" aria-label="Mês anterior">&#8249;</button>
@@ -402,6 +424,18 @@
     </div>
   </div>
 
+  <div class="card year-view" id="yearView" hidden>
+    <div class="month-nav" style="justify-content:space-between; margin-bottom:14px;">
+      <button class="nav-arrow" id="prevYear" aria-label="Ano anterior">&#8249;</button>
+      <span class="month-label" id="yearLabel"></span>
+      <button class="nav-arrow" id="nextYear" aria-label="Próximo ano">&#8250;</button>
+    </div>
+    <div class="cal-legend">
+      <span class="leg-item"><i class="swatch ok"></i> saldo positivo</span>
+      <span class="leg-item"><i class="swatch negative"></i> fica sem dinheiro</span>
+    </div>
+    <div class="year-grid" id="yearGrid"></div>
+  </div>
 
 </div>
 
@@ -624,6 +658,8 @@
     recorrentes: [],
     view: { year: now.getFullYear(), month: now.getMonth() },
     selectedDate: todayISO,
+    viewMode: 'month',
+    yearViewYear: now.getFullYear(),
   };
 
   /* ---------------- occurrence engine ---------------- */
@@ -910,11 +946,80 @@
     }
   }
 
+  const MINI_WEEKDAYS = ['D','S','T','Q','Q','S','S'];
+
+  function renderYearGrid(){
+    const year = state.yearViewYear;
+    $('#yearLabel').textContent = String(year);
+    const grid = $('#yearGrid');
+    grid.innerHTML = '';
+    for (let m=0; m<12; m++){
+      const monthEl = document.createElement('div');
+      monthEl.className = 'mini-month';
+
+      const h4 = document.createElement('h4');
+      h4.textContent = MONTHS[m];
+      monthEl.appendChild(h4);
+
+      const wd = document.createElement('div');
+      wd.className = 'mini-weekdays';
+      for (const w of MINI_WEEKDAYS){ const s=document.createElement('span'); s.textContent=w; wd.appendChild(s); }
+      monthEl.appendChild(wd);
+
+      const mg = document.createElement('div');
+      mg.className = 'mini-grid';
+      const offset = firstWeekday(year, m);
+      for (let i=0;i<offset;i++){
+        const filler = document.createElement('div');
+        filler.className = 'mini-cell empty';
+        mg.appendChild(filler);
+      }
+      const dim = daysInMonth(year, m);
+      for (let day=1; day<=dim; day++){
+        const iso = toISO(year, m, day);
+        const bal = balanceAt(iso);
+        const cell = document.createElement('div');
+        cell.className = 'mini-cell ' + (bal < 0 ? 'negative' : 'ok');
+        if (iso === todayISO) cell.classList.add('today');
+        cell.textContent = day;
+        cell.title = `${fmtDateFull(iso)}: ${fmtBRL(bal)}`;
+        cell.addEventListener('click', () => {
+          state.view.year = year;
+          state.view.month = m;
+          state.selectedDate = iso;
+          setViewMode('month');
+        });
+        mg.appendChild(cell);
+      }
+      monthEl.appendChild(mg);
+      grid.appendChild(monthEl);
+    }
+  }
+
+  function setViewMode(mode){
+    state.viewMode = mode;
+    const btn = $('#toggleViewBtn');
+    if (mode === 'year'){
+      $('#monthView').hidden = true;
+      $('#yearView').hidden = false;
+      btn.textContent = 'Visão mensal';
+    } else {
+      $('#monthView').hidden = false;
+      $('#yearView').hidden = true;
+      btn.textContent = 'Visão anual';
+    }
+    renderAll();
+  }
+
   function renderAll(){
     renderBaseChip();
     renderTiles();
-    renderCalendar();
-    renderDayDetail();
+    if (state.viewMode === 'year'){
+      renderYearGrid();
+    } else {
+      renderCalendar();
+      renderDayDetail();
+    }
     renderRecurLists();
   }
 
@@ -1148,6 +1253,18 @@
     state.view.year = now.getFullYear(); state.view.month = now.getMonth();
     state.selectedDate = todayISO;
     renderAll();
+  });
+
+  $('#toggleViewBtn').addEventListener('click', ()=>{
+    setViewMode(state.viewMode === 'year' ? 'month' : 'year');
+  });
+  $('#prevYear').addEventListener('click', ()=>{
+    state.yearViewYear--;
+    renderYearGrid();
+  });
+  $('#nextYear').addEventListener('click', ()=>{
+    state.yearViewYear++;
+    renderYearGrid();
   });
 
   renderAll();

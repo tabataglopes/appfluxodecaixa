@@ -144,7 +144,8 @@
   .cal-legend .swatch.past{ background:var(--surface-2); border:1px solid var(--border); }
 
   /* ---------- summary tiles ---------- */
-  .tiles{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+  .tiles{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
+  @media (max-width:900px){ .tiles{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
   @media (max-width:680px){ .tiles{ grid-template-columns:1fr; } }
   .tile{
     background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px;
@@ -258,6 +259,9 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .cal-cell .bal-preview.neg{ color:var(--ink); opacity:1; }
+  .cal-cell .card-flag{
+    position:absolute; top:4px; right:4px; font-size:11px; line-height:1; pointer-events:none;
+  }
 
   @media (max-width:560px){
     .cal-cell{ min-height:56px; padding:4px 3px; gap:2px; }
@@ -276,6 +280,7 @@
     }
     .cal-cell .cell-dots .dot.in{ background:var(--income); }
     .cal-cell .cell-dots .dot.out{ background:var(--expense); }
+    .cal-cell .card-flag{ font-size:9px; top:2px; right:2px; }
   }
 
   /* ---------- sidebar ---------- */
@@ -386,6 +391,7 @@
       <button class="btn" id="toggleViewBtn">Visão anual</button>
       <button class="btn" id="openFixasBtn">Contas/Receitas fixas</button>
       <button class="btn" id="openAssinBtn">Assinaturas</button>
+      <button class="btn" id="openCartoesBtn">Cartões</button>
       <div class="base-chip" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
         <span class="lbl">Saldo de referência <span id="baseDateLbl" class="mono"></span>:</span>
         <span class="val mono" id="baseValLbl"></span>
@@ -404,6 +410,11 @@
       <span class="lbl">Saldo projetado (fim do mês)</span>
       <span class="val mono" id="tileBal">R$ 0,00</span>
       <span class="sub" id="tileBalSub" title="Saldo de referência + tudo que entra e sai até essa data">&nbsp;</span>
+    </div>
+    <div class="tile">
+      <span class="lbl">Acumulado nos cartões até hoje</span>
+      <span class="val mono" id="tileCartoes">R$ 0,00</span>
+      <span class="sub" id="tileCartoesSub">&nbsp;</span>
     </div>
     <div class="tile inout">
       <div class="inout-half in">
@@ -488,6 +499,10 @@
         <label for="oneDesc">Descrição</label>
         <input type="text" id="oneDesc" placeholder="Ex.: Freelance, conta de luz..." required>
       </div>
+      <div class="field" id="oneFormaPagamentoField">
+        <label for="oneFormaPagamento">Forma de pagamento</label>
+        <select id="oneFormaPagamento"></select>
+      </div>
       <div class="row2">
         <div class="field">
           <label for="oneValor">Valor (R$)</label>
@@ -528,6 +543,47 @@
       <button class="btn primary small" id="addContaFixaBtn">+ Nova conta fixa</button>
     </div>
     <div class="recur-list" id="contasFixasList"></div>
+  </div>
+</div>
+
+<!-- Modal: lista de cartões -->
+<div class="overlay" id="overlayCartoesList" hidden>
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-close" data-close="overlayCartoesList" aria-label="Fechar">&times;</button>
+    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
+      <h3 style="margin:0;">Cartões</h3>
+      <button class="btn primary small" id="addCartaoBtn">+ Novo cartão</button>
+    </div>
+    <div class="recur-list" id="cartoesList"></div>
+  </div>
+</div>
+
+<!-- Modal: cartão -->
+<div class="overlay" id="overlayCartao" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close="overlayCartao" aria-label="Fechar">&times;</button>
+    <h3 id="cartaoModalTitle">Novo cartão</h3>
+    <form id="cartaoForm">
+      <div class="field">
+        <label for="cartaoNome">Nome do cartão</label>
+        <input type="text" id="cartaoNome" placeholder="Ex.: Nubank, Inter, Itaú..." required>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="cartaoFechamento">Dia do fechamento</label>
+          <input type="number" min="1" max="31" id="cartaoFechamento" class="mono" placeholder="1-31" required>
+        </div>
+        <div class="field">
+          <label for="cartaoPagamento">Dia do pagamento</label>
+          <input type="number" min="1" max="31" id="cartaoPagamento" class="mono" placeholder="1-31" required>
+        </div>
+      </div>
+      <input type="hidden" id="cartaoEditId">
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="overlayCartao">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -688,6 +744,7 @@
     dataBase: todayISO,
     oneTime: [],
     recorrentes: [],
+    cartoes: [],
     view: { year: now.getFullYear(), month: now.getMonth() },
     selectedDate: todayISO,
     viewMode: 'month',
@@ -733,11 +790,123 @@
   const freqLabel = n => FREQ_LABELS[n] || 'mensal';
 
   const getRecById = id => state.recorrentes.find(r=>r.id===id);
+  const getCardById = id => state.cartoes.find(c=>c.id===id);
+
+  const signed = t => t.tipo === 'entrada' ? t.valor : -t.valor;
+
+  /* ---------------- cartões de crédito (faturas) ---------------- */
+  // dado um dia de compra, encontra a data de fechamento do ciclo ao qual ele pertence
+  function closingDateForCycleContaining(card, dateISO){
+    const [y,m,d] = dateISO.split('-').map(Number);
+    const m0 = m-1;
+    const dim = daysInMonth(y, m0);
+    const closingDay = Math.min(card.diaFechamento, dim);
+    if (d <= closingDay) return toISO(y, m0, closingDay);
+    let ny=y, nm0=m0+1;
+    if (nm0>11){ nm0=0; ny++; }
+    const ndim = daysInMonth(ny, nm0);
+    return toISO(ny, nm0, Math.min(card.diaFechamento, ndim));
+  }
+
+  // início do ciclo (dia seguinte ao fechamento anterior) dado o fechamento deste ciclo
+  function cycleStartForClosing(card, closingISO){
+    const [cy,cm] = closingISO.split('-').map(Number);
+    const cm0 = cm-1;
+    let py=cy, pm0=cm0-1;
+    if (pm0<0){ pm0=11; py--; }
+    const pdim = daysInMonth(py, pm0);
+    const prevClosing = toISO(py, pm0, Math.min(card.diaFechamento, pdim));
+    return addDays(prevClosing, 1);
+  }
+
+  // data de pagamento correspondente a um fechamento: mesmo mês se dia de pagamento >= dia de fechamento,
+  // mês seguinte se o dia de pagamento for menor (ciclo "atravessa" a virada do mês)
+  function paymentDateForClosing(card, closingISO){
+    const [cy,cm] = closingISO.split('-').map(Number);
+    const cm0 = cm-1;
+    let py=cy, pm0=cm0;
+    if (card.diaPagamento < card.diaFechamento){
+      pm0 = cm0+1;
+      if (pm0>11){ pm0=0; py++; }
+    }
+    const pdim = daysInMonth(py, pm0);
+    return toISO(py, pm0, Math.min(card.diaPagamento, pdim));
+  }
+
+  // fatura de um cartão cujo pagamento cai no mês (year, month0) informado
+  function invoiceForCardInMonth(card, year, month0){
+    let closingYear = year, closingMonth0 = month0;
+    if (card.diaPagamento < card.diaFechamento){
+      closingMonth0 = month0 - 1;
+      if (closingMonth0 < 0){ closingMonth0 = 11; closingYear--; }
+    }
+    const closingDim = daysInMonth(closingYear, closingMonth0);
+    const closingISO = toISO(closingYear, closingMonth0, Math.min(card.diaFechamento, closingDim));
+    const cycleStart = cycleStartForClosing(card, closingISO);
+    const paymentISO = paymentDateForClosing(card, closingISO);
+    let raw = 0;
+    for (const t of state.oneTime){
+      if (t.formaPagamento === card.id && t.data >= cycleStart && t.data <= closingISO) raw += signed(t);
+    }
+    return { cardId: card.id, cardName: card.nome, cycleStart, cycleEnd: closingISO, data: paymentISO, raw };
+  }
+
+  // todas as faturas (de todos os cartões) cujo ciclo passa pelos meses entre loISO e hiISO
+  function allCardInvoicesForMonths(loISO, hiISO){
+    const months = monthsBetween(loISO, hiISO);
+    const out = [];
+    for (const card of state.cartoes){
+      for (const {year, month} of months){
+        const inv = invoiceForCardInMonth(card, year, month);
+        if (inv.raw !== 0) out.push(inv);
+      }
+    }
+    return out;
+  }
+
+  function cardInvoiceOccurrencesOnDate(iso){
+    const [y,m] = iso.split('-').map(Number);
+    const m0 = m-1;
+    const out = [];
+    for (const card of state.cartoes){
+      const inv = invoiceForCardInMonth(card, y, m0);
+      if (inv.data === iso && inv.raw !== 0){
+        out.push({
+          id: 'fatura-'+card.id+'@'+iso,
+          tipo: inv.raw < 0 ? 'saida' : 'entrada',
+          desc: `Fatura ${card.nome}`,
+          valor: Math.abs(inv.raw),
+          data: iso,
+          isInvoice: true,
+          cardId: card.id,
+          cycleStart: inv.cycleStart,
+          cycleEnd: inv.cycleEnd,
+        });
+      }
+    }
+    return out;
+  }
+
+  // soma de tudo que já foi lançado nos cartões dentro do ciclo em aberto de cada um, até hoje
+  function totalAcumuladoCartoesAteHoje(){
+    let total = 0;
+    for (const card of state.cartoes){
+      const closingISO = closingDateForCycleContaining(card, todayISO);
+      const cycleStart = cycleStartForClosing(card, closingISO);
+      for (const t of state.oneTime){
+        if (t.formaPagamento === card.id && t.data >= cycleStart && t.data <= todayISO){
+          total += (t.tipo === 'saida' ? t.valor : -t.valor);
+        }
+      }
+    }
+    return total;
+  }
 
   function occurrencesOnDate(iso){
     const list = [];
     for (const t of state.oneTime) if (t.data === iso) list.push(Object.assign({recorrente:false}, t));
     for (const r of state.recorrentes) list.push(...occurrencesForRecInRange(r, iso, iso));
+    list.push(...cardInvoiceOccurrencesOnDate(iso));
     return list;
   }
 
@@ -745,32 +914,47 @@
     const lo = toISO(year, month0, 1);
     const hi = toISO(year, month0, daysInMonth(year, month0));
     const list = [];
-    for (const t of state.oneTime) if (t.data >= lo && t.data <= hi) list.push(Object.assign({recorrente:false}, t));
+    // compras no cartão não entram aqui diretamente: só contam quando a fatura delas cai neste mês
+    for (const t of state.oneTime) if (!t.formaPagamento && t.data >= lo && t.data <= hi) list.push(Object.assign({recorrente:false}, t));
     for (const r of state.recorrentes) list.push(...occurrencesForRecInRange(r, lo, hi));
+    for (const card of state.cartoes){
+      const inv = invoiceForCardInMonth(card, year, month0);
+      if (inv.raw !== 0){
+        list.push({
+          id: 'fatura-'+card.id+'@'+inv.data,
+          tipo: inv.raw < 0 ? 'saida' : 'entrada',
+          desc: `Fatura ${card.nome}`,
+          valor: Math.abs(inv.raw),
+          data: inv.data,
+          isInvoice: true,
+          cardId: card.id,
+        });
+      }
+    }
     return list;
   }
-
-  const signed = t => t.tipo === 'entrada' ? t.valor : -t.valor;
 
   function balanceAt(dateISO){
     let sum = 0;
     if (dateISO >= state.dataBase){
       // futuro (ou o próprio dia de referência): inclui lançamentos datados no dia de referência em diante
       const lo = state.dataBase, hi = dateISO;
-      for (const t of state.oneTime) if (t.data >= lo && t.data <= hi) sum += signed(t);
+      for (const t of state.oneTime) if (!t.formaPagamento && t.data >= lo && t.data <= hi) sum += signed(t);
       for (const r of state.recorrentes){
         const occs = occurrencesForRecInRange(r, lo, hi);
         for (const o of occs) if (o.data >= lo && o.data <= hi) sum += signed(o);
       }
+      for (const inv of allCardInvoicesForMonths(lo, hi)) if (inv.data >= lo && inv.data <= hi) sum += inv.raw;
       return state.saldoInicial + sum;
     } else {
       // passado: desconta o que aconteceu entre essa data e o dia de referência
       const lo = dateISO, hi = state.dataBase;
-      for (const t of state.oneTime) if (t.data > lo && t.data <= hi) sum += signed(t);
+      for (const t of state.oneTime) if (!t.formaPagamento && t.data > lo && t.data <= hi) sum += signed(t);
       for (const r of state.recorrentes){
         const occs = occurrencesForRecInRange(r, lo, hi);
         for (const o of occs) if (o.data > lo && o.data <= hi) sum += signed(o);
       }
+      for (const inv of allCardInvoicesForMonths(lo, hi)) if (inv.data > lo && inv.data <= hi) sum += inv.raw;
       return state.saldoInicial - sum;
     }
   }
@@ -801,6 +985,10 @@
     tileBalCard.classList.toggle('neg', bal<0);
     tileBalCard.classList.toggle('pos', bal>=0);
     $('#tileBalSub').textContent = `em ${fmtDateFull(lastDay)}`;
+
+    const acumuladoCartoes = totalAcumuladoCartoesAteHoje();
+    $('#tileCartoes').textContent = fmtBRL(acumuladoCartoes);
+    $('#tileCartoesSub').textContent = state.cartoes.length ? 'ciclo(s) em aberto' : 'nenhum cartão cadastrado';
   }
 
   function renderCalendar(){
@@ -827,12 +1015,24 @@
 
       const occ = occurrencesOnDate(iso);
       let sumIn=0, sumOut=0;
-      for (const o of occ){ if(o.tipo==='entrada') sumIn+=o.valor; else sumOut+=o.valor; }
+      const hasCardPurchase = occ.some(o => o.formaPagamento);
+      for (const o of occ){
+        if (o.formaPagamento) continue; // compra no cartão não desconta no dia da compra, só na fatura
+        if(o.tipo==='entrada') sumIn+=o.valor; else sumOut+=o.valor;
+      }
 
       const numEl = document.createElement('div');
       numEl.className = 'daynum';
       numEl.textContent = day;
       cell.appendChild(numEl);
+
+      if (hasCardPurchase){
+        const flag = document.createElement('span');
+        flag.className = 'card-flag';
+        flag.textContent = '🚩';
+        flag.title = 'Compra no cartão registrada — será cobrada na fatura';
+        cell.appendChild(flag);
+      }
 
       const pills = document.createElement('div');
       pills.className = 'pills';
@@ -844,6 +1044,7 @@
       const dots = document.createElement('div');
       dots.className = 'cell-dots';
       for (const o of occ){
+        if (o.formaPagamento) continue;
         const d = document.createElement('span');
         d.className = 'dot ' + (o.tipo==='entrada' ? 'in' : 'out');
         dots.appendChild(d);
@@ -888,10 +1089,21 @@
       name.textContent = o.desc;
       const meta = document.createElement('div');
       meta.className = 'meta';
-      if (o.recorrente){
+      if (o.isInvoice){
+        meta.textContent = `fatura do cartão · acumulado de ${fmtDateShort(o.cycleStart)} a ${fmtDateShort(o.cycleEnd)}`;
+      } else if (o.recorrente){
         const rec = getRecById(o.recId);
         const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : 'conta fixa';
         meta.textContent = `${kindLabel} · ${freqLabel(rec ? rec.intervalMeses : 1)} · dia ${iso.split('-')[2]}`;
+      } else if (o.formaPagamento){
+        const card = getCardById(o.formaPagamento);
+        const cardName = card ? card.nome : 'cartão removido';
+        let paymentNote = '';
+        if (card){
+          const closingISO = closingDateForCycleContaining(card, o.data);
+          paymentNote = ` · fatura em ${fmtDateShort(paymentDateForClosing(card, closingISO))}`;
+        }
+        meta.textContent = `no cartão ${cardName}${paymentNote}`;
       } else {
         meta.textContent = 'lançamento único';
       }
@@ -905,16 +1117,18 @@
       amt.textContent = (o.tipo==='entrada' ? '+ ':'- ') + fmtBRL(o.valor);
       right.appendChild(amt);
 
-      const del = document.createElement('button');
-      del.className = 'icon-btn';
-      del.setAttribute('aria-label','Remover');
-      del.textContent = '✕';
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (o.recorrente) removeRecurrente(o.recId, o.desc, true);
-        else removeOneTime(o.id, o.desc);
-      });
-      right.appendChild(del);
+      if (!o.isInvoice){
+        const del = document.createElement('button');
+        del.className = 'icon-btn';
+        del.setAttribute('aria-label','Remover');
+        del.textContent = '✕';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (o.recorrente) removeRecurrente(o.recId, o.desc, true);
+          else removeOneTime(o.id, o.desc);
+        });
+        right.appendChild(del);
+      }
       row.appendChild(right);
       wrap.appendChild(row);
     }
@@ -979,6 +1193,46 @@
       fixaWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma conta fixa cadastrada ainda.</div>';
     } else {
       for (const r of fixas) fixaWrap.appendChild(buildRecurRow(r));
+    }
+  }
+
+  function buildCartaoRow(c){
+    const row = document.createElement('div');
+    row.className = 'recur-row';
+    const info = document.createElement('div');
+    info.className = 'info';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = c.nome;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `fecha dia ${c.diaFechamento} · paga dia ${c.diaPagamento}`;
+    info.appendChild(name); info.appendChild(meta);
+    row.appendChild(info);
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn small';
+    editBtn.textContent = 'Editar';
+    editBtn.addEventListener('click', () => openCartaoModal(c));
+    const delBtn = document.createElement('button');
+    delBtn.className = 'icon-btn';
+    delBtn.setAttribute('aria-label','Remover');
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => removeCartao(c.id, c.nome));
+    actions.appendChild(editBtn); actions.appendChild(delBtn);
+    row.appendChild(actions);
+    return row;
+  }
+
+  function renderCartoesList(){
+    const wrap = $('#cartoesList');
+    wrap.innerHTML = '';
+    if (state.cartoes.length===0){
+      wrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhum cartão cadastrado ainda.</div>';
+    } else {
+      for (const c of state.cartoes) wrap.appendChild(buildCartaoRow(c));
     }
   }
 
@@ -1061,6 +1315,7 @@
       renderDayDetail();
     }
     renderRecurLists();
+    renderCartoesList();
   }
 
   /* ---------------- mutations ---------------- */
@@ -1073,6 +1328,16 @@
     state.oneTime.splice(idx,1);
     renderAll();
     showToast(`"${desc}" removido.`);
+  }
+
+  function removeCartao(id, nome){
+    const idx = state.cartoes.findIndex(c=>c.id===id);
+    if (idx===-1) return;
+    // gastos que estavam nesse cartão passam a contar como dinheiro/pix/débito, na data em que foram lançados
+    for (const t of state.oneTime) if (t.formaPagamento === id) t.formaPagamento = null;
+    state.cartoes.splice(idx,1);
+    renderAll();
+    showToast(`Cartão "${nome}" removido. Os gastos lançados nele passam a contar como dinheiro/pix/débito.`);
   }
 
   function removeRecurrente(id, desc, fromDayList){
@@ -1120,9 +1385,28 @@
       b.classList.toggle('active', b.dataset.tipo===tipo);
     });
   }
+  function updateOneFormaPagamentoVisibility(tipo){
+    $('#oneFormaPagamentoField').style.display = (tipo === 'saida') ? '' : 'none';
+  }
+  function populateFormaPagamentoSelect(selectedValue){
+    const sel = $('#oneFormaPagamento');
+    sel.innerHTML = '';
+    const optCash = document.createElement('option');
+    optCash.value = '';
+    optCash.textContent = 'Dinheiro/Pix/Débito';
+    sel.appendChild(optCash);
+    for (const c of state.cartoes){
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.nome;
+      sel.appendChild(opt);
+    }
+    sel.value = selectedValue || '';
+  }
   $('#oneSeg').addEventListener('click', e=>{
     if (e.target.tagName==='BUTTON'){
       setSeg($('#oneSeg'), e.target.dataset.tipo);
+      updateOneFormaPagamentoVisibility(e.target.dataset.tipo);
     }
   });
 
@@ -1140,10 +1424,14 @@
       $('#oneValor').value = editItem.valor;
       $('#oneData').value = editItem.data;
       $('#oneEditId').value = editItem.id;
+      populateFormaPagamentoSelect(editItem.formaPagamento);
+      updateOneFormaPagamentoVisibility(editItem.tipo);
     } else {
       $('#oneModalTitle').textContent = 'Novo lançamento';
       setSeg($('#oneSeg'), 'entrada');
       $('#oneData').value = prefillDate || state.selectedDate;
+      populateFormaPagamentoSelect('');
+      updateOneFormaPagamentoVisibility('entrada');
     }
     openOverlay('#overlayOne');
     $('#oneDesc').focus();
@@ -1196,6 +1484,22 @@
     $('#assinDesc').focus();
   }
 
+  function openCartaoModal(editItem){
+    $('#cartaoForm').reset();
+    $('#cartaoEditId').value = '';
+    if (editItem){
+      $('#cartaoModalTitle').textContent = 'Editar cartão';
+      $('#cartaoNome').value = editItem.nome;
+      $('#cartaoFechamento').value = editItem.diaFechamento;
+      $('#cartaoPagamento').value = editItem.diaPagamento;
+      $('#cartaoEditId').value = editItem.id;
+    } else {
+      $('#cartaoModalTitle').textContent = 'Novo cartão';
+    }
+    openOverlay('#overlayCartao');
+    $('#cartaoNome').focus();
+  }
+
   $('#recurSemFim').addEventListener('change', e=>{
     $('#recurFim').disabled = e.target.checked;
     if (e.target.checked) $('#recurFim').value = '';
@@ -1204,8 +1508,10 @@
   $('#addOneTimeBtn').addEventListener('click', ()=> openOneModal(state.selectedDate, null));
   $('#addContaFixaBtn').addEventListener('click', ()=> openRecurModal(null));
   $('#addAssinaturaBtn').addEventListener('click', ()=> openAssinModal(null));
+  $('#addCartaoBtn').addEventListener('click', ()=> openCartaoModal(null));
   $('#openFixasBtn').addEventListener('click', ()=> openOverlay('#overlayFixasList'));
   $('#openAssinBtn').addEventListener('click', ()=> openOverlay('#overlayAssinList'));
+  $('#openCartoesBtn').addEventListener('click', ()=> openOverlay('#overlayCartoesList'));
 
   $('#oneForm').addEventListener('submit', e=>{
     e.preventDefault();
@@ -1214,15 +1520,33 @@
     const valor = parseFloat($('#oneValor').value);
     const data = $('#oneData').value;
     const editId = $('#oneEditId').value;
+    const formaPagamento = (tipo === 'saida') ? ($('#oneFormaPagamento').value || null) : null;
     if (!desc || isNaN(valor) || !data) return;
     if (editId){
       const t = state.oneTime.find(x=>x.id===editId);
-      if (t){ t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; }
+      if (t){ t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.formaPagamento=formaPagamento; }
     } else {
-      state.oneTime.push({ id: nextId(), tipo, desc, valor, data });
+      state.oneTime.push({ id: nextId(), tipo, desc, valor, data, formaPagamento });
       state.selectedDate = data;
     }
     closeOverlay('#overlayOne');
+    renderAll();
+  });
+
+  $('#cartaoForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const nome = $('#cartaoNome').value.trim();
+    const diaFechamento = Math.min(31, Math.max(1, parseInt($('#cartaoFechamento').value,10)));
+    const diaPagamento = Math.min(31, Math.max(1, parseInt($('#cartaoPagamento').value,10)));
+    const editId = $('#cartaoEditId').value;
+    if (!nome || isNaN(diaFechamento) || isNaN(diaPagamento)) return;
+    if (editId){
+      const c = getCardById(editId);
+      if (c){ c.nome=nome; c.diaFechamento=diaFechamento; c.diaPagamento=diaPagamento; }
+    } else {
+      state.cartoes.push({ id: nextId(), nome, diaFechamento, diaPagamento });
+    }
+    closeOverlay('#overlayCartao');
     renderAll();
   });
 

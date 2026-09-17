@@ -190,6 +190,36 @@
   .mini-cell.empty{ background:transparent; cursor:default; }
   .mini-cell.today{ box-shadow:inset 0 0 0 1.5px var(--accent); }
   .mini-cell:hover:not(.empty){ box-shadow:inset 0 0 0 1.5px var(--accent-strong); }
+  .mini-cell .day-chip{ line-height:1; }
+
+  /* visão anual no mobile: mais parecida com a do Google Calendar — números soltos
+     com uma bolinha discreta atrás, em vez de um quadrado colorido cobrindo a célula */
+  @media (max-width:480px){
+    .year-view{ padding:14px 10px; }
+    .year-grid{ gap:0; margin-top:4px; }
+    .mini-month{
+      border:none; border-radius:0; padding:10px 0; min-width:0;
+      border-bottom:1px solid var(--border);
+    }
+    .mini-month:last-child{ border-bottom:none; }
+    .mini-month h4{ text-align:left; font-size:14px; margin:0 0 8px; }
+    .mini-weekdays span{ font-size:9.5px; }
+    .mini-grid{ gap:0; row-gap:4px; }
+    .mini-cell{
+      aspect-ratio:auto; height:26px; background:none !important; border-radius:0;
+      font-size:11.5px; font-weight:500;
+    }
+    .mini-cell .day-chip{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:22px; height:22px; border-radius:50%;
+    }
+    .mini-cell.ok .day-chip{ background:var(--cal-ok-bg); }
+    .mini-cell.negative .day-chip{ background:var(--cal-negative-bg); }
+    .mini-cell.past .day-chip{ background:none; }
+    .mini-cell.past{ opacity:0.5; }
+    .mini-cell.today .day-chip{ box-shadow:inset 0 0 0 1.5px var(--accent); }
+    .mini-cell:hover:not(.empty){ box-shadow:none; }
+  }
 
   .card{
     background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow);
@@ -1011,7 +1041,10 @@
         const cell = document.createElement('div');
         cell.className = 'mini-cell ' + (isPast ? 'past' : (bal < 0 ? 'negative' : 'ok'));
         if (iso === todayISO) cell.classList.add('today');
-        cell.textContent = day;
+        const chip = document.createElement('span');
+        chip.className = 'day-chip';
+        chip.textContent = day;
+        cell.appendChild(chip);
         cell.title = isPast ? fmtDateFull(iso) : `${fmtDateFull(iso)}: ${fmtBRL(bal)}`;
         cell.addEventListener('click', () => {
           state.view.year = year;

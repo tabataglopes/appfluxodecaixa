@@ -263,6 +263,20 @@
   .cal-cell .card-flag{
     position:absolute; top:4px; right:4px; font-size:11px; line-height:1; pointer-events:none;
   }
+  .cal-cell .update-card-label{
+    display:block; width:100%; margin-top:auto; border:none; cursor:pointer;
+    background:var(--expense); color:#fff; font-family:inherit;
+    font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.01em;
+    line-height:1.15; padding:4px 3px; border-radius:6px; text-align:center;
+    white-space:normal; word-break:break-word; overflow-wrap:anywhere;
+  }
+  .cal-cell .update-card-label:hover{ filter:brightness(1.08); }
+  @media (max-width:560px){
+    .cal-cell .update-card-label{ font-size:8px; padding:3px 1px; border-radius:5px; letter-spacing:0; }
+  }
+  @media (max-width:480px){
+    .cal-cell .update-card-label{ font-size:6.5px; padding:2px 1px; }
+  }
 
   @media (max-width:560px){
     .cal-cell{ min-height:56px; padding:4px 3px; gap:2px; }
@@ -867,15 +881,30 @@
     return toISO(py, pm0, Math.min(card.diaPagamento, pdim));
   }
 
-  // fatura de um cartão cujo pagamento cai no mês (year, month0) informado
-  function invoiceForCardInMonth(card, year, month0){
+  // dado o mês (ano, mês0) em que o PAGAMENTO de uma fatura cai, acha a data de fechamento do ciclo correspondente
+  function closingISOForPaymentMonth(card, year, month0){
     let closingYear = year, closingMonth0 = month0;
     if (card.diaPagamento < card.diaFechamento){
       closingMonth0 = month0 - 1;
       if (closingMonth0 < 0){ closingMonth0 = 11; closingYear--; }
     }
     const closingDim = daysInMonth(closingYear, closingMonth0);
-    const closingISO = toISO(closingYear, closingMonth0, Math.min(card.diaFechamento, closingDim));
+    return toISO(closingYear, closingMonth0, Math.min(card.diaFechamento, closingDim));
+  }
+
+  // fechamento do ciclo seguinte a um determinado fechamento
+  function nextClosingISO(card, closingISO){
+    const [y,m] = closingISO.split('-').map(Number);
+    let ny=y, nm0=(m-1)+1;
+    if (nm0>11){ nm0=0; ny++; }
+    const ndim = daysInMonth(ny, nm0);
+    return toISO(ny, nm0, Math.min(card.diaFechamento, ndim));
+  }
+
+  // fatura de um cartão cujo pagamento cai no mês (year, month0) informado — SEM considerar o que ficou
+  // pendente de faturas anteriores (usada só na projeção automática do "saldo projetado")
+  function invoiceForCardInMonth(card, year, month0){
+    const closingISO = closingISOForPaymentMonth(card, year, month0);
     const cycleStart = cycleStartForClosing(card, closingISO);
     const paymentISO = paymentDateForClosing(card, closingISO);
     let raw = 0;
@@ -918,22 +947,62 @@
     state.faturaPromptSeen[faturaKey(cardId, cycleEnd)] = true;
   }
 
-  // detalhe completo (devido, pago, pendente) de uma fatura específica de um cartão
-  function faturaDetalhe(card, cycleEnd){
-    const cycleStart = cycleStartForClosing(card, cycleEnd);
-    const paymentISO = paymentDateForClosing(card, cycleEnd);
-    const raw = sumCardPurchases(card.id, cycleStart, cycleEnd);
-    const devido = -raw;
-    const pago = pagoParaCiclo(card.id, cycleEnd);
-    const pendente = devido - pago;
-    return { cardId: card.id, cardName: card.nome, cycleStart, cycleEnd, paymentISO, devido, pago, pendente };
-  }
-
   // todos os ciclos (fechamentos) distintos que já têm alguma compra lançada, pra um cartão
   function cyclesWithPurchases(card){
     const set = new Set();
     for (const t of state.oneTime) if (t.formaPagamento === card.id) set.add(closingDateForCycleContaining(card, t.data));
     return Array.from(set);
+  }
+
+  // cadeia de faturas de um cartão, em ordem cronológica, do primeiro ciclo com compra até um fechamento-alvo.
+  // o que não foi pago numa fatura (pendente) entra automaticamente como parte do valor devido na fatura seguinte —
+  // por isso cada item já soma o "carryIn" (saldo não pago que veio da fatura anterior)
+  // capLastAtToday: quando true, o ÚLTIMO ciclo da cadeia (o que ainda está em aberto) só soma as
+  // compras já lançadas até hoje — usado pro tile "acumulado até hoje". Pra fatura oficial (calendário,
+  // detalhe do dia, pop-up de pagamento) isso fica false: conta o ciclo inteiro, já que quando o
+  // pagamento dela chegar o ciclo já vai estar fechado de qualquer forma.
+  function cardLedgerThrough(card, targetCycleEnd, capLastAtToday){
+    const cyclesWithP = cyclesWithPurchases(card);
+    if (cyclesWithP.length === 0) return [];
+    let firstCycle = cyclesWithP.slice().sort()[0];
+    if (firstCycle > targetCycleEnd) firstCycle = targetCycleEnd;
+    const chain = [];
+    let cur = firstCycle;
+    let guard = 0;
+    while (cur <= targetCycleEnd && guard < 1200){
+      chain.push(cur);
+      if (cur === targetCycleEnd) break;
+      cur = nextClosingISO(card, cur);
+      guard++;
+    }
+    let carry = 0;
+    const ledger = [];
+    for (const cycleEnd of chain){
+      const cycleStart = cycleStartForClosing(card, cycleEnd);
+      const paymentISO = paymentDateForClosing(card, cycleEnd);
+      const isLast = cycleEnd === targetCycleEnd;
+      const hi = (capLastAtToday && isLast && cycleEnd > todayISO) ? todayISO : cycleEnd;
+      const purchasesRaw = sumCardPurchases(card.id, cycleStart, hi);
+      const devido = -purchasesRaw + carry;
+      const pago = pagoParaCiclo(card.id, cycleEnd);
+      const pendente = devido - pago;
+      ledger.push({ cardId: card.id, cardName: card.nome, cycleStart, cycleEnd, paymentISO, devido, pago, pendente, carryIn: carry });
+      carry = pendente;
+    }
+    return ledger;
+  }
+
+  // detalhe completo (devido, pago, pendente, e o quanto veio de faturas anteriores não pagas) de uma
+  // fatura específica de um cartão
+  function faturaDetalhe(card, cycleEnd){
+    const ledger = cardLedgerThrough(card, cycleEnd);
+    if (ledger.length) return ledger[ledger.length-1];
+    return {
+      cardId: card.id, cardName: card.nome,
+      cycleStart: cycleStartForClosing(card, cycleEnd), cycleEnd,
+      paymentISO: paymentDateForClosing(card, cycleEnd),
+      devido: 0, pago: 0, pendente: 0, carryIn: 0,
+    };
   }
 
   function cardInvoiceOccurrencesOnDate(iso){
@@ -942,68 +1011,53 @@
     const out = [];
     for (const card of state.cartoes){
       const inv = invoiceForCardInMonth(card, y, m0);
-      if (inv.data === iso && inv.raw !== 0){
-        const det = faturaDetalhe(card, inv.cycleEnd);
-        out.push({
-          id: 'fatura-'+card.id+'@'+iso,
-          tipo: inv.raw < 0 ? 'saida' : 'entrada',
-          desc: `Fatura ${card.nome}`,
-          valor: Math.abs(inv.raw),
-          data: iso,
-          isInvoice: true,
-          cardId: card.id,
-          cycleStart: inv.cycleStart,
-          cycleEnd: inv.cycleEnd,
-          pendente: det.pendente,
-          pago: det.pago,
-        });
-      }
+      if (inv.data !== iso) continue;
+      const det = faturaDetalhe(card, inv.cycleEnd);
+      if (Math.abs(det.devido) < 0.005) continue;
+      out.push({
+        id: 'fatura-'+card.id+'@'+iso,
+        tipo: det.devido < 0 ? 'entrada' : 'saida',
+        desc: `Fatura ${card.nome}`,
+        valor: Math.abs(det.devido),
+        data: iso,
+        isInvoice: true,
+        cardId: card.id,
+        cycleStart: inv.cycleStart,
+        cycleEnd: inv.cycleEnd,
+        pendente: det.pendente,
+        pago: det.pago,
+        carryIn: det.carryIn,
+      });
     }
     return out;
   }
 
-  // acumulado nos cartões que ainda não foi confirmado como pago: soma o ciclo em aberto (até hoje)
-  // mais qualquer fatura já fechada cujo pagamento ainda não foi registrado
-  function totalAcumuladoCartoes(){
-    let total = 0;
-    for (const card of state.cartoes){
-      for (const cycleEnd of cyclesWithPurchases(card)){
-        const cycleStart = cycleStartForClosing(card, cycleEnd);
-        const hiCap = cycleEnd > todayISO ? todayISO : cycleEnd;
-        const raw = sumCardPurchases(card.id, cycleStart, hiCap);
-        const devido = -raw;
-        const pago = pagoParaCiclo(card.id, cycleEnd);
-        total += (devido - pago);
-      }
-    }
-    return total;
-  }
-
-  // igual a totalAcumuladoCartoes(), mas devolve o total em aberto de cada cartão separadamente
+  // acumulado nos cartões que ainda não foi confirmado como pago: soma o ciclo em aberto (até hoje,
+  // sem contar compras futuras dele) mais qualquer valor que já tenha ficado pendente de faturas
+  // anteriores não pagas — como o não-pago de uma fatura já vira parte da próxima (ver cardLedgerThrough),
+  // o total de cada cartão é simplesmente o pendente do último ciclo da cadeia
   function totalAcumuladoPorCartao(){
     return state.cartoes.map(card => {
-      let total = 0;
-      for (const cycleEnd of cyclesWithPurchases(card)){
-        const cycleStart = cycleStartForClosing(card, cycleEnd);
-        const hiCap = cycleEnd > todayISO ? todayISO : cycleEnd;
-        const raw = sumCardPurchases(card.id, cycleStart, hiCap);
-        const devido = -raw;
-        const pago = pagoParaCiclo(card.id, cycleEnd);
-        total += (devido - pago);
-      }
+      const ledger = cardLedgerThrough(card, closingDateForCycleContaining(card, todayISO), true);
+      const total = ledger.length ? ledger[ledger.length-1].pendente : 0;
       return { cardId: card.id, cardName: card.nome, total };
     });
   }
 
-  // faturas já vencidas (dia de pagamento já chegou) e ainda com saldo pendente
+  function totalAcumuladoCartoes(){
+    return totalAcumuladoPorCartao().reduce((s, c) => s + c.total, 0);
+  }
+
+  // fatura em aberto (dia de pagamento já chegou) e ainda com saldo pendente — no máximo uma por
+  // cartão: a mais recente, já que o que não foi pago de uma fatura mais antiga já está embutido nela
   function getPendingInvoices(){
     const out = [];
     for (const card of state.cartoes){
-      for (const cycleEnd of cyclesWithPurchases(card)){
-        const det = faturaDetalhe(card, cycleEnd);
-        if (det.paymentISO > todayISO) continue;
-        if (det.pendente > 0.005) out.push(det);
-      }
+      const ledger = cardLedgerThrough(card, closingDateForCycleContaining(card, todayISO));
+      const vencidas = ledger.filter(e => e.paymentISO <= todayISO);
+      if (vencidas.length === 0) continue;
+      const maisRecente = vencidas[vencidas.length-1];
+      if (maisRecente.pendente > 0.005) out.push(maisRecente);
     }
     out.sort((a,b) => a.paymentISO.localeCompare(b.paymentISO));
     return out;
@@ -1026,22 +1080,22 @@
     for (const r of state.recorrentes) list.push(...occurrencesForRecInRange(r, lo, hi));
     for (const card of state.cartoes){
       const inv = invoiceForCardInMonth(card, year, month0);
-      if (inv.raw !== 0){
-        const det = faturaDetalhe(card, inv.cycleEnd);
-        list.push({
-          id: 'fatura-'+card.id+'@'+inv.data,
-          tipo: inv.raw < 0 ? 'saida' : 'entrada',
-          desc: `Fatura ${card.nome}`,
-          valor: Math.abs(inv.raw),
-          data: inv.data,
-          isInvoice: true,
-          cardId: card.id,
-          cycleStart: inv.cycleStart,
-          cycleEnd: inv.cycleEnd,
-          pendente: det.pendente,
-          pago: det.pago,
-        });
-      }
+      const det = faturaDetalhe(card, inv.cycleEnd);
+      if (Math.abs(det.devido) < 0.005) continue;
+      list.push({
+        id: 'fatura-'+card.id+'@'+inv.data,
+        tipo: det.devido < 0 ? 'entrada' : 'saida',
+        desc: `Fatura ${card.nome}`,
+        valor: Math.abs(det.devido),
+        data: inv.data,
+        isInvoice: true,
+        cardId: card.id,
+        cycleStart: inv.cycleStart,
+        cycleEnd: inv.cycleEnd,
+        pendente: det.pendente,
+        pago: det.pago,
+        carryIn: det.carryIn,
+      });
     }
     return list;
   }
@@ -1165,6 +1219,9 @@
       grid.appendChild(filler);
     }
     const dim = daysInMonth(year, month);
+    // fatura(s) vencida(s) sobre a(s) qual(is) a pessoa ainda não informou nada (nem confirmou pagamento
+    // parcial) — usado pra destacar bem grande no dia de hoje que falta atualizar o cartão
+    const faturasSemResposta = getPendingInvoices().filter(inv => inv.pago <= 0.005);
     for (let day=1; day<=dim; day++){
       const iso = toISO(year, month, day);
       const cell = document.createElement('div');
@@ -1194,6 +1251,20 @@
         flag.textContent = '🚩';
         flag.title = 'Pagar cartão';
         cell.appendChild(flag);
+      }
+
+      if (iso === todayISO && faturasSemResposta.length > 0){
+        const alvo = faturasSemResposta[0];
+        const updateLabel = document.createElement('button');
+        updateLabel.type = 'button';
+        updateLabel.className = 'update-card-label';
+        updateLabel.textContent = 'Atualizar cartão';
+        updateLabel.title = 'A data de pagamento da fatura já passou e você ainda não disse se pagou';
+        updateLabel.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openFaturaPagamentoModal(alvo.cardId, alvo.cycleEnd);
+        });
+        cell.appendChild(updateLabel);
       }
 
       const pills = document.createElement('div');
@@ -1253,12 +1324,13 @@
       meta.className = 'meta';
       if (o.isInvoice){
         const periodo = `${fmtDateShort(o.cycleStart)} a ${fmtDateShort(o.cycleEnd)}`;
+        const carryNote = o.carryIn > 0.005 ? ` · inclui ${fmtBRL(o.carryIn)} não pago de fatura anterior` : '';
         if (o.pendente > 0.005){
-          meta.textContent = o.pago > 0
+          meta.textContent = (o.pago > 0
             ? `fatura pendente · período ${periodo} · já confirmado ${fmtBRL(o.pago)}`
-            : `fatura pendente · período ${periodo}`;
+            : `fatura pendente · período ${periodo}`) + carryNote;
         } else {
-          meta.textContent = `fatura paga · período ${periodo}`;
+          meta.textContent = `fatura paga · período ${periodo}` + carryNote;
         }
       } else if (o.recorrente){
         const rec = getRecById(o.recId);
@@ -1697,6 +1769,7 @@
     $('#faturaPagTitle').textContent = `Pagamento da fatura · ${card.nome}`;
     let info = `Total ${fmtBRL(det.pendente)} · período de ${fmtDateShort(det.cycleStart)} a ${fmtDateShort(det.cycleEnd)}.`;
     if (det.pago > 0.005) info += ` (já confirmado ${fmtBRL(det.pago)} de ${fmtBRL(det.devido)} no total)`;
+    if (det.carryIn > 0.005) info += ` Inclui ${fmtBRL(det.carryIn)} que ficou pendente da fatura anterior.`;
     $('#faturaPagInfo').textContent = info;
     $('#faturaPagCardId').value = cardId;
     $('#faturaPagCycleEnd').value = cycleEnd;

@@ -139,6 +139,7 @@
   .cal-legend .swatch.out{ background:var(--expense); border-radius:50%; }
   .cal-legend .swatch.ok{ background:var(--cal-ok-bg); border:1px solid var(--border); }
   .cal-legend .swatch.negative{ background:var(--cal-negative-bg); border:1px solid var(--border); }
+  .cal-legend .swatch.past{ background:var(--surface-2); border:1px solid var(--border); }
 
   /* ---------- summary tiles ---------- */
   .tiles{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
@@ -185,6 +186,7 @@
     color:var(--ink); cursor:pointer;
   }
   .mini-cell.negative{ background:var(--cal-negative-bg); }
+  .mini-cell.past{ background:var(--surface-2); opacity:0.75; }
   .mini-cell.empty{ background:transparent; cursor:default; }
   .mini-cell.today{ box-shadow:inset 0 0 0 1.5px var(--accent); }
   .mini-cell:hover:not(.empty){ box-shadow:inset 0 0 0 1.5px var(--accent-strong); }
@@ -206,6 +208,7 @@
     overflow:hidden; transition:border-color .12s ease, background .12s ease;
   }
   .cal-cell.negative{ background:var(--cal-negative-bg); }
+  .cal-cell.past{ background:var(--surface-2); }
   .cal-cell:hover{ border-color:var(--accent); }
   .cal-cell.empty{ background:transparent; border-color:transparent; cursor:default; }
   .cal-cell.today{ border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
@@ -400,6 +403,7 @@
       <div class="cal-legend">
         <span class="leg-item"><i class="swatch ok"></i> saldo positivo</span>
         <span class="leg-item"><i class="swatch negative"></i> fica sem dinheiro</span>
+        <span class="leg-item"><i class="swatch past"></i> dia passado</span>
         <span class="leg-item"><i class="swatch in"></i> entra</span>
         <span class="leg-item"><i class="swatch out"></i> sai</span>
       </div>
@@ -433,6 +437,7 @@
     <div class="cal-legend">
       <span class="leg-item"><i class="swatch ok"></i> saldo positivo</span>
       <span class="leg-item"><i class="swatch negative"></i> fica sem dinheiro</span>
+      <span class="leg-item"><i class="swatch past"></i> dia passado</span>
     </div>
     <div class="year-grid" id="yearGrid"></div>
   </div>
@@ -785,8 +790,9 @@
     for (let day=1; day<=dim; day++){
       const iso = toISO(year, month, day);
       const cell = document.createElement('div');
+      const isPast = iso < state.dataBase;
       const bal = balanceAt(iso);
-      cell.className = 'cal-cell ' + (bal < 0 ? 'negative' : 'ok');
+      cell.className = 'cal-cell ' + (isPast ? 'past' : (bal < 0 ? 'negative' : 'ok'));
       if (iso === todayISO) cell.classList.add('today');
       if (iso === state.selectedDate) cell.classList.add('selected');
       cell.dataset.date = iso;
@@ -816,11 +822,13 @@
       }
       cell.appendChild(dots);
 
-      const balPrev = document.createElement('div');
-      balPrev.className = 'bal-preview mono' + (bal<0 ? ' neg' : '');
-      balPrev.textContent = fmtBRL(bal);
-      balPrev.title = `Saldo projetado em ${fmtDateFull(iso)}: ${fmtBRL(bal)} (saldo de referência + entradas − saídas até essa data)`;
-      cell.appendChild(balPrev);
+      if (!isPast){
+        const balPrev = document.createElement('div');
+        balPrev.className = 'bal-preview mono' + (bal<0 ? ' neg' : '');
+        balPrev.textContent = fmtBRL(bal);
+        balPrev.title = `Saldo projetado em ${fmtDateFull(iso)}: ${fmtBRL(bal)} (saldo de referência + entradas − saídas até essa data)`;
+        cell.appendChild(balPrev);
+      }
 
       cell.addEventListener('click', () => { state.selectedDate = iso; renderAll(); });
       grid.appendChild(cell);
@@ -977,12 +985,13 @@
       const dim = daysInMonth(year, m);
       for (let day=1; day<=dim; day++){
         const iso = toISO(year, m, day);
+        const isPast = iso < state.dataBase;
         const bal = balanceAt(iso);
         const cell = document.createElement('div');
-        cell.className = 'mini-cell ' + (bal < 0 ? 'negative' : 'ok');
+        cell.className = 'mini-cell ' + (isPast ? 'past' : (bal < 0 ? 'negative' : 'ok'));
         if (iso === todayISO) cell.classList.add('today');
         cell.textContent = day;
-        cell.title = `${fmtDateFull(iso)}: ${fmtBRL(bal)}`;
+        cell.title = isPast ? fmtDateFull(iso) : `${fmtDateFull(iso)}: ${fmtBRL(bal)}`;
         cell.addEventListener('click', () => {
           state.view.year = year;
           state.view.month = m;

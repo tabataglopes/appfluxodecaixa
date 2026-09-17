@@ -461,6 +461,10 @@
         <label for="oneDesc">Descrição</label>
         <input type="text" id="oneDesc" placeholder="Ex.: Freelance, conta de luz..." required>
       </div>
+      <div class="field" id="oneCategoriaField">
+        <label for="oneCategoria">Categoria</label>
+        <select id="oneCategoria"></select>
+      </div>
       <div class="row2">
         <div class="field">
           <label for="oneValor">Valor (R$)</label>
@@ -704,6 +708,22 @@
 
   const FREQ_LABELS = { 1:'mensal', 2:'a cada 2 meses', 3:'a cada 3 meses', 4:'a cada 4 meses', 6:'a cada 6 meses', 12:'anual' };
   const freqLabel = n => FREQ_LABELS[n] || 'mensal';
+
+  // categorias de gastos avulsos (ordem alfabética)
+  const CATEGORIAS = [
+    { id:'comida', label:'Comida (mercado, padaria, feira)', short:'Comida' },
+    { id:'compras_online', label:'Compras online', short:'Compras online' },
+    { id:'delivery', label:'Delivery', short:'Delivery' },
+    { id:'imprevistos', label:'Imprevistos', short:'Imprevistos' },
+    { id:'lazer_saida', label:'Lazer/saída', short:'Lazer/saída' },
+    { id:'outros', label:'Outros', short:'Outros' },
+    { id:'pet', label:'Pet', short:'Pet' },
+    { id:'restaurante', label:'Restaurante', short:'Restaurante' },
+    { id:'saude', label:'Saúde (médico, farmácia)', short:'Saúde' },
+    { id:'transporte', label:'Transporte/gasolina', short:'Transporte' },
+    { id:'uber_taxi', label:'Uber/táxi', short:'Uber/táxi' },
+  ];
+  const categoriaShort = id => { const c = CATEGORIAS.find(c=>c.id===id); return c ? c.short : null; };
   const getRecById = id => state.recorrentes.find(r=>r.id===id);
 
   function occurrencesOnDate(iso){
@@ -865,7 +885,8 @@
         const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : 'conta fixa';
         meta.textContent = `${kindLabel} · ${freqLabel(rec ? rec.intervalMeses : 1)} · dia ${iso.split('-')[2]}`;
       } else {
-        meta.textContent = 'lançamento único';
+        const catShort = o.categoria ? categoriaShort(o.categoria) : null;
+        meta.textContent = 'lançamento único' + (catShort ? ` · ${catShort}` : '');
       }
       desc.appendChild(name); desc.appendChild(meta);
       row.appendChild(desc);
@@ -1089,9 +1110,30 @@
       b.classList.toggle('active', b.dataset.tipo===tipo);
     });
   }
+  function updateOneCategoriaVisibility(tipo){
+    $('#oneCategoriaField').style.display = (tipo === 'saida') ? '' : 'none';
+  }
   $('#oneSeg').addEventListener('click', e=>{
-    if (e.target.tagName==='BUTTON'){ setSeg($('#oneSeg'), e.target.dataset.tipo); }
+    if (e.target.tagName==='BUTTON'){
+      setSeg($('#oneSeg'), e.target.dataset.tipo);
+      updateOneCategoriaVisibility(e.target.dataset.tipo);
+    }
   });
+
+  // popula o select de categorias (só usado em gastos avulsos do tipo saída)
+  (function populateCategoriaSelect(){
+    const sel = $('#oneCategoria');
+    const optBlank = document.createElement('option');
+    optBlank.value = '';
+    optBlank.textContent = 'Sem categoria';
+    sel.appendChild(optBlank);
+    for (const c of CATEGORIAS){
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.label;
+      sel.appendChild(opt);
+    }
+  })();
   $('#recurSeg').addEventListener('click', e=>{
     if (e.target.tagName==='BUTTON'){ setSeg($('#recurSeg'), e.target.dataset.tipo); }
   });
@@ -1106,10 +1148,14 @@
       $('#oneValor').value = editItem.valor;
       $('#oneData').value = editItem.data;
       $('#oneEditId').value = editItem.id;
+      $('#oneCategoria').value = editItem.categoria || '';
+      updateOneCategoriaVisibility(editItem.tipo);
     } else {
       $('#oneModalTitle').textContent = 'Novo lançamento';
       setSeg($('#oneSeg'), 'entrada');
       $('#oneData').value = prefillDate || state.selectedDate;
+      $('#oneCategoria').value = '';
+      updateOneCategoriaVisibility('entrada');
     }
     openOverlay('#overlayOne');
     $('#oneDesc').focus();
@@ -1180,12 +1226,13 @@
     const valor = parseFloat($('#oneValor').value);
     const data = $('#oneData').value;
     const editId = $('#oneEditId').value;
+    const categoria = (tipo === 'saida') ? ($('#oneCategoria').value || null) : null;
     if (!desc || isNaN(valor) || !data) return;
     if (editId){
       const t = state.oneTime.find(x=>x.id===editId);
-      if (t){ t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; }
+      if (t){ t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.categoria=categoria; }
     } else {
-      state.oneTime.push({ id: nextId(), tipo, desc, valor, data });
+      state.oneTime.push({ id: nextId(), tipo, desc, valor, data, categoria });
       state.selectedDate = data;
     }
     closeOverlay('#overlayOne');

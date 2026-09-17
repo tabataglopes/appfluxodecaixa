@@ -148,13 +148,21 @@
     box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; min-width:0;
   }
   .tile .lbl{ font-size:12.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.04em; }
-  .tile .val{ font-size:clamp(18px, 5.5vw, 24px); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .tile.income .val{ color:var(--income); }
-  .tile.expense .val{ color:var(--expense); }
-  .tile.balance{ background:var(--tile-balance-bg); border-color:transparent; }
-  .tile.balance .val.neg{ color:var(--expense); }
-  .tile.balance .val.pos{ color:var(--accent-strong); }
+  .tile .val{ font-size:clamp(18px, 5.5vw, 24px); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); }
   .tile .sub{ font-size:12px; color:var(--ink-muted); }
+
+  .tile.atual{ background:var(--tile-balance-bg); border-color:transparent; }
+
+  .tile.balance{ transition:background .15s ease; }
+  .tile.balance.pos{ background:var(--cal-ok-bg); border-color:transparent; }
+  .tile.balance.neg{ background:var(--cal-negative-bg); border-color:transparent; }
+
+  .tile.inout{ flex-direction:row; padding:0; gap:0; overflow:hidden; }
+  .tile.inout .inout-half{ flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; padding:16px 14px; }
+  .tile.inout .inout-divider{ width:1px; background:var(--border); flex-shrink:0; }
+  .tile.inout .val{ font-size:clamp(15px, 4.4vw, 22px); }
+  .tile.inout .inout-half.in .val{ color:var(--income); }
+  .tile.inout .inout-half.out .val{ color:var(--expense); }
 
   /* ---------- main grid ---------- */
   .main-grid{ display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); gap:16px; align-items:start; }
@@ -216,8 +224,8 @@
   .sidebar{ display:flex; flex-direction:column; gap:16px; position:sticky; top:16px; }
   @media (max-width:900px){ .sidebar{ position:static; } }
 
-  .day-detail .date-title{ font-size:15px; margin-bottom:4px; }
-  .day-detail .section-hint{ font-size:12px; color:var(--ink-muted); margin:0 0 12px; }
+  .day-detail h2{ margin-bottom:4px; }
+  .day-detail .date-title{ font-size:13px; color:var(--ink-muted); font-weight:600; margin:0 0 12px; }
   .day-detail .empty-hint{ color:var(--ink-muted); font-size:13.5px; }
   .txn-row{
     display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0;
@@ -331,20 +339,28 @@
   </div>
 
   <div class="tiles">
+    <div class="tile atual">
+      <span class="lbl">Saldo atual</span>
+      <span class="val mono" id="tileAtual">R$ 0,00</span>
+      <span class="sub" id="tileAtualSub">&nbsp;</span>
+    </div>
     <div class="tile balance">
       <span class="lbl">Saldo projetado (fim do mês)</span>
       <span class="val mono" id="tileBal">R$ 0,00</span>
       <span class="sub" id="tileBalSub" title="Saldo de referência + tudo que entra e sai até essa data">&nbsp;</span>
     </div>
-    <div class="tile income">
-      <span class="lbl">Entradas do mês</span>
-      <span class="val mono" id="tileIn">R$ 0,00</span>
-      <span class="sub">previstas + já lançadas</span>
-    </div>
-    <div class="tile expense">
-      <span class="lbl">Saídas do mês</span>
-      <span class="val mono" id="tileOut">R$ 0,00</span>
-      <span class="sub">contas fixas + avulsas</span>
+    <div class="tile inout">
+      <div class="inout-half in">
+        <span class="lbl">Entradas</span>
+        <span class="val mono" id="tileIn">R$ 0,00</span>
+        <span class="sub">do mês</span>
+      </div>
+      <div class="inout-divider"></div>
+      <div class="inout-half out">
+        <span class="lbl">Saídas</span>
+        <span class="val mono" id="tileOut">R$ 0,00</span>
+        <span class="sub">do mês</span>
+      </div>
     </div>
   </div>
 
@@ -372,8 +388,8 @@
 
     <div class="sidebar">
       <div class="card day-detail">
-        <h2 class="date-title" id="dayTitle">Selecione um dia</h2>
-        <p class="section-hint">Gastos/Receitas Avulsas (não recorrentes)</p>
+        <h2>Gastos/Receitas Avulsas (não recorrentes)</h2>
+        <p class="date-title" id="dayTitle">Selecione um dia</p>
         <div id="dayList"></div>
         <div class="add-row">
           <button class="btn primary block" id="addOneTimeBtn">+ Novo lançamento</button>
@@ -393,7 +409,7 @@
 
     <div class="card">
       <div class="recur-head">
-        <h2>Contas fixas</h2>
+        <h2>Contas/Receitas fixas</h2>
         <button class="btn primary" id="addContaFixaBtn">+ Nova conta fixa</button>
       </div>
       <div class="recur-list" id="contasFixasList"></div>
@@ -657,15 +673,26 @@
   const signed = t => t.tipo === 'entrada' ? t.valor : -t.valor;
 
   function balanceAt(dateISO){
-    const lo = state.dataBase < dateISO ? state.dataBase : dateISO;
-    const hi = state.dataBase < dateISO ? dateISO : state.dataBase;
     let sum = 0;
-    for (const t of state.oneTime) if (t.data > lo && t.data <= hi) sum += signed(t);
-    for (const r of state.recorrentes){
-      const occs = occurrencesForRecInRange(r, lo, hi);
-      for (const o of occs) if (o.data > lo && o.data <= hi) sum += signed(o);
+    if (dateISO >= state.dataBase){
+      // futuro (ou o próprio dia de referência): inclui lançamentos datados no dia de referência em diante
+      const lo = state.dataBase, hi = dateISO;
+      for (const t of state.oneTime) if (t.data >= lo && t.data <= hi) sum += signed(t);
+      for (const r of state.recorrentes){
+        const occs = occurrencesForRecInRange(r, lo, hi);
+        for (const o of occs) if (o.data >= lo && o.data <= hi) sum += signed(o);
+      }
+      return state.saldoInicial + sum;
+    } else {
+      // passado: desconta o que aconteceu entre essa data e o dia de referência
+      const lo = dateISO, hi = state.dataBase;
+      for (const t of state.oneTime) if (t.data > lo && t.data <= hi) sum += signed(t);
+      for (const r of state.recorrentes){
+        const occs = occurrencesForRecInRange(r, lo, hi);
+        for (const o of occs) if (o.data > lo && o.data <= hi) sum += signed(o);
+      }
+      return state.saldoInicial - sum;
     }
-    return dateISO >= state.dataBase ? state.saldoInicial + sum : state.saldoInicial - sum;
   }
 
   /* ---------------- rendering ---------------- */
@@ -682,12 +709,17 @@
     for (const o of occ){ if(o.tipo==='entrada') totalIn += o.valor; else totalOut += o.valor; }
     $('#tileIn').textContent = fmtBRL(totalIn);
     $('#tileOut').textContent = fmtBRL(totalOut);
+
+    const atualBal = balanceAt(todayISO);
+    $('#tileAtual').textContent = fmtBRL(atualBal);
+    $('#tileAtualSub').textContent = `hoje · ${fmtDateFull(todayISO)}`;
+
     const lastDay = toISO(state.view.year, state.view.month, daysInMonth(state.view.year, state.view.month));
     const bal = balanceAt(lastDay);
-    const tileBal = $('#tileBal');
-    tileBal.textContent = fmtBRL(bal);
-    tileBal.classList.toggle('neg', bal<0);
-    tileBal.classList.toggle('pos', bal>=0);
+    const tileBalCard = document.querySelector('.tile.balance');
+    $('#tileBal').textContent = fmtBRL(bal);
+    tileBalCard.classList.toggle('neg', bal<0);
+    tileBalCard.classList.toggle('pos', bal>=0);
     $('#tileBalSub').textContent = `em ${fmtDateFull(lastDay)}`;
   }
 

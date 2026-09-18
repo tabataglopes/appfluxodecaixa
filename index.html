@@ -289,6 +289,20 @@
   .cal-cell.selected{ border-color:var(--accent); box-shadow:inset 0 0 0 2px var(--accent); }
   .cal-cell .daynum{ font-size:12.5px; font-weight:700; color:var(--ink); opacity:1; }
   .cal-cell.today .daynum{ color:var(--accent-strong); opacity:1; }
+  /* bolinha cinza: houve compra no cartão nesse dia, mas ela não entra nem sai do saldo agora —
+     só quando a fatura fechar/pagar — por isso não pode ter cor de entrada/saída, só um sinal neutro */
+  .cal-cell .card-purchase-dot{
+    display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:5px;
+    background:#5b6b78; box-shadow:0 0 0 1.5px rgba(255,255,255,0.65); vertical-align:middle;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .cal-cell .card-purchase-dot{
+      background:#b7c2cc; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
+    }
+  }
+  :root[data-theme="dark"] .cal-cell .card-purchase-dot{
+    background:#b7c2cc; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
+  }
   .cal-cell .pills{ display:flex; flex-direction:column; gap:2px; margin-top:auto; }
   .pill{
     font-size:11px; font-weight:700; line-height:1.3;
@@ -582,8 +596,8 @@
       <div class="field">
         <label>Tipo</label>
         <div class="seg" id="oneSeg">
-          <button type="button" data-tipo="entrada" class="active">Entrada</button>
-          <button type="button" data-tipo="saida">Saída</button>
+          <button type="button" data-tipo="entrada">Entrada</button>
+          <button type="button" data-tipo="saida" class="active">Saída</button>
         </div>
       </div>
       <div class="field">
@@ -721,11 +735,31 @@
 </div>
 
 <!-- Modal: detalhe da fatura (cada compra que compõe o total) -->
+<!-- Modal: fatura do cartão — um único pop-up pra tudo: registrar se pagou (ou não) e, embaixo,
+     consultar a lista de compras que compõem essa fatura -->
 <div class="overlay" id="overlayFaturaDetalhe" hidden>
   <div class="modal" style="max-width:420px;">
     <button class="modal-close" data-close="overlayFaturaDetalhe" aria-label="Fechar">&times;</button>
     <h3 id="faturaDetTitle" style="margin-bottom:4px;">Fatura</h3>
     <p id="faturaDetPeriodo" style="font-size:12.5px; color:var(--ink-muted); margin:0 0 16px;"></p>
+
+    <div id="faturaDetPagamentoBox" style="margin-bottom:18px;">
+      <p id="faturaDetPagInfo" style="font-size:13px; color:var(--ink-muted); margin:0 0 10px;"></p>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button type="button" class="btn block" id="faturaDetPagouTudoBtn">Paguei tudo</button>
+        <button type="button" class="btn block" id="faturaDetNaoPagueiBtn">Não paguei</button>
+        <div class="row2" style="align-items:end;">
+          <div class="field" style="margin-bottom:0;">
+            <label for="faturaDetValorPago">Paguei parte (valor pago)</label>
+            <input type="number" step="0.01" min="0" id="faturaDetValorPago" class="mono" placeholder="0,00">
+          </div>
+          <button type="button" class="btn" style="height:38px;" id="faturaDetValorPagoBtn">Confirmar</button>
+        </div>
+      </div>
+    </div>
+    <p id="faturaDetPagaNota" hidden style="font-size:13px; color:var(--income); font-weight:600; margin:0 0 14px;">Fatura paga ✓</p>
+
+    <h4 style="font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:14px; margin:0 0 8px;">Compras dessa fatura</h4>
     <div class="fatura-list" id="faturaDetList"></div>
     <div class="fatura-total">
       <span class="lbl">Total da fatura</span>
@@ -733,30 +767,9 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="btn" data-close="overlayFaturaDetalhe">Fechar</button>
-      <button type="button" class="btn primary" id="faturaDetPagarBtn">Pagar cartão</button>
     </div>
-  </div>
-</div>
-
-<!-- Modal: confirmação de pagamento de fatura -->
-<div class="overlay" id="overlayFaturaPagamento" hidden>
-  <div class="modal" style="max-width:400px;">
-    <button class="modal-close" data-close="overlayFaturaPagamento" aria-label="Fechar">&times;</button>
-    <h3 id="faturaPagTitle">Pagamento da fatura</h3>
-    <p id="faturaPagInfo" style="font-size:13.5px; color:var(--ink-muted); margin:0 0 16px;"></p>
-    <div style="display:flex; flex-direction:column; gap:10px;">
-      <button type="button" class="btn block" id="faturaPagouTudoBtn">Paguei tudo</button>
-      <button type="button" class="btn block" id="faturaNaoPagueiBtn">Não paguei</button>
-      <div class="row2" style="align-items:end;">
-        <div class="field" style="margin-bottom:0;">
-          <label for="faturaValorPago">Paguei parte (valor pago)</label>
-          <input type="number" step="0.01" min="0" id="faturaValorPago" class="mono" placeholder="0,00">
-        </div>
-        <button type="button" class="btn" style="height:38px;" id="faturaValorPagoBtn">Confirmar</button>
-      </div>
-    </div>
-    <input type="hidden" id="faturaPagCardId">
-    <input type="hidden" id="faturaPagCycleEnd">
+    <input type="hidden" id="faturaDetCardId">
+    <input type="hidden" id="faturaDetCycleEnd">
   </div>
 </div>
 
@@ -1550,10 +1563,21 @@
         if(o.tipo==='entrada') sumIn+=o.valor; else sumOut+=o.valor;
       }
       const faturaPendenteHoje = occ.some(o => o.isInvoice && o.pendente > 0.005);
+      // houve alguma compra no cartão nesse dia? não mexe no saldo agora (só quando a fatura fechar),
+      // mas a pessoa quer saber que a compra aconteceu — daí a bolinha cinza neutra
+      const cardPurchaseToday = occ.some(o => o.formaPagamento);
 
       const numEl = document.createElement('div');
       numEl.className = 'daynum';
-      numEl.textContent = day;
+      const numText = document.createElement('span');
+      numText.textContent = day;
+      numEl.appendChild(numText);
+      if (cardPurchaseToday){
+        const cpDot = document.createElement('span');
+        cpDot.className = 'card-purchase-dot';
+        cpDot.title = 'teve compra no cartão nesse dia (não mexe no saldo até a fatura fechar)';
+        numEl.appendChild(cpDot);
+      }
       cell.appendChild(numEl);
 
       if (faturaPendenteHoje){
@@ -1573,7 +1597,7 @@
         updateLabel.title = 'A data de pagamento da fatura já passou e você ainda não disse se pagou';
         updateLabel.addEventListener('click', (e) => {
           e.stopPropagation();
-          openFaturaPagamentoModal(alvo.cardId, alvo.cycleEnd);
+          openFaturaDetalheModal(alvo.cardId, alvo.cycleEnd);
         });
         cell.appendChild(updateLabel);
       }
@@ -1691,11 +1715,32 @@
           payBtn.textContent = 'Pagar cartão';
           payBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            openFaturaPagamentoModal(o.cardId, o.cycleEnd);
+            openFaturaDetalheModal(o.cardId, o.cycleEnd);
           });
           right.appendChild(payBtn);
         }
       } else {
+        // qualquer lançamento (avulso ou recorrente) pode ser reeditado direto daqui — valor, data,
+        // descrição, forma de pagamento etc. — sem precisar apagar e recriar (o que faria perder o
+        // vínculo/histórico dele) só pra corrigir um dado errado
+        const editBtn = document.createElement('button');
+        editBtn.className = 'icon-btn';
+        editBtn.setAttribute('aria-label','Editar');
+        editBtn.textContent = '✎';
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (o.recorrente){
+            const rec = getRecById(o.recId);
+            if (!rec) return;
+            if (rec.kind === 'parcelado') openParceladoModal(rec);
+            else if (rec.kind === 'assinatura') openAssinModal(rec);
+            else openRecurModal(rec);
+          } else {
+            openOneModal(o.data, o);
+          }
+        });
+        right.appendChild(editBtn);
+
         const del = document.createElement('button');
         del.className = 'icon-btn';
         del.setAttribute('aria-label','Remover');
@@ -1966,7 +2011,7 @@
 
   function showFaturaPendingPromptIfAny(){
     const pending = getPendingInvoices().filter(inv => !state.faturaPromptSeen[faturaKey(inv.cardId, inv.cycleEnd)]);
-    if (pending.length > 0) openFaturaPagamentoModal(pending[0].cardId, pending[0].cycleEnd);
+    if (pending.length > 0) openFaturaDetalheModal(pending[0].cardId, pending[0].cycleEnd);
   }
 
   /* ---------------- mutations ---------------- */
@@ -2083,10 +2128,11 @@
       updateOneFormaPagamentoVisibility(editItem.tipo);
     } else {
       $('#oneModalTitle').textContent = 'Novo lançamento';
-      setSeg($('#oneSeg'), 'entrada');
+      // a maioria dos lançamentos avulsos do dia a dia é despesa, não receita — então abre já em "Saída"
+      setSeg($('#oneSeg'), 'saida');
       $('#oneData').value = prefillDate || state.selectedDate;
       populateFormaPagamentoSelect('#oneFormaPagamento', '');
-      updateOneFormaPagamentoVisibility('entrada');
+      updateOneFormaPagamentoVisibility('saida');
     }
     openOverlay('#overlayOne');
     $('#oneDesc').focus();
@@ -2253,6 +2299,8 @@
 
   // pop-up com o detalhe completo da fatura: cada compra que entra nela (com data e valor),
   // o quanto veio de fatura anterior não paga, e o total — aberto ao clicar na linha "Fatura {cartão}"
+  // pop-up único da fatura: registrar se pagou (ou não) em cima, e embaixo a lista de compras que
+  // compõem o total, só pra consulta — tudo no mesmo lugar, sem precisar navegar entre dois pop-ups
   function openFaturaDetalheModal(cardId, cycleEnd){
     const card = getCardById(cardId);
     if (!card) return;
@@ -2262,6 +2310,23 @@
 
     $('#faturaDetTitle').textContent = `Fatura ${card.nome}`;
     $('#faturaDetPeriodo').textContent = `período ${fmtDateShort(cycleStart)} a ${fmtDateShort(cycleEnd)} · vencimento ${fmtDateFull(paymentISO)}`;
+    $('#faturaDetCardId').value = cardId;
+    $('#faturaDetCycleEnd').value = cycleEnd;
+    $('#faturaDetValorPago').value = '';
+
+    const pagamentoBox = $('#faturaDetPagamentoBox');
+    const pagaNota = $('#faturaDetPagaNota');
+    if (det.pendente > 0.005){
+      pagamentoBox.hidden = false;
+      pagaNota.hidden = true;
+      let info = `Falta pagar ${fmtBRL(det.pendente)} de ${fmtBRL(det.devido)} no total.`;
+      if (det.pago > 0.005) info = `Já confirmado ${fmtBRL(det.pago)} de ${fmtBRL(det.devido)} · falta ${fmtBRL(det.pendente)}.`;
+      if (det.carryIn > 0.005) info += ` Inclui ${fmtBRL(det.carryIn)} que ficou pendente da fatura anterior.`;
+      $('#faturaDetPagInfo').textContent = info;
+    } else {
+      pagamentoBox.hidden = true;
+      pagaNota.hidden = det.devido <= 0.005;
+    }
 
     const wrap = $('#faturaDetList');
     wrap.innerHTML = '';
@@ -2298,55 +2363,33 @@
     }
 
     $('#faturaDetTotal').textContent = fmtBRL(det.devido);
-    const payBtn = $('#faturaDetPagarBtn');
-    if (det.pendente > 0.005){
-      payBtn.style.display = '';
-      payBtn.onclick = () => { closeOverlay('#overlayFaturaDetalhe'); openFaturaPagamentoModal(cardId, cycleEnd); };
-    } else {
-      payBtn.style.display = 'none';
-    }
-
-    openOverlay('#overlayFaturaDetalhe');
-  }
-
-  function openFaturaPagamentoModal(cardId, cycleEnd){
-    const card = getCardById(cardId);
-    if (!card) return;
-    const det = faturaDetalhe(card, cycleEnd);
-    $('#faturaPagTitle').textContent = `Pagamento da fatura · ${card.nome}`;
-    let info = `Total ${fmtBRL(det.pendente)} · período de ${fmtDateShort(det.cycleStart)} a ${fmtDateShort(det.cycleEnd)}.`;
-    if (det.pago > 0.005) info += ` (já confirmado ${fmtBRL(det.pago)} de ${fmtBRL(det.devido)} no total)`;
-    if (det.carryIn > 0.005) info += ` Inclui ${fmtBRL(det.carryIn)} que ficou pendente da fatura anterior.`;
-    $('#faturaPagInfo').textContent = info;
-    $('#faturaPagCardId').value = cardId;
-    $('#faturaPagCycleEnd').value = cycleEnd;
-    $('#faturaValorPago').value = '';
     markFaturaPromptSeen(cardId, cycleEnd);
-    openOverlay('#overlayFaturaPagamento');
+    openOverlay('#overlayFaturaDetalhe');
   }
 
   function registrarPagamentoFatura(cardId, cycleEnd, valor){
     if (!(valor > 0)) return;
     state.faturaPagamentos.push({ id: nextId(), cardId, cycleEnd, valorPago: valor, data: todayISO });
-    closeOverlay('#overlayFaturaPagamento');
+    closeOverlay('#overlayFaturaDetalhe');
     renderAll();
   }
 
-  $('#faturaPagouTudoBtn').addEventListener('click', () => {
-    const cardId = $('#faturaPagCardId').value;
-    const cycleEnd = $('#faturaPagCycleEnd').value;
+  $('#faturaDetPagouTudoBtn').addEventListener('click', () => {
+    const cardId = $('#faturaDetCardId').value;
+    const cycleEnd = $('#faturaDetCycleEnd').value;
     const card = getCardById(cardId);
     if (!card) return;
     const det = faturaDetalhe(card, cycleEnd);
     registrarPagamentoFatura(cardId, cycleEnd, det.pendente);
   });
-  $('#faturaValorPagoBtn').addEventListener('click', () => {
-    const valor = parseFloat($('#faturaValorPago').value);
+  $('#faturaDetValorPagoBtn').addEventListener('click', () => {
+    const valor = parseFloat($('#faturaDetValorPago').value);
     if (isNaN(valor) || valor <= 0) return;
-    registrarPagamentoFatura($('#faturaPagCardId').value, $('#faturaPagCycleEnd').value, valor);
+    registrarPagamentoFatura($('#faturaDetCardId').value, $('#faturaDetCycleEnd').value, valor);
   });
-  $('#faturaNaoPagueiBtn').addEventListener('click', () => {
-    closeOverlay('#overlayFaturaPagamento');
+  $('#faturaDetNaoPagueiBtn').addEventListener('click', () => {
+    markFaturaPromptSeen($('#faturaDetCardId').value, $('#faturaDetCycleEnd').value);
+    closeOverlay('#overlayFaturaDetalhe');
     renderAll();
   });
 

@@ -2133,11 +2133,43 @@
   /* ---------------- mutations ---------------- */
   let lastDeleted = null;
 
+  // depois de apagar ou editar um lançamento que estava marcado num cartão (por exemplo, porque a
+  // pessoa escolheu o cartão errado na hora de lançar), confere TODOS os ciclos desse cartão que já
+  // têm algum pagamento confirmado e, pra cada um, verifica se o valor já pago ficou maior do que o
+  // que realmente ainda está lançado nele. Se ficou, desfaz o excesso do pagamento automaticamente —
+  // começando pelo mais recente — devolvendo essa diferença pro saldo atual, já que aquele dinheiro
+  // não deveria continuar descontado por causa de um lançamento que nem existe mais.
+  function reconcileFaturaPagamentos(cardId){
+    if (!cardId) return;
+    const card = getCardById(cardId);
+    if (!card) return; // cartão apagado é tratado à parte, em removeCartao
+    const cycleEnds = Array.from(new Set(state.faturaPagamentos.filter(p => p.cardId === cardId).map(p => p.cycleEnd)));
+    for (const cycleEnd of cycleEnds){
+      const det = faturaDetalhe(card, cycleEnd);
+      const devidoAtual = Math.max(0, det.devido);
+      let excesso = pagoParaCiclo(cardId, cycleEnd) - devidoAtual;
+      if (excesso <= 0.005) continue;
+      for (let i = state.faturaPagamentos.length - 1; i >= 0 && excesso > 0.005; i--){
+        const p = state.faturaPagamentos[i];
+        if (p.cardId !== cardId || p.cycleEnd !== cycleEnd) continue;
+        if (p.valorPago <= excesso + 0.005){
+          excesso -= p.valorPago;
+          state.faturaPagamentos.splice(i, 1);
+        } else {
+          p.valorPago -= excesso;
+          excesso = 0;
+        }
+      }
+    }
+  }
+
   function removeOneTime(id, desc){
     const idx = state.oneTime.findIndex(t=>t.id===id);
     if (idx===-1) return;
-    lastDeleted = { type:'oneTime', item: state.oneTime[idx] };
+    const item = state.oneTime[idx];
+    lastDeleted = { type:'oneTime', item };
     state.oneTime.splice(idx,1);
+    reconcileFaturaPagamentos(item.formaPagamento);
     renderAll();
     showToast(`"${desc}" removido.`);
   }
@@ -2161,8 +2193,10 @@
   function removeRecurrente(id, desc, fromDayList){
     const idx = state.recorrentes.findIndex(r=>r.id===id);
     if (idx===-1) return;
-    lastDeleted = { type:'recorrente', item: state.recorrentes[idx] };
+    const item = state.recorrentes[idx];
+    lastDeleted = { type:'recorrente', item };
     state.recorrentes.splice(idx,1);
+    reconcileFaturaPagamentos(item.formaPagamento);
     renderAll();
     showToast(`Recorrência "${desc}" removida.`);
   }
@@ -2567,7 +2601,11 @@
     if (!desc || isNaN(valor) || !data) return;
     if (editId){
       const t = state.oneTime.find(x=>x.id===editId);
-      if (t){ t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.formaPagamento=formaPagamento; }
+      if (t){
+        const cartaoAntigo = t.formaPagamento;
+        t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.formaPagamento=formaPagamento;
+        reconcileFaturaPagamentos(cartaoAntigo);
+      }
     } else {
       state.oneTime.push({ id: nextId(), tipo, desc, valor, data, formaPagamento });
       state.selectedDate = data;
@@ -2608,7 +2646,11 @@
     if (!desc || isNaN(valor) || !dataInicio) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
-      if (r){ r.tipo=tipo; r.desc=desc; r.valor=valor; r.dia=dia; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dataFim=dataFim; r.formaPagamento=formaPagamento; }
+      if (r){
+        const cartaoAntigo = r.formaPagamento;
+        r.tipo=tipo; r.desc=desc; r.valor=valor; r.dia=dia; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        reconcileFaturaPagamentos(cartaoAntigo);
+      }
     } else {
       state.recorrentes.push({ id: nextId(), kind:'fixa', tipo, desc, valor, dia, intervalMeses, dataInicio, dataFim, formaPagamento });
     }
@@ -2630,7 +2672,11 @@
     if (!desc || isNaN(valor) || isNaN(dia) || !dataInicio) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
-      if (r){ r.desc=desc; r.valor=valor; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento; }
+      if (r){
+        const cartaoAntigo = r.formaPagamento;
+        r.desc=desc; r.valor=valor; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        reconcileFaturaPagamentos(cartaoAntigo);
+      }
     } else {
       state.recorrentes.push({ id: nextId(), kind:'assinatura', tipo:'saida', desc, valor, dia, intervalMeses, dataInicio, dataFim, formaPagamento });
     }
@@ -2652,7 +2698,11 @@
     const dataFim = addMonthsISO(dataInicio, (numParcelas-1)*intervalMeses);
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
-      if (r){ r.desc=desc; r.valor=valor; r.numParcelas=numParcelas; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento; }
+      if (r){
+        const cartaoAntigo = r.formaPagamento;
+        r.desc=desc; r.valor=valor; r.numParcelas=numParcelas; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        reconcileFaturaPagamentos(cartaoAntigo);
+      }
     } else {
       state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, intervalMeses, numParcelas, dataInicio, dataFim, formaPagamento });
     }

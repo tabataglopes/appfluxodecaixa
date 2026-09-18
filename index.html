@@ -412,6 +412,7 @@
       <button class="btn" id="openContasBtn"><i class="swatch out" style="vertical-align:middle; margin-right:6px;"></i>Contas fixas</button>
       <button class="btn" id="openReceitasBtn"><i class="swatch in" style="vertical-align:middle; margin-right:6px;"></i>Receitas fixas</button>
       <button class="btn" id="openAssinBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>Assinaturas</button>
+      <button class="btn" id="openParceladosBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Parcelados</button>
       <button class="btn" id="openCartoesBtn">🚩 Cartões</button>
       <div class="base-chip" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
         <span class="lbl">Saldo em conta inicial <span id="baseDateLbl" class="mono"></span>:</span>
@@ -581,6 +582,18 @@
       <button class="btn primary small" id="addReceitaFixaBtn">+ Nova receita fixa</button>
     </div>
     <div class="recur-list" id="receitasFixasList"></div>
+  </div>
+</div>
+
+<!-- Modal: lista de compras parceladas -->
+<div class="overlay" id="overlayParceladosList" hidden>
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-close" data-close="overlayParceladosList" aria-label="Fechar">&times;</button>
+    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
+      <h3 style="margin:0;">Compras parceladas</h3>
+      <button class="btn primary small" id="addParceladoBtn">+ Nova compra parcelada</button>
+    </div>
+    <div class="recur-list" id="parceladosList"></div>
   </div>
 </div>
 
@@ -769,6 +782,40 @@
   </div>
 </div>
 
+<!-- Modal: compra parcelada -->
+<div class="overlay" id="overlayParcelado" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close="overlayParcelado" aria-label="Fechar">&times;</button>
+    <h3 id="parceladoModalTitle">Nova compra parcelada</h3>
+    <form id="parceladoForm">
+      <div class="field">
+        <label for="parceladoDesc">O que foi comprado</label>
+        <input type="text" id="parceladoDesc" placeholder="Ex.: Geladeira, celular, viagem..." required>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="parceladoValor">Valor da parcela (R$)</label>
+          <input type="number" step="0.01" min="0" id="parceladoValor" class="mono" placeholder="0,00" required>
+        </div>
+        <div class="field">
+          <label for="parceladoQtd">Quantidade de parcelas</label>
+          <input type="number" min="1" max="60" id="parceladoQtd" class="mono" placeholder="Ex.: 12" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="parceladoInicio">Pagamento a partir de</label>
+        <input type="date" id="parceladoInicio" required>
+      </div>
+      <p id="parceladoResumo" style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;"></p>
+      <input type="hidden" id="parceladoEditId">
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="overlayParcelado">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Modal: saldo em conta inicial -->
 <div class="overlay" id="overlayBase" hidden>
   <div class="modal" style="max-width:360px;">
@@ -812,9 +859,18 @@
     dt.setDate(dt.getDate()+n);
     return toISO(dt.getFullYear(), dt.getMonth(), dt.getDate());
   };
+  const addMonthsISO = (iso, n) => {
+    const [y,m,d] = iso.split('-').map(Number);
+    const totalM = (m-1) + n;
+    const ny = y + Math.floor(totalM/12);
+    const nm = ((totalM % 12) + 12) % 12;
+    const nd = Math.min(d, daysInMonth(ny, nm));
+    return toISO(ny, nm, nd);
+  };
   const fmtBRL = v => v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
   const fmtDateShort = iso => { const [y,m,d]=iso.split('-'); return `${d}/${m}`; };
   const fmtDateFull = iso => { const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
+  const fmtMonthYear = iso => { const [y,m]=iso.split('-'); return `${m}/${y}`; };
   const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const WEEKDAY_FULL = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   let idCounter = 1;
@@ -1409,8 +1465,15 @@
         }
       } else if (o.recorrente){
         const rec = getRecById(o.recId);
-        const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : 'conta fixa';
-        meta.textContent = `${kindLabel} · ${freqLabel(rec ? rec.intervalMeses : 1)} · dia ${iso.split('-')[2]}`;
+        if (rec && rec.kind === 'parcelado'){
+          const [sy, sm] = rec.dataInicio.split('-').map(Number);
+          const [yy, mm] = iso.split('-').map(Number);
+          const parcelaAtual = Math.min(rec.numParcelas, Math.max(1, (yy*12+mm) - (sy*12+sm) + 1));
+          meta.textContent = `compra parcelada · parcela ${parcelaAtual} de ${rec.numParcelas}`;
+        } else {
+          const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : 'conta fixa';
+          meta.textContent = `${kindLabel} · ${freqLabel(rec ? rec.intervalMeses : 1)} · dia ${iso.split('-')[2]}`;
+        }
       } else if (o.formaPagamento){
         const card = getCardById(o.formaPagamento);
         const cardName = card ? card.nome : 'cartão removido';
@@ -1505,13 +1568,16 @@
     const assinWrap = $('#assinaturasList');
     const contasWrap = $('#contasFixasList');
     const receitasWrap = $('#receitasFixasList');
+    const parceladosWrap = $('#parceladosList');
     assinWrap.innerHTML = '';
     contasWrap.innerHTML = '';
     receitasWrap.innerHTML = '';
+    parceladosWrap.innerHTML = '';
 
     const assinaturas = state.recorrentes.filter(r=>r.kind==='assinatura').sort((a,b)=>a.dia-b.dia);
-    const contas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.tipo==='saida').sort((a,b)=>a.dia-b.dia);
-    const receitas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.tipo==='entrada').sort((a,b)=>a.dia-b.dia);
+    const contas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='saida').sort((a,b)=>a.dia-b.dia);
+    const receitas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='entrada').sort((a,b)=>a.dia-b.dia);
+    const parcelados = state.recorrentes.filter(r=>r.kind==='parcelado').sort((a,b)=>a.dataInicio.localeCompare(b.dataInicio));
 
     if (assinaturas.length===0){
       assinWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma assinatura cadastrada ainda.</div>';
@@ -1530,6 +1596,54 @@
     } else {
       for (const r of receitas) receitasWrap.appendChild(buildRecurRow(r));
     }
+
+    if (parcelados.length===0){
+      parceladosWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma compra parcelada em andamento.</div>';
+    } else {
+      for (const r of parcelados) parceladosWrap.appendChild(buildParceladoRow(r));
+    }
+  }
+
+  function buildParceladoRow(r){
+    const row = document.createElement('div');
+    row.className = 'recur-row';
+    const info = document.createElement('div');
+    info.className = 'info';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = r.desc;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const [sy, sm] = r.dataInicio.split('-').map(Number);
+    const [ty, tm] = todayISO.split('-').map(Number);
+    const diffMeses = (ty*12+tm) - (sy*12+sm);
+    const parcelaAtual = Math.min(r.numParcelas, Math.max(0, diffMeses + 1));
+    const statusParcela = parcelaAtual < 1
+      ? `começa em ${fmtMonthYear(r.dataInicio)}`
+      : `parcela ${parcelaAtual} de ${r.numParcelas}`;
+    meta.textContent = `${statusParcela} · ${fmtBRL(r.valor)}/mês · até ${fmtMonthYear(r.dataFim)}`;
+    info.appendChild(name); info.appendChild(meta);
+    row.appendChild(info);
+
+    const amt = document.createElement('div');
+    amt.className = 'amt mono out';
+    amt.textContent = '- ' + fmtBRL(r.valor);
+    row.appendChild(amt);
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn small';
+    editBtn.textContent = 'Editar';
+    editBtn.addEventListener('click', () => openParceladoModal(r));
+    const delBtn = document.createElement('button');
+    delBtn.className = 'icon-btn';
+    delBtn.setAttribute('aria-label','Remover');
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => removeRecurrente(r.id, r.desc, false));
+    actions.appendChild(editBtn); actions.appendChild(delBtn);
+    row.appendChild(actions);
+    return row;
   }
 
   function buildCartaoRow(c){
@@ -1838,6 +1952,38 @@
     $('#assinDesc').focus();
   }
 
+  function updateParceladoResumo(){
+    const valor = parseFloat($('#parceladoValor').value);
+    const qtd = parseInt($('#parceladoQtd').value, 10);
+    const inicio = $('#parceladoInicio').value;
+    const el = $('#parceladoResumo');
+    if (!isNaN(valor) && !isNaN(qtd) && qtd>0 && inicio){
+      const fim = addMonthsISO(inicio, qtd-1);
+      el.textContent = `${qtd}x de ${fmtBRL(valor)} = total de ${fmtBRL(valor*qtd)} · última parcela em ${fmtMonthYear(fim)}`;
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  function openParceladoModal(editItem){
+    $('#parceladoForm').reset();
+    $('#parceladoEditId').value = '';
+    if (editItem){
+      $('#parceladoModalTitle').textContent = 'Editar compra parcelada';
+      $('#parceladoDesc').value = editItem.desc;
+      $('#parceladoValor').value = editItem.valor;
+      $('#parceladoQtd').value = editItem.numParcelas;
+      $('#parceladoInicio').value = editItem.dataInicio;
+      $('#parceladoEditId').value = editItem.id;
+    } else {
+      $('#parceladoModalTitle').textContent = 'Nova compra parcelada';
+      $('#parceladoInicio').value = todayISO;
+    }
+    updateParceladoResumo();
+    openOverlay('#overlayParcelado');
+    $('#parceladoDesc').focus();
+  }
+
   function openBaseModal(mandatory){
     $('#baseValor').value = mandatory ? '' : state.saldoInicial.toFixed(2);
     $('#baseData').value = mandatory ? todayISO : state.dataBase;
@@ -1919,11 +2065,16 @@
   $('#addContaFixaBtn').addEventListener('click', ()=> openRecurModal(null, 'saida'));
   $('#addReceitaFixaBtn').addEventListener('click', ()=> openRecurModal(null, 'entrada'));
   $('#addAssinaturaBtn').addEventListener('click', ()=> openAssinModal(null));
+  $('#addParceladoBtn').addEventListener('click', ()=> openParceladoModal(null));
   $('#addCartaoBtn').addEventListener('click', ()=> openCartaoModal(null));
   $('#openContasBtn').addEventListener('click', ()=> openOverlay('#overlayContasList'));
   $('#openReceitasBtn').addEventListener('click', ()=> openOverlay('#overlayReceitasList'));
   $('#openAssinBtn').addEventListener('click', ()=> openOverlay('#overlayAssinList'));
+  $('#openParceladosBtn').addEventListener('click', ()=> openOverlay('#overlayParceladosList'));
   $('#openCartoesBtn').addEventListener('click', ()=> openOverlay('#overlayCartoesList'));
+  $('#parceladoValor').addEventListener('input', updateParceladoResumo);
+  $('#parceladoQtd').addEventListener('input', updateParceladoResumo);
+  $('#parceladoInicio').addEventListener('input', updateParceladoResumo);
   $('#btnEntradasMes').addEventListener('click', ()=> openMesDetalheModal('entrada'));
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
   $('#tileCartoesCard').addEventListener('click', ()=> {
@@ -2009,6 +2160,26 @@
       state.recorrentes.push({ id: nextId(), kind:'assinatura', tipo:'saida', desc, valor, dia, intervalMeses, dataInicio, dataFim });
     }
     closeOverlay('#overlayAssin');
+    renderAll();
+  });
+
+  $('#parceladoForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const desc = $('#parceladoDesc').value.trim();
+    const valor = parseFloat($('#parceladoValor').value);
+    const numParcelas = Math.max(1, parseInt($('#parceladoQtd').value, 10));
+    const dataInicio = $('#parceladoInicio').value;
+    const editId = $('#parceladoEditId').value;
+    if (!desc || isNaN(valor) || isNaN(numParcelas) || !dataInicio) return;
+    const dia = Number(dataInicio.split('-')[2]);
+    const dataFim = addMonthsISO(dataInicio, numParcelas-1);
+    if (editId){
+      const r = state.recorrentes.find(x=>x.id===editId);
+      if (r){ r.desc=desc; r.valor=valor; r.numParcelas=numParcelas; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; }
+    } else {
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, intervalMeses:1, numParcelas, dataInicio, dataFim });
+    }
+    closeOverlay('#overlayParcelado');
     renderAll();
   });
 

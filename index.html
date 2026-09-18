@@ -505,7 +505,14 @@
     border:1px solid var(--border); border-radius:20px; padding:5px 8px 5px 12px; background:var(--surface);
   }
   .user-chip[hidden]{ display:none; }
-  .user-chip .user-email{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .user-chip .user-name-wrap{ display:flex; align-items:center; gap:3px; cursor:pointer; max-width:170px; min-width:0; }
+  .user-chip .user-name-wrap:hover .user-name{ text-decoration:underline; }
+  .user-chip .user-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .user-chip .user-name-wrap .edit-icon{ font-size:11px; color:var(--ink-muted); flex-shrink:0; }
+  .user-chip .user-name-input{
+    width:120px; border:1px solid var(--border); border-radius:6px; padding:2px 6px; font-size:13px;
+    background:var(--bg); color:var(--ink); font-family:inherit;
+  }
   .user-chip .sync-status{ font-size:11px; color:var(--ink-muted); white-space:nowrap; }
   .user-chip button{
     border:none; background:var(--surface-2); color:var(--ink); font-size:12px; font-weight:600;
@@ -547,7 +554,11 @@
         <span class="edit-icon" aria-hidden="true">&#9998;</span>
       </div>
       <div class="user-chip" id="userChip" hidden>
-        <span class="user-email" id="userEmailLbl"></span>
+        <span class="user-name-wrap" id="userNameWrap" title="Clique para mudar seu nome de exibição">
+          <span class="user-name" id="userNameLbl"></span>
+          <span class="edit-icon" aria-hidden="true">&#9998;</span>
+        </span>
+        <input type="text" class="user-name-input" id="userNameInput" maxlength="40" hidden>
         <span class="sync-status" id="syncStatus"></span>
         <button type="button" id="logoutBtn">Sair</button>
       </div>
@@ -1071,6 +1082,7 @@
     cartoes: [],
     faturaPagamentos: [],
     faturaPromptSeen: {},
+    nomeExibicao: '',
     view: { year: now.getFullYear(), month: now.getMonth() },
     selectedDate: todayISO,
     viewMode: 'month',
@@ -2666,6 +2678,7 @@
       cartoes: state.cartoes,
       faturaPagamentos: state.faturaPagamentos,
       faturaPromptSeen: state.faturaPromptSeen,
+      nomeExibicao: state.nomeExibicao || '',
     };
   }
 
@@ -2704,13 +2717,20 @@
     }
   }
 
+  // nome que vem pronto da conta Google (nome de exibição do perfil) — usado só como sugestão
+  // inicial; a pessoa pode trocar por qualquer nome que quiser clicando em cima dele
+  function googleDisplayName(session){
+    const meta = session && session.user && session.user.user_metadata;
+    return (meta && (meta.full_name || meta.name)) || (session && session.user && session.user.email) || '';
+  }
+
   async function showApp(session){
     currentUserId = (session && session.user && session.user.id) || null;
     $('#authGate').hidden = true;
     const chip = $('#userChip');
     if (chip){
       chip.hidden = false;
-      $('#userEmailLbl').textContent = (session && session.user && session.user.email) || '';
+      $('#userNameLbl').textContent = state.nomeExibicao || googleDisplayName(session);
     }
     if (!appStarted){
       appStarted = true;
@@ -2728,6 +2748,8 @@
         }
         loadingFromCloud = false;
       }
+      if (!state.nomeExibicao) state.nomeExibicao = googleDisplayName(session);
+      $('#userNameLbl').textContent = state.nomeExibicao;
       $('#authLoading').hidden = true;
       $('#appShell').hidden = false;
       startApp();
@@ -2777,6 +2799,29 @@
     const logoutBtn = $('#logoutBtn');
     if (logoutBtn) logoutBtn.addEventListener('click', async () => {
       await sbClient.auth.signOut();
+    });
+
+    // clicar no nome (ao lado do lápis) deixa trocar por qualquer nome de exibição — fica
+    // salvo na nuvem junto com o resto dos dados dessa conta
+    $('#userNameWrap').addEventListener('click', () => {
+      const input = $('#userNameInput');
+      input.value = state.nomeExibicao || $('#userNameLbl').textContent;
+      $('#userNameWrap').hidden = true;
+      input.hidden = false;
+      input.focus();
+      input.select();
+    });
+    $('#userNameInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') $('#userNameInput').blur();
+    });
+    $('#userNameInput').addEventListener('blur', () => {
+      const input = $('#userNameInput');
+      const val = input.value.trim();
+      if (val) state.nomeExibicao = val;
+      $('#userNameLbl').textContent = state.nomeExibicao || '';
+      input.hidden = true;
+      $('#userNameWrap').hidden = false;
+      schedulePersist();
     });
   }
 })();

@@ -144,8 +144,7 @@
   .swatch.past{ background:var(--surface-2); border:1px solid var(--border); }
 
   /* ---------- summary tiles ---------- */
-  .tiles{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
-  @media (max-width:900px){ .tiles{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .tiles{ display:grid; grid-template-columns:minmax(0,1.8fr) minmax(0,1fr); gap:12px; }
   @media (max-width:680px){ .tiles{ grid-template-columns:1fr; } }
   .tile{
     background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 18px;
@@ -156,12 +155,50 @@
   .tile .val{ font-size:clamp(18px, 5.5vw, 24px); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); }
   .tile .sub{ font-size:12px; color:var(--ink-muted); }
 
-  .tile.atual{ background:var(--tile-balance-bg); border-color:transparent; }
   #tileCartoesCard:hover{ border-color:var(--accent); }
 
-  .tile.balance{ transition:background .15s ease; }
-  .tile.balance.pos{ background:var(--cal-ok-bg); border-color:transparent; }
-  .tile.balance.neg{ background:var(--cal-negative-bg); border-color:transparent; }
+  /* ---------- saldo atual + saldo projetado combinados, com barrinhas comparativas ---------- */
+  .tile.balance-combo{ display:flex; flex-direction:row; align-items:stretch; padding:0; gap:0; overflow:hidden; }
+  .bc-half{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; padding:16px 16px; }
+  .bc-half.atual{ background:var(--tile-balance-bg); }
+  .bc-half.projetado{ transition:background .15s ease; }
+  .bc-half.projetado.pos{ background:var(--cal-ok-bg); }
+  .bc-half.projetado.neg{ background:var(--cal-negative-bg); }
+  .bc-half .lbl{
+    font-family:"Fraunces", Georgia, serif; font-weight:600; font-size:15px; color:var(--ink);
+    text-transform:none; letter-spacing:normal;
+  }
+  .bc-half .val{
+    font-size:clamp(17px, 4.6vw, 20px); font-weight:600; font-family:"JetBrains Mono", ui-monospace, monospace;
+    font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink);
+  }
+  .bc-half .val.pos{ color:var(--income); }
+  .bc-half .val.neg{ color:var(--expense); }
+  .bc-half .sub{ font-size:11.5px; color:var(--ink-muted); line-height:1.3; }
+
+  .bc-mid{
+    flex-shrink:0; width:70px; display:flex; align-items:flex-end; justify-content:center;
+    padding:10px 0 16px; position:relative; background:var(--surface);
+  }
+  .bc-mid .bc-dash{
+    position:absolute; top:10px; bottom:10px; left:50%; width:0;
+    border-left:2px dashed var(--border);
+  }
+  .bc-mid .bc-baseline{
+    position:absolute; bottom:16px; left:8px; right:8px; height:0;
+    border-top:2px solid var(--ink-muted); opacity:0.55;
+  }
+  .bc-bar-slot{ width:20px; height:56px; display:flex; align-items:flex-end; }
+  .bc-bar-slot.left{ margin-right:2px; justify-content:flex-end; }
+  .bc-bar-slot.right{ margin-left:2px; justify-content:flex-start; }
+  .bc-bar{ width:20px; border-radius:4px 4px 0 0; position:relative; z-index:1; transition:height .15s ease; }
+  .bc-bar.pos{ background:var(--income); }
+  .bc-bar.neg{ background:var(--expense); }
+  @media (max-width:480px){
+    .bc-mid{ width:52px; }
+    .bc-bar-slot{ width:16px; }
+    .bc-bar{ width:16px; }
+  }
 
   .tile.inout{ flex-direction:row; padding:0; gap:0; overflow:hidden; }
   .tile.inout .inout-half{
@@ -423,15 +460,23 @@
   </div>
 
   <div class="tiles">
-    <div class="tile atual">
-      <span class="lbl">Saldo atual <span class="lbl-note">(parte pode já estar comprometida)</span></span>
-      <span class="val mono" id="tileAtual">R$ 0,00</span>
-      <span class="sub" id="tileAtualSub">&nbsp;</span>
-    </div>
-    <div class="tile balance">
-      <span class="lbl">Saldo projetado <span class="lbl-note">(até fim do mês)</span></span>
-      <span class="val mono" id="tileBal">R$ 0,00</span>
-      <span class="sub" id="tileBalSub" title="Saldo de referência + tudo que entra e sai até essa data">&nbsp;</span>
+    <div class="tile balance-combo">
+      <div class="bc-half atual">
+        <span class="lbl">Saldo atual</span>
+        <span class="val mono" id="tileAtual">R$ 0,00</span>
+        <span class="sub" id="tileAtualSub">&nbsp;</span>
+      </div>
+      <div class="bc-mid">
+        <div class="bc-dash"></div>
+        <div class="bc-baseline"></div>
+        <div class="bc-bar-slot left"><div class="bc-bar pos" id="bcBarAtual" style="height:0px;"></div></div>
+        <div class="bc-bar-slot right"><div class="bc-bar pos" id="bcBarProj" style="height:0px;"></div></div>
+      </div>
+      <div class="bc-half projetado" id="bcProjetadoHalf" title="Saldo de referência + tudo que entra e sai até essa data">
+        <span class="lbl">Saldo projetado</span>
+        <span class="val mono" id="tileBal">R$ 0,00</span>
+        <span class="sub" id="tileBalSub">&nbsp;</span>
+      </div>
     </div>
     <div class="tile" id="tileCartoesCard" style="cursor:pointer;">
       <span class="lbl">Acumulado nos cartões até hoje</span>
@@ -1307,6 +1352,35 @@
     $('#baseValLbl').textContent = fmtBRL(state.saldoInicial);
   }
 
+  // barrinhas comparativas do card "saldo atual + projetado": a barra do atual só aparece
+  // quando ele é positivo (some quando fica negativo — o número vermelho já avisa sozinho);
+  // já a barra do projetado aparece sempre, verde ou vermelha, porque é a mais importante do visual
+  function updateSaldoBars(atualBal, projBal){
+    const barAtual = $('#bcBarAtual');
+    const barProj = $('#bcBarProj');
+    const MAXH = 56;
+    const atualPos = atualBal >= 0;
+    const projPos = projBal >= 0;
+
+    barProj.className = 'bc-bar ' + (projPos ? 'pos' : 'neg');
+
+    if (!atualPos){
+      barAtual.style.display = 'none';
+      barProj.style.height = MAXH + 'px';
+    } else {
+      barAtual.style.display = '';
+      barAtual.className = 'bc-bar pos';
+      const maxAbs = Math.max(Math.abs(atualBal), Math.abs(projBal));
+      if (maxAbs < 0.005){
+        barAtual.style.height = '3px';
+        barProj.style.height = '3px';
+      } else {
+        barAtual.style.height = Math.max(3, MAXH * (Math.abs(atualBal)/maxAbs)) + 'px';
+        barProj.style.height = Math.max(3, MAXH * (Math.abs(projBal)/maxAbs)) + 'px';
+      }
+    }
+  }
+
   function renderTiles(){
     const occ = occurrencesInMonth(state.view.year, state.view.month);
     let totalIn=0, totalOut=0;
@@ -1315,16 +1389,23 @@
     $('#tileOut').textContent = fmtBRL(totalOut);
 
     const atualBal = saldoRealAt(todayISO);
-    $('#tileAtual').textContent = fmtBRL(atualBal);
-    $('#tileAtualSub').textContent = `hoje · ${fmtDateFull(todayISO)}`;
+    const tileAtualEl = $('#tileAtual');
+    tileAtualEl.textContent = fmtBRL(atualBal);
+    tileAtualEl.classList.toggle('neg', atualBal<0);
+    tileAtualEl.classList.toggle('pos', atualBal>=0);
+    $('#tileAtualSub').textContent = 'hoje (parte pode já estar comprometida)';
 
     const lastDay = toISO(state.view.year, state.view.month, daysInMonth(state.view.year, state.view.month));
     const bal = balanceAt(lastDay);
-    const tileBalCard = document.querySelector('.tile.balance');
-    $('#tileBal').textContent = fmtBRL(bal);
-    tileBalCard.classList.toggle('neg', bal<0);
-    tileBalCard.classList.toggle('pos', bal>=0);
-    $('#tileBalSub').textContent = `em ${fmtDateFull(lastDay)} · projeção`;
+    const tileBalEl = $('#tileBal');
+    tileBalEl.textContent = fmtBRL(bal);
+    tileBalEl.classList.toggle('neg', bal<0);
+    tileBalEl.classList.toggle('pos', bal>=0);
+    $('#bcProjetadoHalf').classList.toggle('neg', bal<0);
+    $('#bcProjetadoHalf').classList.toggle('pos', bal>=0);
+    $('#tileBalSub').textContent = `projeção até dia ${fmtDateShort(lastDay)}`;
+
+    updateSaldoBars(atualBal, bal);
 
     const acumuladoCartoes = totalAcumuladoCartoes();
     $('#tileCartoes').textContent = fmtBRL(acumuladoCartoes);

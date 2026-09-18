@@ -392,6 +392,25 @@
   .recur-row .actions{ display:flex; gap:6px; }
   .recur-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
 
+  /* ---------- detalhe da fatura (lista de compras que compõem o total) ---------- */
+  .fatura-list{ display:flex; flex-direction:column; gap:0; margin-bottom:6px; max-height:50vh; overflow-y:auto; }
+  .fatura-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .fatura-row:last-child{ border-bottom:none; }
+  .fatura-row .desc{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .fatura-row .desc .name{ font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fatura-row .desc .meta{ font-size:11.5px; color:var(--ink-muted); }
+  .fatura-row .amt{ font-size:13.5px; font-weight:600; white-space:nowrap; color:var(--expense); font-family:"JetBrains Mono", monospace; font-variant-numeric:tabular-nums; }
+  .fatura-row.carry .desc .name{ color:var(--ink-muted); font-weight:500; font-style:italic; }
+  .fatura-total{
+    display:flex; align-items:center; justify-content:space-between; padding:12px 0 4px; margin-top:4px;
+    border-top:1px solid var(--border);
+  }
+  .fatura-total .lbl{ font-size:14px; font-weight:700; }
+  .fatura-total .amt{ font-size:17px; font-weight:700; color:var(--expense); font-family:"JetBrains Mono", monospace; font-variant-numeric:tabular-nums; }
+
   /* ---------- modal ---------- */
   .overlay{
     position:fixed; inset:0; background:rgba(16,21,15,0.45); display:flex; align-items:center; justify-content:center;
@@ -698,6 +717,24 @@
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal: detalhe da fatura (cada compra que compõe o total) -->
+<div class="overlay" id="overlayFaturaDetalhe" hidden>
+  <div class="modal" style="max-width:420px;">
+    <button class="modal-close" data-close="overlayFaturaDetalhe" aria-label="Fechar">&times;</button>
+    <h3 id="faturaDetTitle" style="margin-bottom:4px;">Fatura</h3>
+    <p id="faturaDetPeriodo" style="font-size:12.5px; color:var(--ink-muted); margin:0 0 16px;"></p>
+    <div class="fatura-list" id="faturaDetList"></div>
+    <div class="fatura-total">
+      <span class="lbl">Total da fatura</span>
+      <span class="amt" id="faturaDetTotal">R$ 0,00</span>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close="overlayFaturaDetalhe">Fechar</button>
+      <button type="button" class="btn primary" id="faturaDetPagarBtn">Pagar cartão</button>
+    </div>
   </div>
 </div>
 
@@ -1154,6 +1191,14 @@
   // compras já lançadas até hoje — usado pro tile "acumulado até hoje". Pra fatura oficial (calendário,
   // detalhe do dia, pop-up de pagamento) isso fica false: conta o ciclo inteiro, já que quando o
   // pagamento dela chegar o ciclo já vai estar fechado de qualquer forma.
+  //
+  // IMPORTANTE: só vira carryIn da fatura seguinte o que ficou pendente numa fatura cujo dia de
+  // pagamento JÁ PASSOU. Antes do dia de pagamento chegar, a pessoa ainda nem teve chance de pagar —
+  // então "pago = 0" só significa "ainda não venceu", não "não pagou" — e por isso não pode ser
+  // arrastado pra frente. Sem essa checagem, cada parcela nova ficava se somando às anteriores mês
+  // após mês mesmo estando tudo em dia (ex.: compra 10x de R$100 mostrando R$200 no 2º mês, R$300 no
+  // 3º, etc.), quando cada fatura deveria mostrar só a sua própria parcela + o resto do cartão daquele
+  // ciclo, a não ser que uma fatura anterior realmente tenha vencido sem ser paga (ou paga só em parte).
   function cardLedgerThrough(card, targetCycleEnd, capLastAtToday){
     const cyclesWithP = cyclesWithPurchases(card);
     if (cyclesWithP.length === 0) return [];
@@ -1180,7 +1225,8 @@
       const pago = pagoParaCiclo(card.id, cycleEnd);
       const pendente = devido - pago;
       ledger.push({ cardId: card.id, cardName: card.nome, cycleStart, cycleEnd, paymentISO, devido, pago, pendente, carryIn: carry });
-      carry = pendente;
+      // só arrasta pra fatura seguinte depois que o dia de pagamento desta já passou de fato
+      carry = (paymentISO <= todayISO) ? pendente : 0;
     }
     return ledger;
   }
@@ -1625,6 +1671,11 @@
       }
       desc.appendChild(name); desc.appendChild(meta);
       row.appendChild(desc);
+
+      if (o.isInvoice){
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openFaturaDetalheModal(o.cardId, o.cycleEnd));
+      }
 
       const right = document.createElement('div');
       right.style.display='flex'; right.style.alignItems='center'; right.style.gap='8px';
@@ -2167,6 +2218,95 @@
     }
     openOverlay('#overlayCartao');
     $('#cartaoNome').focus();
+  }
+
+  // lista, com descrição e data, cada compra (avulsa ou recorrente) lançada nesse cartão dentro do
+  // período do ciclo — é o que dá pra pessoa ver exatamente o que compõe o total da fatura
+  function faturaPurchaseItems(card, cycleStart, cycleEnd){
+    const items = [];
+    for (const t of state.oneTime){
+      if (t.formaPagamento === card.id && t.data >= cycleStart && t.data <= cycleEnd){
+        items.push({ desc: t.desc, data: t.data, valor: t.valor, meta: 'lançamento único' });
+      }
+    }
+    for (const r of state.recorrentes){
+      if (r.formaPagamento !== card.id) continue;
+      for (const o of occurrencesForRecInRange(r, cycleStart, cycleEnd)){
+        let meta;
+        if (r.kind === 'parcelado'){
+          const [sy, sm] = r.dataInicio.split('-').map(Number);
+          const [yy, mm] = o.data.split('-').map(Number);
+          const interval = r.intervalMeses || 1;
+          const parcelaAtual = Math.min(r.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
+          meta = `parcela ${parcelaAtual} de ${r.numParcelas}`;
+        } else if (r.kind === 'assinatura'){
+          meta = 'assinatura';
+        } else {
+          meta = 'conta fixa';
+        }
+        items.push({ desc: o.desc, data: o.data, valor: o.valor, meta });
+      }
+    }
+    items.sort((a,b) => a.data.localeCompare(b.data));
+    return items;
+  }
+
+  // pop-up com o detalhe completo da fatura: cada compra que entra nela (com data e valor),
+  // o quanto veio de fatura anterior não paga, e o total — aberto ao clicar na linha "Fatura {cartão}"
+  function openFaturaDetalheModal(cardId, cycleEnd){
+    const card = getCardById(cardId);
+    if (!card) return;
+    const cycleStart = cycleStartForClosing(card, cycleEnd);
+    const det = faturaDetalhe(card, cycleEnd);
+    const paymentISO = paymentDateForClosing(card, cycleEnd);
+
+    $('#faturaDetTitle').textContent = `Fatura ${card.nome}`;
+    $('#faturaDetPeriodo').textContent = `período ${fmtDateShort(cycleStart)} a ${fmtDateShort(cycleEnd)} · vencimento ${fmtDateFull(paymentISO)}`;
+
+    const wrap = $('#faturaDetList');
+    wrap.innerHTML = '';
+
+    if (det.carryIn > 0.005){
+      const row = document.createElement('div');
+      row.className = 'fatura-row carry';
+      const desc = document.createElement('div'); desc.className = 'desc';
+      const name = document.createElement('div'); name.className = 'name'; name.textContent = 'Saldo não pago da fatura anterior';
+      const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = 'rolou da fatura anterior';
+      desc.appendChild(name); desc.appendChild(meta);
+      row.appendChild(desc);
+      const amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtBRL(det.carryIn);
+      row.appendChild(amt);
+      wrap.appendChild(row);
+    }
+
+    const items = faturaPurchaseItems(card, cycleStart, cycleEnd);
+    if (items.length === 0 && det.carryIn <= 0.005){
+      wrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma compra lançada nesse período.</div>';
+    } else {
+      for (const it of items){
+        const row = document.createElement('div');
+        row.className = 'fatura-row';
+        const desc = document.createElement('div'); desc.className = 'desc';
+        const name = document.createElement('div'); name.className = 'name'; name.textContent = it.desc;
+        const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `${it.meta} · ${fmtDateFull(it.data)}`;
+        desc.appendChild(name); desc.appendChild(meta);
+        row.appendChild(desc);
+        const amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtBRL(it.valor);
+        row.appendChild(amt);
+        wrap.appendChild(row);
+      }
+    }
+
+    $('#faturaDetTotal').textContent = fmtBRL(det.devido);
+    const payBtn = $('#faturaDetPagarBtn');
+    if (det.pendente > 0.005){
+      payBtn.style.display = '';
+      payBtn.onclick = () => { closeOverlay('#overlayFaturaDetalhe'); openFaturaPagamentoModal(cardId, cycleEnd); };
+    } else {
+      payBtn.style.display = 'none';
+    }
+
+    openOverlay('#overlayFaturaDetalhe');
   }
 
   function openFaturaPagamentoModal(cardId, cycleEnd){

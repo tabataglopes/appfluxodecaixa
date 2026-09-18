@@ -519,6 +519,11 @@
     padding:5px 10px; border-radius:14px; cursor:pointer; font-family:'Public Sans', sans-serif;
   }
   .user-chip button:hover{ background:var(--border); }
+  .user-chip .danger-link{
+    background:transparent; color:var(--ink-muted); font-size:11.5px; font-weight:500;
+    padding:5px 4px; border-radius:6px; text-decoration:underline; text-underline-offset:2px;
+  }
+  .user-chip .danger-link:hover{ background:transparent; color:var(--expense); }
 </style>
 <div class="auth-gate" id="authLoading" hidden>
   <p class="auth-loading-text">Carregando…</p>
@@ -561,6 +566,7 @@
         <input type="text" class="user-name-input" id="userNameInput" maxlength="40" hidden>
         <span class="sync-status" id="syncStatus"></span>
         <button type="button" id="logoutBtn">Sair</button>
+        <button type="button" class="danger-link" id="deleteAccountBtn" title="Excluir permanentemente sua conta e todos os seus dados">Excluir conta</button>
       </div>
     </div>
   </div>
@@ -843,6 +849,27 @@
     </div>
     <input type="hidden" id="faturaDetCardId">
     <input type="hidden" id="faturaDetCycleEnd">
+  </div>
+</div>
+
+<!-- Modal: excluir conta e dados (só existe quando há login com Google/Supabase) -->
+<div class="overlay" id="overlayDeleteAccount" hidden>
+  <div class="modal" style="max-width:420px;">
+    <button class="modal-close" data-close="overlayDeleteAccount" aria-label="Fechar">&times;</button>
+    <h3 style="color:var(--expense); margin-bottom:10px;">Excluir conta e dados</h3>
+    <p style="font-size:13.5px; color:var(--ink-muted); margin:0 0 16px;">
+      Isso vai apagar <strong>permanentemente</strong> sua conta e todos os lançamentos, cartões e saldos
+      cadastrados no Maré. Não tem como desfazer nem recuperar depois.
+    </p>
+    <div class="field">
+      <label for="deleteConfirmInput">Pra confirmar, escreva EXCLUIR no campo abaixo</label>
+      <input type="text" id="deleteConfirmInput" placeholder="EXCLUIR" autocomplete="off">
+    </div>
+    <p class="auth-error" id="deleteAccountError" hidden></p>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close="overlayDeleteAccount">Cancelar</button>
+      <button type="button" class="btn" id="confirmDeleteAccountBtn" style="background:var(--expense); border-color:var(--expense); color:#fff;">Excluir permanentemente</button>
+    </div>
   </div>
 </div>
 
@@ -2811,6 +2838,37 @@
     const logoutBtn = $('#logoutBtn');
     if (logoutBtn) logoutBtn.addEventListener('click', async () => {
       await sbClient.auth.signOut();
+    });
+
+    // excluir conta: apaga a conta de login (auth.users) via função no banco, que por sua vez
+    // arrasta junto (on delete cascade) a linha de dados salvos dessa pessoa em user_data
+    $('#deleteAccountBtn').addEventListener('click', () => {
+      $('#deleteConfirmInput').value = '';
+      $('#deleteAccountError').hidden = true;
+      openOverlay('#overlayDeleteAccount');
+    });
+    $('#confirmDeleteAccountBtn').addEventListener('click', async () => {
+      const val = $('#deleteConfirmInput').value.trim().toUpperCase();
+      if (val !== 'EXCLUIR'){
+        $('#deleteAccountError').textContent = 'Escreva EXCLUIR (em maiúsculas) pra confirmar.';
+        $('#deleteAccountError').hidden = false;
+        return;
+      }
+      const btn = $('#confirmDeleteAccountBtn');
+      btn.disabled = true;
+      btn.textContent = 'Excluindo…';
+      try {
+        const { error } = await sbClient.rpc('delete_own_account');
+        if (error) throw error;
+        await sbClient.auth.signOut();
+        location.reload();
+      } catch(e){
+        console.error('Falha ao excluir conta:', e);
+        $('#deleteAccountError').textContent = 'Não foi possível excluir sua conta agora. Tente de novo em instantes.';
+        $('#deleteAccountError').hidden = false;
+        btn.disabled = false;
+        btn.textContent = 'Excluir permanentemente';
+      }
     });
 
     // clicar no nome (ao lado do lápis) deixa trocar por qualquer nome de exibição — fica

@@ -1229,7 +1229,16 @@
     const cycleStart = cycleStartForClosing(card, closingISO);
     const paymentISO = paymentDateForClosing(card, closingISO);
     const raw = sumCardPurchases(card.id, cycleStart, closingISO);
-    return { cardId: card.id, cardName: card.nome, cycleStart, cycleEnd: closingISO, data: paymentISO, raw };
+    // se a pessoa já confirmou (Paguei tudo/parte) um valor pago MAIOR do que essa soma sozinha —
+    // porque o pagamento incluiu saldo arrastado de uma fatura anterior não paga, ou porque alguma
+    // compra foi editada/apagada depois de a fatura já ter sido paga — usa o valor realmente pago.
+    // Sem isso, o saldo projetado "esquece" um dinheiro que já saiu de verdade da conta (fica maior
+    // do que o saldo atual, que sempre reflete os pagamentos confirmados).
+    // "raw" é negativo (saída) e "pago" é um valor positivo — por isso comparamos com -pago, e
+    // ficamos com o que representa a SAÍDA MAIOR (o número mais negativo dos dois)
+    const pago = pagoParaCiclo(card.id, closingISO);
+    const raw2 = Math.min(raw, -pago);
+    return { cardId: card.id, cardName: card.nome, cycleStart, cycleEnd: closingISO, data: paymentISO, raw: raw2 };
   }
 
   // todas as faturas (de todos os cartões) cujo ciclo passa pelos meses entre loISO e hiISO

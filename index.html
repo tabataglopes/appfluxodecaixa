@@ -152,6 +152,7 @@
     box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; min-width:0;
   }
   .tile .lbl{ font-size:12.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.04em; }
+  .tile .lbl .lbl-note{ text-transform:lowercase; }
   .tile .val{ font-size:clamp(18px, 5.5vw, 24px); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); }
   .tile .sub{ font-size:12px; color:var(--ink-muted); }
 
@@ -404,11 +405,12 @@
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       <button class="btn" id="toggleViewBtn">Visão anual</button>
-      <button class="btn" id="openFixasBtn">Contas/Receitas fixas</button>
+      <button class="btn" id="openContasBtn">Contas fixas</button>
+      <button class="btn" id="openReceitasBtn">Receitas fixas</button>
       <button class="btn" id="openAssinBtn">Assinaturas</button>
       <button class="btn" id="openCartoesBtn">Cartões</button>
       <div class="base-chip" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
-        <span class="lbl">Saldo de referência <span id="baseDateLbl" class="mono"></span>:</span>
+        <span class="lbl">Saldo em conta inicial <span id="baseDateLbl" class="mono"></span>:</span>
         <span class="val mono" id="baseValLbl"></span>
         <span class="edit-icon" aria-hidden="true">&#9998;</span>
       </div>
@@ -417,12 +419,12 @@
 
   <div class="tiles">
     <div class="tile atual">
-      <span class="lbl">Saldo atual</span>
+      <span class="lbl">Saldo atual <span class="lbl-note">(parte pode estar comprometida)</span></span>
       <span class="val mono" id="tileAtual">R$ 0,00</span>
       <span class="sub" id="tileAtualSub">&nbsp;</span>
     </div>
     <div class="tile balance">
-      <span class="lbl">Saldo projetado (fim do mês)</span>
+      <span class="lbl">Saldo projetado <span class="lbl-note">(até fim do mês)</span></span>
       <span class="val mono" id="tileBal">R$ 0,00</span>
       <span class="sub" id="tileBalSub" title="Saldo de referência + tudo que entra e sai até essa data">&nbsp;</span>
     </div>
@@ -457,11 +459,9 @@
     </div>
 
     <div class="sidebar">
-      <div class="card day-detail">
-        <h2>Gastos/Receitas Avulsas (não recorrentes)</h2>
-        <p class="date-title" id="dayTitle">Selecione um dia</p>
-        <div id="dayList"></div>
-        <div class="tile inout" style="margin:14px 0;">
+      <div class="card month-summary">
+        <h2>Entradas e saídas do mês</h2>
+        <div class="tile inout" style="margin-top:12px;">
           <div class="inout-half in">
             <span class="lbl">Entradas</span>
             <span class="val mono" id="tileIn">R$ 0,00</span>
@@ -474,6 +474,12 @@
             <span class="sub">do mês</span>
           </div>
         </div>
+      </div>
+
+      <div class="card day-detail">
+        <h2>Gastos/Receitas Avulsas (não recorrentes)</h2>
+        <p class="date-title" id="dayTitle">Selecione um dia</p>
+        <div id="dayList"></div>
         <div class="add-row">
           <button class="btn primary block" id="addOneTimeBtn">+ Novo lançamento</button>
         </div>
@@ -549,15 +555,27 @@
   </div>
 </div>
 
-<!-- Modal: lista de contas/receitas fixas -->
-<div class="overlay" id="overlayFixasList" hidden>
+<!-- Modal: lista de contas fixas -->
+<div class="overlay" id="overlayContasList" hidden>
   <div class="modal" style="max-width:480px;">
-    <button class="modal-close" data-close="overlayFixasList" aria-label="Fechar">&times;</button>
+    <button class="modal-close" data-close="overlayContasList" aria-label="Fechar">&times;</button>
     <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
-      <h3 style="margin:0;">Contas/Receitas fixas</h3>
+      <h3 style="margin:0;">Contas fixas</h3>
       <button class="btn primary small" id="addContaFixaBtn">+ Nova conta fixa</button>
     </div>
     <div class="recur-list" id="contasFixasList"></div>
+  </div>
+</div>
+
+<!-- Modal: lista de receitas fixas -->
+<div class="overlay" id="overlayReceitasList" hidden>
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-close" data-close="overlayReceitasList" aria-label="Fechar">&times;</button>
+    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
+      <h3 style="margin:0;">Receitas fixas</h3>
+      <button class="btn primary small" id="addReceitaFixaBtn">+ Nova receita fixa</button>
+    </div>
+    <div class="recur-list" id="receitasFixasList"></div>
   </div>
 </div>
 
@@ -639,13 +657,7 @@
     <button class="modal-close" data-close="overlayRecur" aria-label="Fechar">&times;</button>
     <h3 id="recurModalTitle">Nova conta fixa</h3>
     <form id="recurForm">
-      <div class="field">
-        <label>Tipo</label>
-        <div class="seg" id="recurSeg">
-          <button type="button" data-tipo="saida" class="active">Saída</button>
-          <button type="button" data-tipo="entrada">Entrada</button>
-        </div>
-      </div>
+      <input type="hidden" id="recurTipo" value="saida">
       <div class="field">
         <label for="recurDesc">Descrição</label>
         <input type="text" id="recurDesc" placeholder="Ex.: Aluguel, salário, internet..." required>
@@ -707,6 +719,12 @@
           <input type="number" step="0.01" min="0" id="assinValor" class="mono" placeholder="0,00" required>
         </div>
         <div class="field">
+          <label for="assinDia">Dia da cobrança</label>
+          <input type="number" min="1" max="31" id="assinDia" class="mono" placeholder="1-31" required>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
           <label for="assinFreq">Frequência</label>
           <select id="assinFreq">
             <option value="1">Mensal</option>
@@ -717,11 +735,17 @@
             <option value="12">Anual</option>
           </select>
         </div>
+        <div class="field">
+          <label for="assinInicio">Cobra a partir de</label>
+          <input type="date" id="assinInicio" required>
+        </div>
       </div>
       <div class="field">
-        <label for="assinInicio">Data em que começa</label>
-        <input type="date" id="assinInicio" required>
+        <label for="assinFim">Termina em</label>
+        <input type="date" id="assinFim">
       </div>
+      <label class="checkrow"><input type="checkbox" id="assinSemFim" checked> Sem data de término (repete indefinidamente)</label>
+      <p style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;">Ex.: cobra todo dia 2, mas se você ganhou 1 mês grátis, escolha "cobra a partir de" o dia 2 do mês que vem.</p>
       <input type="hidden" id="assinEditId">
       <div class="modal-actions">
         <button type="button" class="btn" data-close="overlayAssin">Cancelar</button>
@@ -731,14 +755,15 @@
   </div>
 </div>
 
-<!-- Modal: saldo de referência -->
+<!-- Modal: saldo em conta inicial -->
 <div class="overlay" id="overlayBase" hidden>
   <div class="modal" style="max-width:360px;">
-    <button class="modal-close" data-close="overlayBase" aria-label="Fechar">&times;</button>
-    <h3>Ajustar saldo de referência</h3>
+    <button class="modal-close" data-close="overlayBase" id="baseModalClose" aria-label="Fechar">&times;</button>
+    <h3 id="baseModalTitle">Ajustar saldo em conta inicial</h3>
+    <p id="baseModalIntro" hidden style="font-size:13.5px; color:var(--ink-muted); margin:0 0 14px;">Para começar, escreva o saldo em conta disponível hoje. É a partir desse valor que o Maré calcula todo resto.</p>
     <form id="baseForm">
       <div class="field">
-        <label for="baseValor">Saldo atual (R$)</label>
+        <label for="baseValor">Saldo em conta (R$)</label>
         <input type="number" step="0.01" id="baseValor" class="mono" required>
       </div>
       <div class="field">
@@ -746,7 +771,7 @@
         <input type="date" id="baseData" required>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn" data-close="overlayBase">Cancelar</button>
+        <button type="button" class="btn" id="baseModalCancel" data-close="overlayBase">Cancelar</button>
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
@@ -787,6 +812,7 @@
   /* ---------------- state ---------------- */
   const state = {
     saldoInicial: 0.00,
+    saldoDefinido: false,
     dataBase: todayISO,
     oneTime: [],
     recorrentes: [],
@@ -1396,9 +1422,9 @@
     name.textContent = r.desc;
     const meta = document.createElement('div');
     meta.className = 'meta';
-    const periodo = r.kind === 'assinatura'
-      ? `desde ${fmtDateFull(r.dataInicio)}`
-      : (r.dataFim ? `de ${fmtDateFull(r.dataInicio)} até ${fmtDateFull(r.dataFim)}` : `desde ${fmtDateFull(r.dataInicio)} · sem término`);
+    const periodo = r.dataFim
+      ? `de ${fmtDateFull(r.dataInicio)} até ${fmtDateFull(r.dataFim)}`
+      : `desde ${fmtDateFull(r.dataInicio)} · sem término`;
     meta.textContent = `todo dia ${r.dia} · ${freqLabel(r.intervalMeses)} · ${periodo}`;
     info.appendChild(name); info.appendChild(meta);
     row.appendChild(info);
@@ -1428,12 +1454,15 @@
 
   function renderRecurLists(){
     const assinWrap = $('#assinaturasList');
-    const fixaWrap = $('#contasFixasList');
+    const contasWrap = $('#contasFixasList');
+    const receitasWrap = $('#receitasFixasList');
     assinWrap.innerHTML = '';
-    fixaWrap.innerHTML = '';
+    contasWrap.innerHTML = '';
+    receitasWrap.innerHTML = '';
 
     const assinaturas = state.recorrentes.filter(r=>r.kind==='assinatura').sort((a,b)=>a.dia-b.dia);
-    const fixas = state.recorrentes.filter(r=>r.kind!=='assinatura').sort((a,b)=>a.dia-b.dia);
+    const contas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.tipo==='saida').sort((a,b)=>a.dia-b.dia);
+    const receitas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.tipo==='entrada').sort((a,b)=>a.dia-b.dia);
 
     if (assinaturas.length===0){
       assinWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma assinatura cadastrada ainda.</div>';
@@ -1441,10 +1470,16 @@
       for (const r of assinaturas) assinWrap.appendChild(buildRecurRow(r));
     }
 
-    if (fixas.length===0){
-      fixaWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma conta fixa cadastrada ainda.</div>';
+    if (contas.length===0){
+      contasWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma conta fixa cadastrada ainda.</div>';
     } else {
-      for (const r of fixas) fixaWrap.appendChild(buildRecurRow(r));
+      for (const r of contas) contasWrap.appendChild(buildRecurRow(r));
+    }
+
+    if (receitas.length===0){
+      receitasWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma receita fixa cadastrada ainda.</div>';
+    } else {
+      for (const r of receitas) receitasWrap.appendChild(buildRecurRow(r));
     }
   }
 
@@ -1632,14 +1667,18 @@
   function openOverlay(id){ $(id).hidden = false; }
   function closeOverlay(id){ $(id).hidden = true; }
 
+  // enquanto o saldo em conta inicial não foi definido, o pop-up correspondente não pode ser
+  // fechado por fora (nem pelo X, backdrop ou Esc) — a pessoa precisa preencher um valor
+  function podeFechar(id){ return id !== 'overlayBase' || state.saldoDefinido; }
+
   document.querySelectorAll('[data-close]').forEach(btn=>{
-    btn.addEventListener('click', () => closeOverlay('#'+btn.dataset.close));
+    btn.addEventListener('click', () => { if (podeFechar(btn.dataset.close)) closeOverlay('#'+btn.dataset.close); });
   });
   document.querySelectorAll('.overlay').forEach(ov=>{
-    ov.addEventListener('click', e => { if (e.target===ov) ov.hidden = true; });
+    ov.addEventListener('click', e => { if (e.target===ov && podeFechar(ov.id)) ov.hidden = true; });
   });
   document.addEventListener('keydown', e => {
-    if (e.key==='Escape') document.querySelectorAll('.overlay').forEach(o=>o.hidden=true);
+    if (e.key==='Escape') document.querySelectorAll('.overlay').forEach(o=>{ if (podeFechar(o.id)) o.hidden = true; });
   });
 
   function setSeg(container, tipo){
@@ -1672,10 +1711,6 @@
     }
   });
 
-  $('#recurSeg').addEventListener('click', e=>{
-    if (e.target.tagName==='BUTTON'){ setSeg($('#recurSeg'), e.target.dataset.tipo); }
-  });
-
   function openOneModal(prefillDate, editItem){
     $('#oneForm').reset();
     $('#oneEditId').value = '';
@@ -1699,12 +1734,12 @@
     $('#oneDesc').focus();
   }
 
-  function openRecurModal(editItem){
+  function openRecurModal(editItem, forcedTipo){
     $('#recurForm').reset();
     $('#recurEditId').value = '';
     if (editItem){
-      $('#recurModalTitle').textContent = 'Editar conta fixa';
-      setSeg($('#recurSeg'), editItem.tipo);
+      $('#recurModalTitle').textContent = editItem.tipo === 'entrada' ? 'Editar receita fixa' : 'Editar conta fixa';
+      $('#recurTipo').value = editItem.tipo;
       $('#recurDesc').value = editItem.desc;
       $('#recurValor').value = editItem.valor;
       $('#recurDia').value = editItem.dia;
@@ -1715,8 +1750,9 @@
       $('#recurFim').disabled = !editItem.dataFim;
       $('#recurEditId').value = editItem.id;
     } else {
-      $('#recurModalTitle').textContent = 'Nova conta fixa';
-      setSeg($('#recurSeg'), 'saida');
+      const tipo = forcedTipo || 'saida';
+      $('#recurModalTitle').textContent = tipo === 'entrada' ? 'Nova receita fixa' : 'Nova conta fixa';
+      $('#recurTipo').value = tipo;
       $('#recurFreq').value = '1';
       $('#recurInicio').value = todayISO;
       $('#recurSemFim').checked = true;
@@ -1734,16 +1770,34 @@
       $('#assinModalTitle').textContent = 'Editar assinatura';
       $('#assinDesc').value = editItem.desc;
       $('#assinValor').value = editItem.valor;
+      $('#assinDia').value = editItem.dia;
       $('#assinFreq').value = String(editItem.intervalMeses || 1);
       $('#assinInicio').value = editItem.dataInicio;
+      $('#assinFim').value = editItem.dataFim || '';
+      $('#assinSemFim').checked = !editItem.dataFim;
+      $('#assinFim').disabled = !editItem.dataFim;
       $('#assinEditId').value = editItem.id;
     } else {
       $('#assinModalTitle').textContent = 'Nova assinatura';
       $('#assinFreq').value = '1';
       $('#assinInicio').value = todayISO;
+      $('#assinSemFim').checked = true;
+      $('#assinFim').disabled = true;
+      $('#assinFim').value = '';
     }
     openOverlay('#overlayAssin');
     $('#assinDesc').focus();
+  }
+
+  function openBaseModal(mandatory){
+    $('#baseValor').value = mandatory ? '' : state.saldoInicial.toFixed(2);
+    $('#baseData').value = mandatory ? todayISO : state.dataBase;
+    $('#baseModalTitle').textContent = mandatory ? 'Saldo em conta inicial' : 'Ajustar saldo em conta inicial';
+    $('#baseModalIntro').hidden = !mandatory;
+    $('#baseModalClose').style.display = mandatory ? 'none' : '';
+    $('#baseModalCancel').style.display = mandatory ? 'none' : '';
+    openOverlay('#overlayBase');
+    $('#baseValor').focus();
   }
 
   function openCartaoModal(editItem){
@@ -1807,12 +1861,18 @@
     $('#recurFim').disabled = e.target.checked;
     if (e.target.checked) $('#recurFim').value = '';
   });
+  $('#assinSemFim').addEventListener('change', e=>{
+    $('#assinFim').disabled = e.target.checked;
+    if (e.target.checked) $('#assinFim').value = '';
+  });
 
   $('#addOneTimeBtn').addEventListener('click', ()=> openOneModal(state.selectedDate, null));
-  $('#addContaFixaBtn').addEventListener('click', ()=> openRecurModal(null));
+  $('#addContaFixaBtn').addEventListener('click', ()=> openRecurModal(null, 'saida'));
+  $('#addReceitaFixaBtn').addEventListener('click', ()=> openRecurModal(null, 'entrada'));
   $('#addAssinaturaBtn').addEventListener('click', ()=> openAssinModal(null));
   $('#addCartaoBtn').addEventListener('click', ()=> openCartaoModal(null));
-  $('#openFixasBtn').addEventListener('click', ()=> openOverlay('#overlayFixasList'));
+  $('#openContasBtn').addEventListener('click', ()=> openOverlay('#overlayContasList'));
+  $('#openReceitasBtn').addEventListener('click', ()=> openOverlay('#overlayReceitasList'));
   $('#openAssinBtn').addEventListener('click', ()=> openOverlay('#overlayAssinList'));
   $('#openCartoesBtn').addEventListener('click', ()=> openOverlay('#overlayCartoesList'));
   $('#tileCartoesCard').addEventListener('click', ()=> {
@@ -1860,7 +1920,7 @@
 
   $('#recurForm').addEventListener('submit', e=>{
     e.preventDefault();
-    const tipo = $('#recurSeg').querySelector('.active').dataset.tipo;
+    const tipo = $('#recurTipo').value || 'saida';
     const desc = $('#recurDesc').value.trim();
     const valor = parseFloat($('#recurValor').value);
     const dia = Math.min(31, Math.max(1, parseInt($('#recurDia').value,10)));
@@ -1884,26 +1944,24 @@
     e.preventDefault();
     const desc = $('#assinDesc').value.trim();
     const valor = parseFloat($('#assinValor').value);
+    const dia = Math.min(31, Math.max(1, parseInt($('#assinDia').value,10)));
     const intervalMeses = parseInt($('#assinFreq').value, 10) || 1;
     const dataInicio = $('#assinInicio').value;
-    const dia = Number(dataInicio.split('-')[2]);
+    const semFim = $('#assinSemFim').checked;
+    const dataFim = semFim ? null : ($('#assinFim').value || null);
     const editId = $('#assinEditId').value;
-    if (!desc || isNaN(valor) || !dataInicio) return;
+    if (!desc || isNaN(valor) || isNaN(dia) || !dataInicio) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
-      if (r){ r.desc=desc; r.valor=valor; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; }
+      if (r){ r.desc=desc; r.valor=valor; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'assinatura', tipo:'saida', desc, valor, dia, intervalMeses, dataInicio, dataFim:null });
+      state.recorrentes.push({ id: nextId(), kind:'assinatura', tipo:'saida', desc, valor, dia, intervalMeses, dataInicio, dataFim });
     }
     closeOverlay('#overlayAssin');
     renderAll();
   });
 
-  $('#baseChip').addEventListener('click', ()=>{
-    $('#baseValor').value = state.saldoInicial.toFixed(2);
-    $('#baseData').value = state.dataBase;
-    openOverlay('#overlayBase');
-  });
+  $('#baseChip').addEventListener('click', ()=> openBaseModal(false));
   $('#baseForm').addEventListener('submit', e=>{
     e.preventDefault();
     const v = parseFloat($('#baseValor').value);
@@ -1911,6 +1969,7 @@
     if (isNaN(v) || !d) return;
     state.saldoInicial = v;
     state.dataBase = d;
+    state.saldoDefinido = true;
     closeOverlay('#overlayBase');
     renderAll();
   });
@@ -1943,6 +2002,7 @@
   });
 
   renderAll();
+  if (!state.saldoDefinido) openBaseModal(true);
 })();
 </script>
 

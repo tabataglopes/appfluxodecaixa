@@ -2347,8 +2347,10 @@
   }
 
   function openBaseModal(mandatory){
-    $('#baseValor').value = mandatory ? '' : state.saldoInicial.toFixed(2);
-    $('#baseData').value = mandatory ? todayISO : state.dataBase;
+    // no primeiro uso, já vem preenchido com um ponto de partida neutro (saldo 0 no dia 1 do mês
+    // atual) — a pessoa só ajusta se quiser um valor/data diferente, em vez de ter que digitar tudo
+    $('#baseValor').value = mandatory ? '0.00' : state.saldoInicial.toFixed(2);
+    $('#baseData').value = mandatory ? toISO(now.getFullYear(), now.getMonth(), 1) : state.dataBase;
     $('#baseModalTitle').textContent = mandatory ? 'Saldo em conta inicial' : 'Ajustar saldo em conta inicial';
     $('#baseModalIntro').hidden = !mandatory;
     $('#baseModalClose').style.display = mandatory ? 'none' : '';

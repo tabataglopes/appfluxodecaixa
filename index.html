@@ -427,6 +427,8 @@
     border-top:1px solid var(--border);
   }
   .fatura-total .lbl{ font-size:14px; font-weight:700; }
+  .fatura-total-sub{ font-size:11.5px; font-weight:600; color:var(--expense); margin-top:2px; }
+  .fatura-total-sub[hidden]{ display:none; }
   .fatura-total .amt{ font-size:17px; font-weight:700; color:var(--expense); font-family:"JetBrains Mono", monospace; font-variant-numeric:tabular-nums; }
 
   /* ---------- modal ---------- */
@@ -823,7 +825,6 @@
     <p id="faturaDetPeriodo" style="font-size:12.5px; color:var(--ink-muted); margin:0 0 16px;"></p>
 
     <div id="faturaDetPagamentoBox" style="margin-bottom:18px;">
-      <p id="faturaDetPagInfo" style="font-size:13px; color:var(--ink-muted); margin:0 0 10px;"></p>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <button type="button" class="btn block" id="faturaDetPagouTudoBtn">Paguei tudo</button>
         <button type="button" class="btn block" id="faturaDetNaoPagueiBtn">Não paguei</button>
@@ -835,13 +836,17 @@
           <button type="button" class="btn" style="height:38px;" id="faturaDetValorPagoBtn">Confirmar</button>
         </div>
       </div>
+      <p id="faturaDetPagInfo" style="font-size:13px; color:var(--ink-muted); margin:10px 0 0;"></p>
     </div>
     <p id="faturaDetPagaNota" hidden style="font-size:13px; color:var(--income); font-weight:600; margin:0 0 14px;">Fatura paga ✓</p>
 
     <h4 style="font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:14px; margin:0 0 8px;">Compras dessa fatura</h4>
     <div class="fatura-list" id="faturaDetList"></div>
     <div class="fatura-total">
-      <span class="lbl">Total da fatura</span>
+      <div>
+        <span class="lbl">Total da fatura</span>
+        <div class="fatura-total-sub" id="faturaDetPendenteLine" hidden></div>
+      </div>
       <span class="amt" id="faturaDetTotal">R$ 0,00</span>
     </div>
     <div class="modal-actions">
@@ -2481,6 +2486,13 @@
     }
 
     $('#faturaDetTotal').textContent = fmtBRL(det.devido);
+    const pendenteLine = $('#faturaDetPendenteLine');
+    if (det.pendente > 0.005){
+      pendenteLine.textContent = `falta pagar ${fmtBRL(det.pendente)}`;
+      pendenteLine.hidden = false;
+    } else {
+      pendenteLine.hidden = true;
+    }
     markFaturaPromptSeen(cardId, cycleEnd);
     openOverlay('#overlayFaturaDetalhe');
   }

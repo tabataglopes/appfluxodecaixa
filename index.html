@@ -146,6 +146,7 @@
   .swatch.ok{ background:var(--cal-ok-bg); border:1px solid var(--border); }
   .swatch.negative{ background:var(--cal-negative-bg); border:1px solid var(--border); }
   .swatch.past{ background:var(--surface-2); border:1px solid var(--border); }
+  .swatch.card-purchase{ background:#fdaa2e; border-radius:50%; }
 
   /* ---------- summary tiles ---------- */
   .tiles{ display:grid; grid-template-columns:minmax(0,1.8fr) minmax(0,1fr); gap:12px; }
@@ -293,19 +294,19 @@
   .cal-cell.selected{ border-color:var(--accent); box-shadow:inset 0 0 0 2px var(--accent); }
   .cal-cell .daynum{ font-size:12.5px; font-weight:700; color:var(--ink); opacity:1; }
   .cal-cell.today .daynum{ color:var(--accent-strong); opacity:1; }
-  /* bolinha cinza: houve compra no cartão nesse dia, mas ela não entra nem sai do saldo agora —
-     só quando a fatura fechar/pagar — por isso não pode ter cor de entrada/saída, só um sinal neutro */
+  /* bolinha laranja: houve compra no cartão nesse dia, mas ela não entra nem sai do saldo agora —
+     só quando a fatura fechar/pagar — por isso não tem cor de entrada/saída, é um sinal à parte */
   .cal-cell .card-purchase-dot{
     display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:5px;
-    background:#5b6b78; box-shadow:0 0 0 1.5px rgba(255,255,255,0.65); vertical-align:middle;
+    background:#fdaa2e; box-shadow:0 0 0 1.5px rgba(255,255,255,0.65); vertical-align:middle;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]) .cal-cell .card-purchase-dot{
-      background:#b7c2cc; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
+      background:#fdaa2e; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
     }
   }
   :root[data-theme="dark"] .cal-cell .card-purchase-dot{
-    background:#b7c2cc; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
+    background:#fdaa2e; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
   }
   .cal-cell .pills{ display:flex; flex-direction:column; gap:2px; margin-top:auto; }
   .pill{
@@ -613,6 +614,7 @@
         <span class="leg-item"><i class="swatch in"></i> entra</span>
         <span class="leg-item"><i class="swatch out"></i> sai</span>
         <span class="leg-item">🚩 pagamento do cartão</span>
+        <span class="leg-item"><i class="swatch card-purchase"></i> compra com cartão</span>
       </div>
       <div class="weekdays">
         <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>

@@ -798,13 +798,26 @@
           <input type="number" step="0.01" min="0" id="parceladoValor" class="mono" placeholder="0,00" required>
         </div>
         <div class="field">
-          <label for="parceladoQtd">Quantidade de parcelas</label>
-          <input type="number" min="1" max="60" id="parceladoQtd" class="mono" placeholder="Ex.: 12" required>
+          <label for="parceladoQtd">Em quantas parcelas</label>
+          <input type="number" min="1" max="60" id="parceladoQtd" class="mono" placeholder="Ex.: 10" required>
         </div>
       </div>
-      <div class="field">
-        <label for="parceladoInicio">Pagamento a partir de</label>
-        <input type="date" id="parceladoInicio" required>
+      <div class="row2">
+        <div class="field">
+          <label for="parceladoFreq">Frequência</label>
+          <select id="parceladoFreq">
+            <option value="1">Mensal</option>
+            <option value="2">A cada 2 meses</option>
+            <option value="3">A cada 3 meses</option>
+            <option value="4">A cada 4 meses</option>
+            <option value="6">A cada 6 meses</option>
+            <option value="12">Anual</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="parceladoInicio">Pagamento a partir de</label>
+          <input type="date" id="parceladoInicio" required>
+        </div>
       </div>
       <p id="parceladoResumo" style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;"></p>
       <input type="hidden" id="parceladoEditId">
@@ -932,6 +945,10 @@
 
   const FREQ_LABELS = { 1:'mensal', 2:'a cada 2 meses', 3:'a cada 3 meses', 4:'a cada 4 meses', 6:'a cada 6 meses', 12:'anual' };
   const freqLabel = n => FREQ_LABELS[n] || 'mensal';
+  // rótulo das parcelas no plural, de acordo com a frequência escolhida (ex.: "10 parcelas / mensais",
+  // "4 parcelas / anuais"); pras frequências de "a cada N meses" o próprio texto já funciona no plural
+  const PARCELA_FREQ_LABELS = { 1:'mensais', 2:'a cada 2 meses', 3:'a cada 3 meses', 4:'a cada 4 meses', 6:'a cada 6 meses', 12:'anuais' };
+  const parcelaFreqLabel = n => PARCELA_FREQ_LABELS[n] || 'mensais';
 
   const getRecById = id => state.recorrentes.find(r=>r.id===id);
   const getCardById = id => state.cartoes.find(c=>c.id===id);
@@ -1468,8 +1485,9 @@
         if (rec && rec.kind === 'parcelado'){
           const [sy, sm] = rec.dataInicio.split('-').map(Number);
           const [yy, mm] = iso.split('-').map(Number);
-          const parcelaAtual = Math.min(rec.numParcelas, Math.max(1, (yy*12+mm) - (sy*12+sm) + 1));
-          meta.textContent = `compra parcelada · parcela ${parcelaAtual} de ${rec.numParcelas}`;
+          const interval = rec.intervalMeses || 1;
+          const parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
+          meta.textContent = `compra parcelada · parcela ${parcelaAtual} de ${rec.numParcelas} (${parcelaFreqLabel(interval)})`;
         } else {
           const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : 'conta fixa';
           meta.textContent = `${kindLabel} · ${freqLabel(rec ? rec.intervalMeses : 1)} · dia ${iso.split('-')[2]}`;
@@ -1617,11 +1635,12 @@
     const [sy, sm] = r.dataInicio.split('-').map(Number);
     const [ty, tm] = todayISO.split('-').map(Number);
     const diffMeses = (ty*12+tm) - (sy*12+sm);
-    const parcelaAtual = Math.min(r.numParcelas, Math.max(0, diffMeses + 1));
+    const interval = r.intervalMeses || 1;
+    const parcelaAtual = Math.min(r.numParcelas, Math.max(0, Math.floor(diffMeses / interval) + 1));
     const statusParcela = parcelaAtual < 1
       ? `começa em ${fmtMonthYear(r.dataInicio)}`
       : `parcela ${parcelaAtual} de ${r.numParcelas}`;
-    meta.textContent = `${statusParcela} · ${fmtBRL(r.valor)}/mês · até ${fmtMonthYear(r.dataFim)}`;
+    meta.textContent = `${statusParcela} · ${r.numParcelas} parcelas / ${parcelaFreqLabel(interval)} · até ${fmtMonthYear(r.dataFim)}`;
     info.appendChild(name); info.appendChild(meta);
     row.appendChild(info);
 
@@ -1955,11 +1974,12 @@
   function updateParceladoResumo(){
     const valor = parseFloat($('#parceladoValor').value);
     const qtd = parseInt($('#parceladoQtd').value, 10);
+    const interval = parseInt($('#parceladoFreq').value, 10) || 1;
     const inicio = $('#parceladoInicio').value;
     const el = $('#parceladoResumo');
     if (!isNaN(valor) && !isNaN(qtd) && qtd>0 && inicio){
-      const fim = addMonthsISO(inicio, qtd-1);
-      el.textContent = `${qtd}x de ${fmtBRL(valor)} = total de ${fmtBRL(valor*qtd)} · última parcela em ${fmtMonthYear(fim)}`;
+      const fim = addMonthsISO(inicio, (qtd-1)*interval);
+      el.textContent = `${qtd} parcelas ${parcelaFreqLabel(interval)} de ${fmtBRL(valor)} = total de ${fmtBRL(valor*qtd)} · última parcela em ${fmtMonthYear(fim)}`;
     } else {
       el.textContent = '';
     }
@@ -1973,10 +1993,12 @@
       $('#parceladoDesc').value = editItem.desc;
       $('#parceladoValor').value = editItem.valor;
       $('#parceladoQtd').value = editItem.numParcelas;
+      $('#parceladoFreq').value = String(editItem.intervalMeses || 1);
       $('#parceladoInicio').value = editItem.dataInicio;
       $('#parceladoEditId').value = editItem.id;
     } else {
       $('#parceladoModalTitle').textContent = 'Nova compra parcelada';
+      $('#parceladoFreq').value = '1';
       $('#parceladoInicio').value = todayISO;
     }
     updateParceladoResumo();
@@ -2074,6 +2096,7 @@
   $('#openCartoesBtn').addEventListener('click', ()=> openOverlay('#overlayCartoesList'));
   $('#parceladoValor').addEventListener('input', updateParceladoResumo);
   $('#parceladoQtd').addEventListener('input', updateParceladoResumo);
+  $('#parceladoFreq').addEventListener('change', updateParceladoResumo);
   $('#parceladoInicio').addEventListener('input', updateParceladoResumo);
   $('#btnEntradasMes').addEventListener('click', ()=> openMesDetalheModal('entrada'));
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
@@ -2168,16 +2191,17 @@
     const desc = $('#parceladoDesc').value.trim();
     const valor = parseFloat($('#parceladoValor').value);
     const numParcelas = Math.max(1, parseInt($('#parceladoQtd').value, 10));
+    const intervalMeses = parseInt($('#parceladoFreq').value, 10) || 1;
     const dataInicio = $('#parceladoInicio').value;
     const editId = $('#parceladoEditId').value;
     if (!desc || isNaN(valor) || isNaN(numParcelas) || !dataInicio) return;
     const dia = Number(dataInicio.split('-')[2]);
-    const dataFim = addMonthsISO(dataInicio, numParcelas-1);
+    const dataFim = addMonthsISO(dataInicio, (numParcelas-1)*intervalMeses);
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
-      if (r){ r.desc=desc; r.valor=valor; r.numParcelas=numParcelas; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; }
+      if (r){ r.desc=desc; r.valor=valor; r.numParcelas=numParcelas; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, intervalMeses:1, numParcelas, dataInicio, dataFim });
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, intervalMeses, numParcelas, dataInicio, dataFim });
     }
     closeOverlay('#overlayParcelado');
     renderAll();

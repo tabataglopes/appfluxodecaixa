@@ -547,7 +547,7 @@
       <button class="btn" id="openReceitasBtn"><i class="swatch in" style="vertical-align:middle; margin-right:6px;"></i>Receitas fixas</button>
       <button class="btn" id="openAssinBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>Assinaturas</button>
       <button class="btn" id="openParceladosBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Parcelados</button>
-      <button class="btn" id="openCartoesBtn">🚩 Cartões</button>
+      <button class="btn" id="openCartoesBtn">🚩 Cartão de crédito</button>
       <div class="base-chip" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
         <span class="lbl">Saldo em conta inicial <span id="baseDateLbl" class="mono"></span>:</span>
         <span class="val mono" id="baseValLbl"></span>
@@ -585,7 +585,7 @@
       </div>
     </div>
     <div class="tile" id="tileCartoesCard" style="cursor:pointer;">
-      <span class="lbl">Acumulado nos cartões até hoje</span>
+      <span class="lbl">Acumulado nos cartões de crédito até hoje</span>
       <span class="val mono" id="tileCartoes">R$ 0,00</span>
       <span class="sub" id="tileCartoesSub">&nbsp;</span>
     </div>
@@ -753,7 +753,7 @@
   <div class="modal" style="max-width:480px;">
     <button class="modal-close" data-close="overlayCartoesList" aria-label="Fechar">&times;</button>
     <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
-      <h3 style="margin:0;">Cartões</h3>
+      <h3 style="margin:0;">Cartão de crédito</h3>
       <button class="btn primary small" id="addCartaoBtn">+ Novo cartão</button>
     </div>
     <div class="recur-list" id="cartoesList"></div>
@@ -2107,6 +2107,11 @@
     // gastos que estavam nesse cartão passam a contar como dinheiro/pix/débito, na data em que foram lançados
     for (const t of state.oneTime) if (t.formaPagamento === id) t.formaPagamento = null;
     for (const r of state.recorrentes) if (r.formaPagamento === id) r.formaPagamento = null;
+    // pagamentos de fatura já confirmados nesse cartão: as compras que eles cobriam acabaram de virar
+    // dinheiro/pix/débito (linhas acima), então já entram sozinhas no saldo atual e no projetado a partir
+    // de agora. Manter esses registros de pagamento faria o valor ser descontado DUAS VEZES do saldo
+    // atual (uma pela compra virando dinheiro, outra pelo pagamento da fatura que ainda ficaria contando).
+    state.faturaPagamentos = state.faturaPagamentos.filter(p => p.cardId !== id);
     state.cartoes.splice(idx,1);
     renderAll();
     showToast(`Cartão "${nome}" removido. Os gastos lançados nele passam a contar como dinheiro/pix/débito.`);
@@ -2653,7 +2658,14 @@
   const SUPABASE_URL = 'https://cakfnimyezflvphhzdsm.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_FVO5a9pKCTGtD1RprEQXPA_uU_fx3QC';
   const hasSupabase = typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function';
-  const sbClient = hasSupabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  // guarda a sessão em sessionStorage (em vez do padrão, localStorage) — assim, quando a pessoa
+  // fecha a aba/janela do navegador, a sessão morre junto. Isso evita que, num computador
+  // compartilhado, a próxima pessoa que abrir o site continue logada com a conta de quem usou
+  // antes; só dar F5/recarregar a página não desloga (a sessão sobrevive à atualização, só não
+  // sobrevive a fechar a aba).
+  const sbClient = hasSupabase
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { storage: window.sessionStorage } })
+    : null;
   let appStarted = false;
   let currentUserId = null;
   let loadingFromCloud = false;

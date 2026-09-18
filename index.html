@@ -9,6 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- cliente oficial do Supabase (login com Google). Bloqueado no preview do Artifact (que só libera
+     scripts externos de fontes do Google) — nesse ambiente o app abre direto, sem exigir login, só
+     pra dar pra continuar testando o resto por aqui; no site publicado (Vercel) carrega normal. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root{
     --bg:#F3F5EF;
@@ -470,8 +474,60 @@
   .toast button{ background:none; border:none; color:var(--accent-strong); font-weight:700; cursor:pointer; font-size:13px; }
 
   .empty-cell-fill{ visibility:hidden; }
+
+  /* login com Google (Supabase) */
+  #appShell[hidden]{ display:none; }
+  .auth-gate{
+    position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center;
+    background:var(--bg); padding:24px;
+  }
+  .auth-gate[hidden]{ display:none; }
+  .auth-card{
+    width:100%; max-width:380px; background:var(--surface); border:1px solid var(--border);
+    border-radius:16px; box-shadow:var(--shadow); padding:36px 32px; text-align:center;
+  }
+  .auth-card h1{
+    font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:28px; margin:0 0 6px; color:var(--ink);
+  }
+  .auth-card .auth-sub{ font-size:14px; color:var(--ink-muted); margin:0 0 28px; }
+  .google-btn{
+    display:flex; align-items:center; justify-content:center; gap:10px; width:100%;
+    padding:11px 16px; border-radius:10px; border:1px solid var(--border); background:var(--surface);
+    color:var(--ink); font-family:'Public Sans', sans-serif; font-size:14.5px; font-weight:600;
+    cursor:pointer; transition:background 0.15s;
+  }
+  .google-btn:hover{ background:var(--surface-2); }
+  .auth-error{ margin:16px 0 0; font-size:13px; color:var(--expense); font-weight:600; }
+  .auth-error[hidden]{ display:none; }
+  .auth-loading-text{ font-family:'Public Sans', sans-serif; font-size:14px; color:var(--ink-muted); }
+  .user-chip{
+    display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-muted);
+    border:1px solid var(--border); border-radius:20px; padding:5px 8px 5px 12px; background:var(--surface);
+  }
+  .user-chip[hidden]{ display:none; }
+  .user-chip .user-email{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .user-chip button{
+    border:none; background:var(--surface-2); color:var(--ink); font-size:12px; font-weight:600;
+    padding:5px 10px; border-radius:14px; cursor:pointer; font-family:'Public Sans', sans-serif;
+  }
+  .user-chip button:hover{ background:var(--border); }
 </style>
-<div class="shell">
+<div class="auth-gate" id="authLoading" hidden>
+  <p class="auth-loading-text">Carregando…</p>
+</div>
+<div class="auth-gate" id="authGate" hidden>
+  <div class="auth-card">
+    <h1>Maré</h1>
+    <p class="auth-sub">Seu fluxo de caixa pessoal, organizado dia a dia.</p>
+    <button type="button" class="google-btn" id="googleLoginBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.69 9c0-.6.1-1.18.28-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+      Entrar com Google
+    </button>
+    <p class="auth-error" id="authError" hidden></p>
+  </div>
+</div>
+
+<div class="shell" id="appShell" hidden>
 
   <div class="topbar">
     <div class="brand">
@@ -488,6 +544,10 @@
         <span class="lbl">Saldo em conta inicial <span id="baseDateLbl" class="mono"></span>:</span>
         <span class="val mono" id="baseValLbl"></span>
         <span class="edit-icon" aria-hidden="true">&#9998;</span>
+      </div>
+      <div class="user-chip" id="userChip" hidden>
+        <span class="user-email" id="userEmailLbl"></span>
+        <button type="button" id="logoutBtn">Sair</button>
       </div>
     </div>
   </div>
@@ -2570,8 +2630,76 @@
     renderYearGrid();
   });
 
-  renderAll();
-  if (!state.saldoDefinido) openBaseModal(true);
+  /* ---------------- login (Google via Supabase) ----------------
+     SUPABASE_ANON_KEY é a "publishable key" — feita pra ir no código do cliente, não é segredo.
+     Se a lib do Supabase não carregou (bloqueada no preview do Artifact), o app abre direto,
+     sem exigir login, só pra dar pra continuar testando o resto por aqui; no site publicado
+     (Vercel) a lib carrega normal e o login com Google passa a valer de verdade. */
+  const SUPABASE_URL = 'https://cakfnimyezflvphhzdsm.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_FVO5a9pKCTGtD1RprEQXPA_uU_fx3QC';
+  const hasSupabase = typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function';
+  const sbClient = hasSupabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  let appStarted = false;
+
+  function startApp(){
+    renderAll();
+    if (!state.saldoDefinido) openBaseModal(true);
+  }
+
+  function showApp(session){
+    $('#authLoading').hidden = true;
+    $('#authGate').hidden = true;
+    $('#appShell').hidden = false;
+    const chip = $('#userChip');
+    if (chip){
+      chip.hidden = false;
+      $('#userEmailLbl').textContent = (session && session.user && session.user.email) || '';
+    }
+    if (!appStarted){ appStarted = true; startApp(); }
+  }
+
+  function showAuthGate(){
+    $('#appShell').hidden = true;
+    $('#authLoading').hidden = true;
+    $('#authGate').hidden = false;
+    const chip = $('#userChip');
+    if (chip) chip.hidden = true;
+  }
+
+  if (!hasSupabase){
+    $('#appShell').hidden = false;
+    startApp();
+  } else {
+    $('#authLoading').hidden = false;
+
+    sbClient.auth.getSession().then(({ data }) => {
+      if (data && data.session) showApp(data.session);
+      else showAuthGate();
+    }).catch(() => showAuthGate());
+
+    sbClient.auth.onAuthStateChange((_event, session) => {
+      if (session) showApp(session);
+      else if (appStarted) location.reload(); // depois de sair, recarrega pra não deixar dados da sessão anterior na tela
+      else showAuthGate();
+    });
+
+    $('#googleLoginBtn').addEventListener('click', async () => {
+      $('#authError').hidden = true;
+      const { error } = await sbClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.href }
+      });
+      if (error){
+        $('#authError').textContent = 'Não foi possível entrar: ' + error.message;
+        $('#authError').hidden = false;
+      }
+    });
+
+    const logoutBtn = $('#logoutBtn');
+    if (logoutBtn) logoutBtn.addEventListener('click', async () => {
+      await sbClient.auth.signOut();
+    });
+  }
 })();
 </script>
 

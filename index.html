@@ -506,6 +506,7 @@
   }
   .user-chip[hidden]{ display:none; }
   .user-chip .user-email{ max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .user-chip .sync-status{ font-size:11px; color:var(--ink-muted); white-space:nowrap; }
   .user-chip button{
     border:none; background:var(--surface-2); color:var(--ink); font-size:12px; font-weight:600;
     padding:5px 10px; border-radius:14px; cursor:pointer; font-family:'Public Sans', sans-serif;
@@ -547,6 +548,7 @@
       </div>
       <div class="user-chip" id="userChip" hidden>
         <span class="user-email" id="userEmailLbl"></span>
+        <span class="sync-status" id="syncStatus"></span>
         <button type="button" id="logoutBtn">Sair</button>
       </div>
     </div>
@@ -2063,6 +2065,7 @@
     renderRecurLists();
     renderCartoesList();
     if (!anyOverlayOpen()) showFaturaPendingPromptIfAny();
+    schedulePersist();
   }
 
   function anyOverlayOpen(){
@@ -2640,22 +2643,98 @@
   const hasSupabase = typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function';
   const sbClient = hasSupabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
   let appStarted = false;
+  let currentUserId = null;
+  let loadingFromCloud = false;
 
   function startApp(){
     renderAll();
     if (!state.saldoDefinido) openBaseModal(true);
   }
 
-  function showApp(session){
-    $('#authLoading').hidden = true;
+  /* ---------------- persistência na nuvem (tabela user_data no Supabase) ----------------
+     guarda tudo num único registro por usuário (coluna jsonb "data"), em vez de criar uma
+     tabela por tipo de lançamento — mais simples de manter e já cobre bem um app pessoal.
+     campos de UI (mês em exibição, dia selecionado etc.) ficam de fora de propósito: sempre
+     que a pessoa entra de novo, faz mais sentido abrir já no mês/dia de hoje. */
+  function getPersistableState(){
+    return {
+      saldoInicial: state.saldoInicial,
+      saldoDefinido: state.saldoDefinido,
+      dataBase: state.dataBase,
+      oneTime: state.oneTime,
+      recorrentes: state.recorrentes,
+      cartoes: state.cartoes,
+      faturaPagamentos: state.faturaPagamentos,
+      faturaPromptSeen: state.faturaPromptSeen,
+    };
+  }
+
+  function applyPersistedState(saved){
+    if (!saved) return;
+    Object.assign(state, saved);
+  }
+
+  function setSyncStatus(text){
+    const el = $('#syncStatus');
+    if (el) el.textContent = text;
+  }
+
+  let saveTimer = null;
+  function schedulePersist(){
+    if (!hasSupabase || !currentUserId || loadingFromCloud) return;
+    setSyncStatus('salvando…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persistStateNow, 700);
+  }
+
+  async function persistStateNow(){
+    if (!hasSupabase || !currentUserId) return;
+    try {
+      const { error } = await sbClient.from('user_data').upsert({
+        user_id: currentUserId,
+        data: getPersistableState(),
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      setSyncStatus('');
+    } catch(e){
+      console.error('Falha ao salvar dados na nuvem:', e);
+      setSyncStatus('não foi possível salvar');
+      setTimeout(() => setSyncStatus(''), 5000);
+    }
+  }
+
+  async function showApp(session){
+    currentUserId = (session && session.user && session.user.id) || null;
     $('#authGate').hidden = true;
-    $('#appShell').hidden = false;
     const chip = $('#userChip');
     if (chip){
       chip.hidden = false;
       $('#userEmailLbl').textContent = (session && session.user && session.user.email) || '';
     }
-    if (!appStarted){ appStarted = true; startApp(); }
+    if (!appStarted){
+      appStarted = true;
+      $('#authLoading').hidden = false;
+      if (currentUserId){
+        loadingFromCloud = true;
+        try {
+          const { data, error } = await sbClient.from('user_data').select('data').eq('user_id', currentUserId).maybeSingle();
+          if (error) throw error;
+          if (data && data.data) applyPersistedState(data.data);
+        } catch(e){
+          // tabela ainda não criada, sem internet momentânea etc. — o app segue funcionando
+          // com os dados em memória; a pessoa só não vai ter o histórico salvo dessa vez
+          console.error('Falha ao carregar dados salvos:', e);
+        }
+        loadingFromCloud = false;
+      }
+      $('#authLoading').hidden = true;
+      $('#appShell').hidden = false;
+      startApp();
+    } else {
+      $('#authLoading').hidden = true;
+      $('#appShell').hidden = false;
+    }
   }
 
   function showAuthGate(){

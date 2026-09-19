@@ -2,13 +2,22 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 </head>
 <body>
 <title>Maré</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- PWA: manifest + ícones + meta tags de instalação. No preview do Artifact esses arquivos não
+     existem (404 silencioso, sem quebrar nada) — só funcionam de verdade no site publicado (Vercel),
+     onde manifest.json/ícones/sw.js são enviados junto com o index.html. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5D5A">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Maré">
 <!-- cliente oficial do Supabase (login com Google). Bloqueado no preview do Artifact (que só libera
      scripts externos de fontes do Google) — nesse ambiente o app abre direto, sem exigir login, só
      pra dar pra continuar testando o resto por aqui; no site publicado (Vercel) carrega normal. -->
@@ -90,7 +99,9 @@
     line-height:1.5;
     -webkit-font-smoothing:antialiased;
     padding-inline:20px;
-    padding-block:24px 48px;
+    /* quando instalado como PWA (tela cheia, sem barra do navegador), soma a área "segura" do
+       aparelho (notch/entalhe do iPhone, barra de gestos) pra nada ficar escondido atrás dela */
+    padding-block:calc(24px + env(safe-area-inset-top, 0px)) calc(48px + env(safe-area-inset-bottom, 0px));
   }
   h1,h2,h3{ font-family:"Fraunces", Georgia, serif; font-weight:600; margin:0; text-wrap:balance; }
   .mono{ font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, monospace; font-variant-numeric:tabular-nums; }
@@ -574,6 +585,7 @@
   .user-menu-trigger:hover{ border-color:var(--accent); }
   .user-menu-trigger .user-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; color:var(--ink); }
   .user-menu .sync-status{ font-size:11px; color:var(--ink-muted); white-space:nowrap; }
+  .user-menu .sync-status.error{ color:var(--expense); font-weight:600; }
 
   .user-menu-panel{
     position:absolute; top:calc(100% + 8px); right:0; z-index:40; width:230px;
@@ -621,6 +633,22 @@
     </button>
     <p class="auth-error" id="authError" hidden></p>
     <p class="auth-error" id="sessionKickedMsg" hidden>Sua sessão foi encerrada porque essa conta acabou de ser acessada em outro celular/computador ou outra aba. Só dá pra ficar logado num lugar por vez.</p>
+  </div>
+</div>
+
+<!-- Tela de "sem conexão": o Maré é de propósito só-online (sem cache de dados), pra nunca mostrar
+     (nem deixar mexer em) informação desatualizada. Fica por cima de tudo (até da tela de login) e
+     aparece/some sozinha conforme a internet cai/volta — sem recarregar a página e sem perder nada
+     que já estava em memória (ver watchConnection). -->
+<div class="auth-gate" id="offlineGate" hidden style="z-index:90;">
+  <div class="auth-card">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2" stroke-linecap="round" style="margin-bottom:8px;" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"></circle>
+      <line x1="8" y1="8" x2="16" y2="16"></line>
+      <line x1="16" y1="8" x2="8" y2="16"></line>
+    </svg>
+    <h1>Sem conexão</h1>
+    <p class="auth-sub">O Maré funciona só online, pra manter seus dados sempre atualizados e sincronizados com segurança. Assim que a internet voltar, o app libera sozinho — não precisa recarregar a página.</p>
   </div>
 </div>
 
@@ -989,6 +1017,20 @@
   </div>
 </div>
 
+<!-- Modal: confirmação ao clicar em "Sair" com alguma gravação ainda salvando/falhando — só aparece
+     nesse caso específico; se já estava tudo salvo, o "Sair" funciona direto, sem esse aviso -->
+<div class="overlay" id="overlayConfirmLogout" hidden>
+  <div class="modal" style="max-width:380px;">
+    <button class="modal-close" data-close="overlayConfirmLogout" aria-label="Fechar">&times;</button>
+    <h3 style="margin-bottom:10px;">Ainda não salvou tudo</h3>
+    <p id="confirmLogoutMsg" style="font-size:13.5px; color:var(--ink-muted); margin:0 0 18px;"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close="overlayConfirmLogout">Esperar</button>
+      <button type="button" class="btn danger" id="confirmLogoutAnywayBtn">Sair mesmo assim</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: conta fixa -->
 <div class="overlay" id="overlayRecur" hidden>
   <div class="modal">
@@ -1183,6 +1225,16 @@
 <script>
 (function(){
   "use strict";
+
+  /* ---------------- PWA: registra o Service Worker mínimo (só pra habilitar "Adicionar à tela de
+     início" — não faz cache de nada, ver sw.js). No preview do Artifact esse arquivo não existe
+     (roda em about:blank/file, sem https), então o navegador nem tenta e não dá erro nenhum visível;
+     no site publicado (Vercel, https) registra normalmente. */
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* ambiente sem suporte: segue sem instalar */ });
+    });
+  }
 
   /* ---------------- helpers ---------------- */
   const pad = n => String(n).padStart(2,'0');
@@ -3158,17 +3210,35 @@
     idCounter = Math.max(idCounter, maxUsed + 1);
   }
 
-  function setSyncStatus(text){
+  // 'idle' (tudo salvo) | 'saving' (gravando agora) | 'error' (falhou e ainda não conseguiu de novo)
+  // — usado tanto pro textinho ao lado do nome quanto pra decidir se pode sair sem avisar
+  let syncState = 'idle';
+  function setSyncStatus(text, state){
+    syncState = state || 'idle';
     const el = $('#syncStatus');
-    if (el) el.textContent = text;
+    if (el){
+      el.textContent = text;
+      el.classList.toggle('error', syncState === 'error');
+    }
   }
+  // true sempre que tiver algo gravando ou que falhou gravar — usado pro aviso antes de sair
+  function hasUnsyncedChanges(){ return syncState !== 'idle'; }
 
   let saveTimer = null;
+  let retryTimer = null;
   function schedulePersist(){
     if (!hasSupabase || !currentUserId || loadingFromCloud) return;
-    setSyncStatus('salvando…');
+    setSyncStatus('salvando…', 'saving');
     clearTimeout(saveTimer);
+    clearTimeout(retryTimer);
     saveTimer = setTimeout(persistStateNow, 700);
+  }
+
+  // se falhar (geralmente por falta de internet), tenta de novo sozinha depois de um tempo — sem
+  // precisar que a pessoa mexa em algo ou clique em algum botão pra disparar uma nova tentativa
+  function scheduleRetry(){
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(persistStateNow, 15000);
   }
 
   async function persistStateNow(){
@@ -3180,13 +3250,44 @@
         updated_at: new Date().toISOString(),
       });
       if (error) throw error;
-      setSyncStatus('');
+      setSyncStatus('', 'idle');
     } catch(e){
       console.error('Falha ao salvar dados na nuvem:', e);
-      setSyncStatus('não foi possível salvar');
-      setTimeout(() => setSyncStatus(''), 5000);
+      // fica visível (não some sozinho) até conseguir salvar de verdade — assim a pessoa sempre
+      // sabe, olhando ali do lado do nome, se é seguro sair ou não
+      setSyncStatus('não foi possível salvar', 'error');
+      scheduleRetry();
     }
   }
+
+  /* ---------------- só-online: tela de bloqueio quando cai a internet ----------------
+     o Maré não guarda nada localmente de propósito (ver comentário do sw.js) — então, sem
+     conexão, não tem como garantir que o que está na tela é o dado mais atual. Em vez de deixar a
+     pessoa ver (ou mexer em) algo potencialmente desatualizado, a tela de "sem conexão" cobre tudo
+     até a internet voltar. Nada do que já estava em memória (lançamentos digitados, tela aberta
+     etc.) se perde nesse meio tempo — é só uma cortina visual por cima. */
+  function updateConnectionGate(){
+    const el = $('#offlineGate');
+    if (el) el.hidden = navigator.onLine;
+  }
+  updateConnectionGate();
+  window.addEventListener('online', () => {
+    updateConnectionGate();
+    // conexão voltou: se tinha uma gravação pendente/falha, tenta salvar na hora, sem esperar
+    // o próximo retry automático
+    if (syncState === 'error'){ clearTimeout(retryTimer); persistStateNow(); }
+  });
+  window.addEventListener('offline', updateConnectionGate);
+
+  // fechar a aba/navegador com algo ainda não salvo: o navegador não deixa escrever uma mensagem
+  // personalizada por segurança, mas dá pra pedir pra ele mostrar o aviso genérico dele mesmo
+  // ("alterações que você fez podem não ser salvas") só quando realmente tiver algo pendente
+  window.addEventListener('beforeunload', (e) => {
+    if (hasUnsyncedChanges()){
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
 
   // nome que vem pronto da conta Google (nome de exibição do perfil) — usado só como sugestão
   // inicial; a pessoa pode trocar por qualquer nome que quiser clicando em cima dele
@@ -3382,11 +3483,28 @@
       configPanel.hidden = !configPanel.hidden;
     });
 
-    const logoutBtn = $('#logoutBtn');
-    if (logoutBtn) logoutBtn.addEventListener('click', async () => {
-      closeUserMenu();
+    async function doSignOut(){
       clearInterval(sessionWatchTimer);
       await sbClient.auth.signOut();
+    }
+
+    const logoutBtn = $('#logoutBtn');
+    if (logoutBtn) logoutBtn.addEventListener('click', () => {
+      closeUserMenu();
+      if (hasUnsyncedChanges()){
+        // avisa em vez de deixar sair direto, só nesse caso específico (algo ainda salvando ou
+        // que falhou salvar) — se já estava tudo salvo, nem passa por aqui
+        $('#confirmLogoutMsg').textContent = syncState === 'error'
+          ? 'Não foi possível salvar sua última alteração (sem internet). Se sair agora, ela vai se perder.'
+          : 'Ainda estamos salvando suas últimas alterações. Se sair agora, elas podem se perder.';
+        openOverlay('#overlayConfirmLogout');
+      } else {
+        doSignOut();
+      }
+    });
+    $('#confirmLogoutAnywayBtn').addEventListener('click', () => {
+      closeOverlay('#overlayConfirmLogout');
+      doSignOut();
     });
 
     // excluir conta: apaga a conta de login (auth.users) via função no banco, que por sua vez

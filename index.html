@@ -1691,7 +1691,12 @@
     }
     for (const card of state.cartoes){
       const w = cardCycleWindows(card);
-      const ledger = cardLedgerThrough(card, w.curClose, true);
+      // sem capar em hoje: o "ciclo atual" tem que somar TODAS as compras já lançadas dentro da
+      // janela desse ciclo (mesmo as datadas pra depois de hoje, mas ainda antes do fechamento) —
+      // senão uma compra lançada com data futura dentro do próprio ciclo aberto sumia daqui mas
+      // continuava aparecendo certinho na fatura do calendário, dando a impressão de que a compra
+      // tinha "sumido"
+      const ledger = cardLedgerThrough(card, w.curClose);
       const atual = ledger.length ? ledger[ledger.length-1].pendente : 0;
       const proximo = totalProximoCicloCartao(card, w);
 
@@ -1783,10 +1788,9 @@
     const body = $('#cartaoCicloBody');
     body.innerHTML = '';
 
-    const ledgerAtual = cardLedgerThrough(card, w.curClose, true);
+    const ledgerAtual = cardLedgerThrough(card, w.curClose);
     const detAtual = ledgerAtual.length ? ledgerAtual[ledgerAtual.length-1] : { pendente: 0, carryIn: 0 };
-    const hiAtualItems = todayISO < w.curClose ? todayISO : w.curClose;
-    const itemsAtual = faturaPurchaseItems(card, w.curStart, hiAtualItems);
+    const itemsAtual = faturaPurchaseItems(card, w.curStart, w.curClose);
     const labelAtual = `Ciclo atual (${fmtDateShort(w.curStart)} – ${fmtDateShort(w.curClose)})`;
     body.appendChild(buildCicloSecao(labelAtual, itemsAtual, detAtual.carryIn));
 

@@ -254,9 +254,14 @@
   .tile.inout .inout-half.in .val{ color:var(--income); }
   .tile.inout .inout-half.out .val{ color:var(--expense); }
 
-  /* ---------- pilha vertical principal (calendário, entradas/saídas, cartões, gastos do dia) ---------- */
-  .stack{ display:flex; flex-direction:column; gap:20px; }
-  .stack[hidden]{ display:none; }
+  /* ---------- main grid (calendário + barra lateral: entradas/saídas, cartões, gastos do dia) ---------- */
+  .main-grid{ display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); gap:16px; align-items:start; }
+  .main-grid[hidden]{ display:none; }
+  @media (max-width:900px){ .main-grid{ grid-template-columns:minmax(0,1fr); } }
+
+  /* ---------- tile do botão "novo lançamento", ao lado do saldo ---------- */
+  .tile.add-tile{ display:flex; padding:0; overflow:hidden; }
+  .tile.add-tile .btn{ flex:1; height:100%; border:none; border-radius:0; font-size:14.5px; }
 
   /* ---------- visão anual ---------- */
   .year-grid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; margin-top:6px; }
@@ -652,30 +657,31 @@
     </div>
   </div>
 
-  <div class="tile balance-combo">
-    <div class="bc-half projetado" id="bcProjetadoHalf" title="Saldo de referência + tudo que entra e sai até essa data">
-      <span class="lbl">Saldo projetado</span>
-      <span class="val mono" id="tileBal">R$ 0,00</span>
-      <span class="sub" id="tileBalSub">&nbsp;</span>
+  <div class="tiles">
+    <div class="tile balance-combo">
+      <div class="bc-half projetado" id="bcProjetadoHalf" title="Saldo de referência + tudo que entra e sai até essa data">
+        <span class="lbl">Saldo projetado</span>
+        <span class="val mono" id="tileBal">R$ 0,00</span>
+        <span class="sub" id="tileBalSub">&nbsp;</span>
+      </div>
+      <div class="bc-mid">
+        <div class="bc-dash"></div>
+        <div class="bc-baseline"></div>
+        <div class="bc-bar-slot left"><div class="bc-bar pos" id="bcBarProj" style="height:0px;"></div></div>
+        <div class="bc-bar-slot right"><div class="bc-bar pos" id="bcBarAtual" style="height:0px;"></div></div>
+      </div>
+      <div class="bc-half atual">
+        <span class="lbl">Saldo atual</span>
+        <span class="val mono" id="tileAtual">R$ 0,00</span>
+        <span class="sub" id="tileAtualSub">&nbsp;</span>
+      </div>
     </div>
-    <div class="bc-mid">
-      <div class="bc-dash"></div>
-      <div class="bc-baseline"></div>
-      <div class="bc-bar-slot left"><div class="bc-bar pos" id="bcBarProj" style="height:0px;"></div></div>
-      <div class="bc-bar-slot right"><div class="bc-bar pos" id="bcBarAtual" style="height:0px;"></div></div>
-    </div>
-    <div class="bc-half atual">
-      <span class="lbl">Saldo atual</span>
-      <span class="val mono" id="tileAtual">R$ 0,00</span>
-      <span class="sub" id="tileAtualSub">&nbsp;</span>
+    <div class="tile add-tile">
+      <button class="btn primary block" id="addOneTimeBtn">+ Novo lançamento</button>
     </div>
   </div>
 
-  <div class="add-row" style="margin-top:0;">
-    <button class="btn primary block" id="addOneTimeBtn">+ Novo lançamento</button>
-  </div>
-
-  <div class="stack" id="monthView">
+  <div class="main-grid" id="monthView">
     <div class="card">
       <div class="month-nav" style="justify-content:space-between; margin-bottom:14px;">
         <button class="nav-arrow" id="prevMonth" aria-label="Mês anterior">&#8249;</button>
@@ -700,32 +706,34 @@
       </div>
     </div>
 
-    <div class="tile" id="tileEntradasSaidasCard">
-      <span class="cartoes-titulo">Entradas e saídas do mês</span>
-      <div class="tile inout" style="margin-top:12px;">
-        <button type="button" class="inout-half in" id="btnEntradasMes">
-          <span class="lbl">Entradas</span>
-          <span class="val mono" id="tileIn">R$ 0,00</span>
-          <span class="sub">do mês · toque para ver</span>
-        </button>
-        <div class="inout-divider"></div>
-        <button type="button" class="inout-half out" id="btnSaidasMes">
-          <span class="lbl">Saídas</span>
-          <span class="val mono" id="tileOut">R$ 0,00</span>
-          <span class="sub">do mês · toque para ver</span>
-        </button>
+    <div class="sidebar">
+      <div class="tile" id="tileEntradasSaidasCard">
+        <span class="cartoes-titulo">Entradas e saídas do mês</span>
+        <div class="tile inout" style="margin-top:12px;">
+          <button type="button" class="inout-half in" id="btnEntradasMes">
+            <span class="lbl">Entradas</span>
+            <span class="val mono" id="tileIn">R$ 0,00</span>
+            <span class="sub">do mês · toque para ver</span>
+          </button>
+          <div class="inout-divider"></div>
+          <button type="button" class="inout-half out" id="btnSaidasMes">
+            <span class="lbl">Saídas</span>
+            <span class="val mono" id="tileOut">R$ 0,00</span>
+            <span class="sub">do mês · toque para ver</span>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div class="card" id="cardCartoesCard">
-      <span class="cartoes-titulo">Total gasto por cartão, por ciclo <span class="cartoes-titulo-note">(clique em cada um)</span></span>
-      <div class="cartoes-ciclo-wrap" id="cartoesCicloWrap"></div>
-    </div>
+      <div class="card" id="cardCartoesCard">
+        <span class="cartoes-titulo">Total gasto por cartão, por ciclo <span class="cartoes-titulo-note">(clique em cada um)</span></span>
+        <div class="cartoes-ciclo-wrap" id="cartoesCicloWrap"></div>
+      </div>
 
-    <div class="card day-detail">
-      <h2>Gastos/Receitas Avulsas (não recorrentes)</h2>
-      <p class="date-title" id="dayTitle">Selecione um dia</p>
-      <div id="dayList"></div>
+      <div class="card day-detail">
+        <h2>Gastos/Receitas Avulsas (não recorrentes)</h2>
+        <p class="date-title" id="dayTitle">Selecione um dia</p>
+        <div id="dayList"></div>
+      </div>
     </div>
   </div>
 

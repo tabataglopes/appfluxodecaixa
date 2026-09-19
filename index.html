@@ -697,7 +697,11 @@
         <span class="month-label" id="monthLabel"></span>
         <button class="nav-arrow" id="nextMonth" aria-label="Próximo mês">&#8250;</button>
       </div>
-      <div class="cal-legend">
+      <div class="weekdays">
+        <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend" style="margin-top:14px; margin-bottom:0;">
         <span class="leg-item"><i class="swatch ok"></i> saldo positivo</span>
         <span class="leg-item"><i class="swatch negative"></i> fica sem dinheiro</span>
         <span class="leg-item"><i class="swatch past"></i> dia passado</span>
@@ -706,10 +710,6 @@
         <span class="leg-item">🚩 pagamento do cartão</span>
         <span class="leg-item"><i class="swatch card-purchase"></i> compra com cartão</span>
       </div>
-      <div class="weekdays">
-        <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
-      </div>
-      <div class="cal-grid" id="calGrid"></div>
       <div style="margin-top:14px;">
         <button class="btn today-btn-like" id="gotoToday" style="border:1px solid var(--border); background:var(--surface-2); border-radius:9px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer;">Ir para hoje</button>
       </div>

@@ -160,6 +160,33 @@
   .tile .val{ font-size:clamp(18px, 5.5vw, 24px); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); }
   .tile .sub{ font-size:12px; color:var(--ink-muted); }
 
+  .cartoes-ciclo-wrap{ display:flex; flex-direction:column; gap:10px; margin-top:2px; }
+  .cartao-ciclo-row{
+    display:flex; flex-direction:column; gap:6px; padding:9px 0; border-bottom:1px solid var(--border); cursor:pointer;
+  }
+  .cartao-ciclo-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .cartao-ciclo-row:hover{ opacity:0.8; }
+  .cartao-ciclo-nome{ font-size:13.5px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cartao-ciclo-vals{ display:flex; flex-wrap:wrap; gap:8px 18px; }
+  .cartao-ciclo-val{ display:flex; flex-direction:column; gap:1px; }
+  .ciclo-tag{ font-size:10.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.03em; }
+  .cartao-ciclo-atual, .cartao-ciclo-prox{ font-size:13.5px; font-weight:600; color:var(--expense); }
+
+  .ciclo-secao{ margin-bottom:18px; }
+  .ciclo-secao:last-child{ margin-bottom:0; }
+  .ciclo-secao-header{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; gap:8px; }
+  .ciclo-secao-nome{ font-family:"Fraunces", Georgia, serif; font-weight:600; font-size:14.5px; color:var(--ink); }
+  .ciclo-secao-total{ font-size:14.5px; font-weight:700; color:var(--expense); font-family:"JetBrains Mono", monospace; font-variant-numeric:tabular-nums; }
+  .ciclo-secao-items{ display:flex; flex-direction:column; max-height:32vh; overflow-y:auto; }
+
+  .pagamento-row .actions{ display:flex; gap:6px; flex-shrink:0; }
+  .btn.danger{ background:var(--expense); border-color:var(--expense); color:#fff; }
+  .btn.danger:hover{ filter:brightness(1.08); }
+  .pagamento-edit-input{
+    width:110px; border:1px solid var(--border); border-radius:8px; padding:7px 8px; font-size:13.5px;
+    background:var(--bg); color:var(--ink); font-family:"JetBrains Mono", monospace;
+  }
+
   #tileCartoesCard:hover{ border-color:var(--accent); }
 
   /* ---------- saldo atual + saldo projetado combinados, com barrinhas comparativas ---------- */
@@ -624,10 +651,9 @@
         <span class="sub" id="tileAtualSub">&nbsp;</span>
       </div>
     </div>
-    <div class="tile" id="tileCartoesCard" style="cursor:pointer;">
-      <span class="lbl">Acumulado nos cartões de crédito até hoje</span>
-      <span class="val mono" id="tileCartoes">R$ 0,00</span>
-      <span class="sub" id="tileCartoesSub">&nbsp;</span>
+    <div class="tile" id="tileCartoesCard">
+      <span class="lbl">Total gasto por cartão, por ciclo</span>
+      <div class="cartoes-ciclo-wrap" id="cartoesCicloWrap"></div>
     </div>
   </div>
 
@@ -801,12 +827,12 @@
   </div>
 </div>
 
-<!-- Modal: resumo do acumulado por cartão -->
-<div class="overlay" id="overlayCartoesResumo" hidden>
-  <div class="modal" style="max-width:420px;">
-    <button class="modal-close" data-close="overlayCartoesResumo" aria-label="Fechar">&times;</button>
-    <h3 style="margin-bottom:14px;">Acumulado por cartão</h3>
-    <div class="recur-list" id="cartoesResumoList"></div>
+<!-- Modal: detalhe de um cartão — ciclo atual e próximo ciclo, com a lista de compras de cada um -->
+<div class="overlay" id="overlayCartaoCiclo" hidden>
+  <div class="modal" style="max-width:460px;">
+    <button class="modal-close" data-close="overlayCartaoCiclo" aria-label="Fechar">&times;</button>
+    <h3 id="cartaoCicloTitle" style="margin-bottom:14px;"></h3>
+    <div id="cartaoCicloBody"></div>
   </div>
 </div>
 
@@ -872,6 +898,11 @@
       <p id="faturaDetPagInfo" style="font-size:13px; color:var(--ink-muted); margin:10px 0 0;"></p>
     </div>
     <p id="faturaDetPagaNota" hidden style="font-size:13px; color:var(--income); font-weight:600; margin:0 0 14px;">Fatura paga ✓</p>
+
+    <div id="faturaDetPagamentosWrap" hidden style="margin-bottom:18px;">
+      <h4 style="font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:14px; margin:0 0 8px;">Pagamentos registrados</h4>
+      <div class="fatura-list" id="faturaDetPagamentosList"></div>
+    </div>
 
     <h4 style="font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:14px; margin:0 0 8px;">Compras dessa fatura</h4>
     <div class="fatura-list" id="faturaDetList"></div>
@@ -1125,7 +1156,10 @@
     const nd = Math.min(d, daysInMonth(ny, nm));
     return toISO(ny, nm, nd);
   };
-  const fmtBRL = v => v.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+  // (v === 0 ? 0 : v) normaliza "-0" pra "0" antes de formatar — sem isso, um valor que chega a
+  // zero por causa de uma subtração/negação (ex.: "-0") apareceria como "-R$ 0,00", o que é
+  // tecnicamente correto pro JS mas confunde quem tá lendo o valor
+  const fmtBRL = v => (v === 0 ? 0 : v).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
   const fmtDateShort = iso => { const [y,m,d]=iso.split('-'); return `${d}/${m}`; };
   const fmtDateFull = iso => { const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
   const fmtMonthYear = iso => { const [y,m]=iso.split('-'); return `${m}/${y}`; };
@@ -1448,6 +1482,25 @@
     return totalAcumuladoPorCartao().reduce((s, c) => s + c.total, 0);
   }
 
+  // início/fim do ciclo em aberto (o que contém hoje) e do ciclo seguinte, pra um cartão — usado no
+  // resumo "ciclo atual / próximo ciclo" (ver renderCartoesCicloList / openCartaoCicloModal)
+  function cardCycleWindows(card){
+    const curClose = closingDateForCycleContaining(card, todayISO);
+    const curStart = cycleStartForClosing(card, curClose);
+    const nextClose = nextClosingISO(card, curClose);
+    const nextStart = cycleStartForClosing(card, nextClose);
+    return { curStart, curClose, nextStart, nextClose };
+  }
+
+  // quanto já está lançado pro PRÓXIMO ciclo (o que ainda nem começou a valer, mas já tem compra
+  // datada pra ele — por exemplo, uma compra feita depois do fechamento do cartão, ou uma parcela
+  // futura de uma compra parcelada). Sem "capar" em hoje de propósito: é justamente o que ficaria
+  // invisível se olhássemos só "até hoje", que era o problema original desse tile.
+  function totalProximoCicloCartao(card, windows){
+    const w = windows || cardCycleWindows(card);
+    return -sumCardPurchases(card.id, w.nextStart, w.nextClose);
+  }
+
   // fatura em aberto (dia de pagamento já chegou) e ainda com saldo pendente — no máximo uma por
   // cartão: a mais recente, já que o que não foi pago de uma fatura mais antiga já está embutido nela
   function getPendingInvoices(){
@@ -1614,34 +1667,127 @@
 
     updateSaldoBars(atualBal, bal);
 
-    const acumuladoCartoes = totalAcumuladoCartoes();
-    $('#tileCartoes').textContent = fmtBRL(acumuladoCartoes);
-    $('#tileCartoesSub').textContent = state.cartoes.length ? 'clique aqui para ver os cartões' : 'nenhum cartão cadastrado';
+    renderCartoesCicloList();
   }
 
-  function renderCartoesResumo(){
-    const wrap = $('#cartoesResumoList');
+  // lista principal do tile "Total gasto por cartão, por ciclo": uma linha por cartão, com o total
+  // do ciclo atual (o que vai fechar/ser cobrado em breve) e do próximo ciclo (o que a pessoa já
+  // gastou mas só vai aparecer na fatura seguinte) — clicar numa linha abre o detalhe daquele cartão
+  function renderCartoesCicloList(){
+    const wrap = $('#cartoesCicloWrap');
     wrap.innerHTML = '';
     if (state.cartoes.length===0){
       wrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhum cartão cadastrado ainda.</div>';
       return;
     }
-    for (const item of totalAcumuladoPorCartao()){
+    for (const card of state.cartoes){
+      const w = cardCycleWindows(card);
+      const ledger = cardLedgerThrough(card, w.curClose, true);
+      const atual = ledger.length ? ledger[ledger.length-1].pendente : 0;
+      const proximo = totalProximoCicloCartao(card, w);
+
       const row = document.createElement('div');
-      row.className = 'recur-row';
-      const info = document.createElement('div');
-      info.className = 'info';
-      const name = document.createElement('div');
-      name.className = 'name';
-      name.textContent = item.cardName;
-      info.appendChild(name);
-      row.appendChild(info);
-      const amt = document.createElement('div');
-      amt.className = 'amt mono out';
-      amt.textContent = fmtBRL(item.total);
-      row.appendChild(amt);
+      row.className = 'cartao-ciclo-row';
+
+      const nome = document.createElement('div');
+      nome.className = 'cartao-ciclo-nome';
+      nome.textContent = card.nome;
+      row.appendChild(nome);
+
+      const vals = document.createElement('div');
+      vals.className = 'cartao-ciclo-vals';
+
+      const valAtual = document.createElement('div');
+      valAtual.className = 'cartao-ciclo-val';
+      const tagAtual = document.createElement('span'); tagAtual.className = 'ciclo-tag'; tagAtual.textContent = 'ciclo atual';
+      const numAtual = document.createElement('span'); numAtual.className = 'mono cartao-ciclo-atual'; numAtual.textContent = fmtBRL(atual);
+      valAtual.appendChild(tagAtual); valAtual.appendChild(numAtual);
+      vals.appendChild(valAtual);
+
+      const valProx = document.createElement('div');
+      valProx.className = 'cartao-ciclo-val';
+      const tagProx = document.createElement('span'); tagProx.className = 'ciclo-tag'; tagProx.textContent = 'próximo ciclo';
+      const numProx = document.createElement('span'); numProx.className = 'mono cartao-ciclo-prox'; numProx.textContent = fmtBRL(proximo);
+      valProx.appendChild(tagProx); valProx.appendChild(numProx);
+      vals.appendChild(valProx);
+
+      row.appendChild(vals);
+      row.addEventListener('click', () => openCartaoCicloModal(card.id));
       wrap.appendChild(row);
     }
+  }
+
+  // monta uma seção do popup de detalhe do cartão (ciclo atual ou próximo ciclo): cabeçalho com
+  // nome do período + total, e a lista de compras daquele período, da mais antiga pra mais recente
+  function buildCicloSecao(label, totalValor, itemsList, carryValor){
+    const secao = document.createElement('div');
+    secao.className = 'ciclo-secao';
+
+    const header = document.createElement('div');
+    header.className = 'ciclo-secao-header';
+    const nome = document.createElement('span'); nome.className = 'ciclo-secao-nome'; nome.textContent = label;
+    const total = document.createElement('span'); total.className = 'ciclo-secao-total mono'; total.textContent = fmtBRL(totalValor);
+    header.appendChild(nome); header.appendChild(total);
+    secao.appendChild(header);
+
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'ciclo-secao-items';
+
+    if (carryValor > 0.005){
+      const row = document.createElement('div'); row.className = 'fatura-row carry';
+      const desc = document.createElement('div'); desc.className = 'desc';
+      const name = document.createElement('div'); name.className = 'name'; name.textContent = 'Saldo não pago da fatura anterior';
+      const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = 'rolou da fatura anterior';
+      desc.appendChild(name); desc.appendChild(meta);
+      row.appendChild(desc);
+      const amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtBRL(carryValor);
+      row.appendChild(amt);
+      itemsWrap.appendChild(row);
+    }
+
+    if (itemsList.length === 0 && !(carryValor > 0.005)){
+      itemsWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px; padding:6px 0;">Nenhuma compra lançada.</div>';
+    } else {
+      for (const it of itemsList){
+        const row = document.createElement('div'); row.className = 'fatura-row';
+        const desc = document.createElement('div'); desc.className = 'desc';
+        const name = document.createElement('div'); name.className = 'name'; name.textContent = it.desc;
+        const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `${it.meta} · ${fmtDateFull(it.data)}`;
+        desc.appendChild(name); desc.appendChild(meta);
+        row.appendChild(desc);
+        const amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtBRL(it.valor);
+        row.appendChild(amt);
+        itemsWrap.appendChild(row);
+      }
+    }
+    secao.appendChild(itemsWrap);
+    return secao;
+  }
+
+  // popup de detalhe de um cartão: mostra o ciclo atual (o que vai fechar/ser cobrado em breve) e o
+  // próximo ciclo (o que já foi gasto mas só vai virar fatura depois), cada um com sua lista de compras
+  function openCartaoCicloModal(cardId){
+    const card = getCardById(cardId);
+    if (!card) return;
+    const w = cardCycleWindows(card);
+
+    $('#cartaoCicloTitle').textContent = card.nome;
+    const body = $('#cartaoCicloBody');
+    body.innerHTML = '';
+
+    const ledgerAtual = cardLedgerThrough(card, w.curClose, true);
+    const detAtual = ledgerAtual.length ? ledgerAtual[ledgerAtual.length-1] : { pendente: 0, carryIn: 0 };
+    const hiAtualItems = todayISO < w.curClose ? todayISO : w.curClose;
+    const itemsAtual = faturaPurchaseItems(card, w.curStart, hiAtualItems);
+    const labelAtual = `Ciclo atual (${fmtDateShort(w.curStart)} – ${fmtDateShort(w.curClose)})`;
+    body.appendChild(buildCicloSecao(labelAtual, detAtual.pendente, itemsAtual, detAtual.carryIn));
+
+    const totalProximo = totalProximoCicloCartao(card, w);
+    const itemsProximo = faturaPurchaseItems(card, w.nextStart, w.nextClose);
+    const labelProximo = `Próximo ciclo (${fmtDateShort(w.nextStart)} – ${fmtDateShort(w.nextClose)})`;
+    body.appendChild(buildCicloSecao(labelProximo, totalProximo, itemsProximo, 0));
+
+    openOverlay('#overlayCartaoCiclo');
   }
 
   // lista, num pop-up, todas as entradas (ou todas as saídas) já lançadas pro mês em exibição —
@@ -2165,6 +2311,11 @@
 
   /* ---------------- mutations ---------------- */
   let lastDeleted = null;
+  // controla qual pagamento registrado (dentro do popup de fatura) está em modo de edição ou
+  // pedindo confirmação pra ser removido — nunca os dois ao mesmo tempo, e sempre reiniciado
+  // quando o popup da fatura é aberto de novo (ver openFaturaDetalheModal)
+  let editingPagamentoId = null;
+  let confirmingDeletePagamentoId = null;
 
   // depois de apagar ou editar um lançamento que estava marcado num cartão (por exemplo, porque a
   // pessoa escolheu o cartão errado na hora de lançar), confere TODOS os ciclos desse cartão que já
@@ -2494,6 +2645,10 @@
   function openFaturaDetalheModal(cardId, cycleEnd){
     const card = getCardById(cardId);
     if (!card) return;
+    // toda vez que o popup é reaberto "do zero" (clicando na fatura), começa sem nenhum pagamento
+    // em modo de edição ou de confirmação de exclusão — evita mostrar um estado de uma visita anterior
+    editingPagamentoId = null;
+    confirmingDeletePagamentoId = null;
     const cycleStart = cycleStartForClosing(card, cycleEnd);
     const det = faturaDetalhe(card, cycleEnd);
     const paymentISO = paymentDateForClosing(card, cycleEnd);
@@ -2560,8 +2715,104 @@
     } else {
       pendenteLine.hidden = true;
     }
+    renderPagamentosRegistrados(cardId, cycleEnd);
     markFaturaPromptSeen(cardId, cycleEnd);
     openOverlay('#overlayFaturaDetalhe');
+  }
+
+  // lista os pagamentos já registrados (state.faturaPagamentos) pra essa fatura específica, cada um
+  // com um lapizinho pra corrigir o valor (se foi digitado errado) e um X pra remover — o X sempre
+  // pede confirmação antes de apagar de verdade, porque é fácil tocar nele sem querer no celular
+  function renderPagamentosRegistrados(cardId, cycleEnd){
+    const wrapOuter = $('#faturaDetPagamentosWrap');
+    const wrap = $('#faturaDetPagamentosList');
+    wrap.innerHTML = '';
+    const pagamentos = state.faturaPagamentos.filter(p => p.cardId === cardId && p.cycleEnd === cycleEnd);
+    if (pagamentos.length === 0){
+      wrapOuter.hidden = true;
+      return;
+    }
+    wrapOuter.hidden = false;
+
+    const refresh = () => { renderPagamentosRegistrados(cardId, cycleEnd); };
+    const refreshAfterChange = () => {
+      renderAll();
+      openFaturaDetalheModal(cardId, cycleEnd);
+    };
+
+    for (const p of pagamentos){
+      const row = document.createElement('div');
+      row.className = 'fatura-row pagamento-row';
+
+      if (confirmingDeletePagamentoId === p.id){
+        const desc = document.createElement('div'); desc.className = 'desc';
+        const name = document.createElement('div'); name.className = 'name';
+        name.textContent = `Remover pagamento de ${fmtBRL(p.valorPago)} (${fmtDateFull(p.data)})?`;
+        desc.appendChild(name);
+        row.appendChild(desc);
+
+        const actions = document.createElement('div'); actions.className = 'actions';
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button'; confirmBtn.className = 'btn small danger'; confirmBtn.textContent = 'Remover';
+        confirmBtn.addEventListener('click', () => {
+          state.faturaPagamentos = state.faturaPagamentos.filter(x => x.id !== p.id);
+          confirmingDeletePagamentoId = null;
+          refreshAfterChange();
+        });
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button'; cancelBtn.className = 'btn small'; cancelBtn.textContent = 'Cancelar';
+        cancelBtn.addEventListener('click', () => { confirmingDeletePagamentoId = null; refresh(); });
+        actions.appendChild(confirmBtn); actions.appendChild(cancelBtn);
+        row.appendChild(actions);
+
+      } else if (editingPagamentoId === p.id){
+        const editWrap = document.createElement('div');
+        editWrap.className = 'desc';
+        const label = document.createElement('div'); label.className = 'meta'; label.textContent = fmtDateFull(p.data);
+        const input = document.createElement('input');
+        input.type = 'number'; input.step = '0.01'; input.min = '0.01';
+        input.className = 'pagamento-edit-input mono';
+        input.value = p.valorPago.toFixed(2);
+        editWrap.appendChild(input);
+        editWrap.appendChild(label);
+        row.appendChild(editWrap);
+
+        const actions = document.createElement('div'); actions.className = 'actions';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button'; saveBtn.className = 'btn small primary'; saveBtn.textContent = 'Salvar';
+        saveBtn.addEventListener('click', () => {
+          const novo = parseFloat(input.value);
+          if (!(novo > 0)) return;
+          p.valorPago = novo;
+          editingPagamentoId = null;
+          refreshAfterChange();
+        });
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button'; cancelBtn.className = 'btn small'; cancelBtn.textContent = 'Cancelar';
+        cancelBtn.addEventListener('click', () => { editingPagamentoId = null; refresh(); });
+        actions.appendChild(saveBtn); actions.appendChild(cancelBtn);
+        row.appendChild(actions);
+
+      } else {
+        const desc = document.createElement('div'); desc.className = 'desc';
+        const name = document.createElement('div'); name.className = 'name'; name.textContent = `Pagamento de ${fmtBRL(p.valorPago)}`;
+        const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = fmtDateFull(p.data);
+        desc.appendChild(name); desc.appendChild(meta);
+        row.appendChild(desc);
+
+        const actions = document.createElement('div'); actions.className = 'actions';
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button'; editBtn.className = 'icon-btn'; editBtn.setAttribute('aria-label', 'Editar valor pago'); editBtn.textContent = '✎';
+        editBtn.addEventListener('click', () => { editingPagamentoId = p.id; refresh(); });
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.setAttribute('aria-label', 'Remover pagamento'); delBtn.textContent = '✕';
+        delBtn.addEventListener('click', () => { confirmingDeletePagamentoId = p.id; refresh(); });
+        actions.appendChild(editBtn); actions.appendChild(delBtn);
+        row.appendChild(actions);
+      }
+
+      wrap.appendChild(row);
+    }
   }
 
   function registrarPagamentoFatura(cardId, cycleEnd, valor){
@@ -2617,12 +2868,6 @@
   $('#parceladoInicio').addEventListener('input', updateParceladoResumo);
   $('#btnEntradasMes').addEventListener('click', ()=> openMesDetalheModal('entrada'));
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
-  $('#tileCartoesCard').addEventListener('click', ()=> {
-    if (state.cartoes.length===0) return;
-    renderCartoesResumo();
-    openOverlay('#overlayCartoesResumo');
-  });
-
   $('#oneForm').addEventListener('submit', e=>{
     e.preventDefault();
     const tipo = $('#oneSeg').querySelector('.active').dataset.tipo;

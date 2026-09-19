@@ -196,7 +196,7 @@
     background:var(--bg); color:var(--ink); font-family:"JetBrains Mono", monospace;
   }
 
-  #tileCartoesCard:hover{ border-color:var(--accent); }
+  #cardCartoesCard:hover{ border-color:var(--accent); }
 
   /* ---------- saldo atual + saldo projetado combinados, com barrinhas comparativas ---------- */
   .tile.balance-combo{ display:flex; flex-direction:row; align-items:stretch; padding:0; gap:0; overflow:hidden; }
@@ -660,9 +660,21 @@
         <span class="sub" id="tileAtualSub">&nbsp;</span>
       </div>
     </div>
-    <div class="tile" id="tileCartoesCard">
-      <span class="cartoes-titulo">Total gasto por cartão, por ciclo <span class="cartoes-titulo-note">(clique em cada um)</span></span>
-      <div class="cartoes-ciclo-wrap" id="cartoesCicloWrap"></div>
+    <div class="tile" id="tileEntradasSaidasCard">
+      <span class="cartoes-titulo">Entradas e saídas do mês</span>
+      <div class="tile inout" style="margin-top:12px;">
+        <button type="button" class="inout-half in" id="btnEntradasMes">
+          <span class="lbl">Entradas</span>
+          <span class="val mono" id="tileIn">R$ 0,00</span>
+          <span class="sub">do mês · toque para ver</span>
+        </button>
+        <div class="inout-divider"></div>
+        <button type="button" class="inout-half out" id="btnSaidasMes">
+          <span class="lbl">Saídas</span>
+          <span class="val mono" id="tileOut">R$ 0,00</span>
+          <span class="sub">do mês · toque para ver</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -692,21 +704,9 @@
     </div>
 
     <div class="sidebar">
-      <div class="card month-summary">
-        <h2>Entradas e saídas do mês</h2>
-        <div class="tile inout" style="margin-top:12px;">
-          <button type="button" class="inout-half in" id="btnEntradasMes">
-            <span class="lbl">Entradas</span>
-            <span class="val mono" id="tileIn">R$ 0,00</span>
-            <span class="sub">do mês · toque para ver</span>
-          </button>
-          <div class="inout-divider"></div>
-          <button type="button" class="inout-half out" id="btnSaidasMes">
-            <span class="lbl">Saídas</span>
-            <span class="val mono" id="tileOut">R$ 0,00</span>
-            <span class="sub">do mês · toque para ver</span>
-          </button>
-        </div>
+      <div class="card" id="cardCartoesCard">
+        <span class="cartoes-titulo">Total gasto por cartão, por ciclo <span class="cartoes-titulo-note">(clique em cada um)</span></span>
+        <div class="cartoes-ciclo-wrap" id="cartoesCicloWrap"></div>
       </div>
 
       <div class="card day-detail">
@@ -3085,6 +3085,25 @@
   function applyPersistedState(saved){
     if (!saved) return;
     Object.assign(state, saved);
+    // idCounter sempre começa do 1 a cada vez que a página carrega — sem isso, ao criar um cartão
+    // (ou compra, recorrente, pagamento) novo depois de carregar dados salvos, o novo registro podia
+    // ganhar um id "idN" que já tinha sido usado por outro registro salvo antes (ex.: um cartão antigo
+    // já tinha "id1", e o novo cartão criado nessa sessão também virava "id1"), fazendo as compras do
+    // cartão antigo aparecerem misturadas no cartão novo. Aqui recalculamos o próximo id livre a partir
+    // do maior número já usado em qualquer lista que usa nextId().
+    let maxUsed = 0;
+    const scan = (list) => {
+      if (!Array.isArray(list)) return;
+      for (const item of list){
+        const m = item && typeof item.id === 'string' && /^id(\d+)$/.exec(item.id);
+        if (m) maxUsed = Math.max(maxUsed, parseInt(m[1], 10));
+      }
+    };
+    scan(state.cartoes);
+    scan(state.oneTime);
+    scan(state.recorrentes);
+    scan(state.faturaPagamentos);
+    idCounter = Math.max(idCounter, maxUsed + 1);
   }
 
   function setSyncStatus(text){

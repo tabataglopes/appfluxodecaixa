@@ -512,6 +512,7 @@
   .seg button.active[data-tipo="entrada"]{ background:var(--income-soft); color:var(--income); }
   .seg button.active[data-tipo="saida"]{ background:var(--expense-soft); color:var(--expense); }
   .row2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+  .row2[hidden]{ display:none; }
   @media (max-width:360px){ .row2{ grid-template-columns:minmax(0,1fr); } }
   .checkrow{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-muted); margin-bottom:12px; }
   .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
@@ -1049,7 +1050,7 @@
           <label for="recurValor">Valor (R$)</label>
           <input type="number" step="0.01" min="0" id="recurValor" class="mono" placeholder="0,00" required>
         </div>
-        <div class="field">
+        <div class="field" id="recurDiaField">
           <label for="recurDia">Dia do mês</label>
           <input type="number" min="1" max="31" id="recurDia" class="mono" placeholder="1-31" required>
         </div>
@@ -1058,17 +1059,30 @@
         <div class="field">
           <label for="recurFreq">Frequência</label>
           <select id="recurFreq">
-            <option value="1">Mensal</option>
-            <option value="2">A cada 2 meses</option>
-            <option value="3">A cada 3 meses</option>
-            <option value="4">A cada 4 meses</option>
-            <option value="6">A cada 6 meses</option>
-            <option value="12">Anual</option>
+            <optgroup label="Por mês">
+              <option value="1">Mensal</option>
+              <option value="2">A cada 2 meses</option>
+              <option value="3">A cada 3 meses</option>
+              <option value="4">A cada 4 meses</option>
+              <option value="6">A cada 6 meses</option>
+              <option value="12">Anual</option>
+            </optgroup>
+            <optgroup label="Por dias corridos">
+              <option value="semanal">Semanal (a cada 7 dias)</option>
+              <option value="quinzenal">A cada 15 dias</option>
+              <option value="personalizado">Personalizado (a cada X dias)</option>
+            </optgroup>
           </select>
         </div>
         <div class="field">
           <label for="recurInicio">Começa em</label>
           <input type="date" id="recurInicio" required>
+        </div>
+      </div>
+      <div class="row2" id="recurIntervaloDiasRow" hidden>
+        <div class="field">
+          <label for="recurIntervaloDias">A cada quantos dias</label>
+          <input type="number" min="1" id="recurIntervaloDias" class="mono" placeholder="Ex.: 10">
         </div>
       </div>
       <div class="field">
@@ -1104,7 +1118,7 @@
           <label for="assinValor">Valor (R$)</label>
           <input type="number" step="0.01" min="0" id="assinValor" class="mono" placeholder="0,00" required>
         </div>
-        <div class="field">
+        <div class="field" id="assinDiaField">
           <label for="assinDia">Dia da cobrança</label>
           <input type="number" min="1" max="31" id="assinDia" class="mono" placeholder="1-31" required>
         </div>
@@ -1113,17 +1127,30 @@
         <div class="field">
           <label for="assinFreq">Frequência</label>
           <select id="assinFreq">
-            <option value="1">Mensal</option>
-            <option value="2">A cada 2 meses</option>
-            <option value="3">A cada 3 meses</option>
-            <option value="4">A cada 4 meses</option>
-            <option value="6">A cada 6 meses</option>
-            <option value="12">Anual</option>
+            <optgroup label="Por mês">
+              <option value="1">Mensal</option>
+              <option value="2">A cada 2 meses</option>
+              <option value="3">A cada 3 meses</option>
+              <option value="4">A cada 4 meses</option>
+              <option value="6">A cada 6 meses</option>
+              <option value="12">Anual</option>
+            </optgroup>
+            <optgroup label="Por dias corridos">
+              <option value="semanal">Semanal (a cada 7 dias)</option>
+              <option value="quinzenal">A cada 15 dias</option>
+              <option value="personalizado">Personalizado (a cada X dias)</option>
+            </optgroup>
           </select>
         </div>
         <div class="field">
           <label for="assinInicio">Cobra a partir de</label>
           <input type="date" id="assinInicio" required>
+        </div>
+      </div>
+      <div class="row2" id="assinIntervaloDiasRow" hidden>
+        <div class="field">
+          <label for="assinIntervaloDias">A cada quantos dias</label>
+          <input type="number" min="1" id="assinIntervaloDias" class="mono" placeholder="Ex.: 10">
         </div>
       </div>
       <div class="field">
@@ -1169,17 +1196,30 @@
         <div class="field">
           <label for="parceladoFreq">Frequência</label>
           <select id="parceladoFreq">
-            <option value="1">Mensal</option>
-            <option value="2">A cada 2 meses</option>
-            <option value="3">A cada 3 meses</option>
-            <option value="4">A cada 4 meses</option>
-            <option value="6">A cada 6 meses</option>
-            <option value="12">Anual</option>
+            <optgroup label="Por mês">
+              <option value="1">Mensal</option>
+              <option value="2">A cada 2 meses</option>
+              <option value="3">A cada 3 meses</option>
+              <option value="4">A cada 4 meses</option>
+              <option value="6">A cada 6 meses</option>
+              <option value="12">Anual</option>
+            </optgroup>
+            <optgroup label="Por dias corridos">
+              <option value="semanal">Semanal (a cada 7 dias)</option>
+              <option value="quinzenal">A cada 15 dias</option>
+              <option value="personalizado">Personalizado (a cada X dias)</option>
+            </optgroup>
           </select>
         </div>
         <div class="field">
           <label for="parceladoInicio">Pagamento a partir de</label>
           <input type="date" id="parceladoInicio" required>
+        </div>
+      </div>
+      <div class="row2" id="parceladoIntervaloDiasRow" hidden>
+        <div class="field">
+          <label for="parceladoIntervaloDias">A cada quantos dias</label>
+          <input type="number" min="1" id="parceladoIntervaloDias" class="mono" placeholder="Ex.: 10">
         </div>
       </div>
       <div class="field">
@@ -1257,6 +1297,15 @@
     const nd = Math.min(d, daysInMonth(ny, nm));
     return toISO(ny, nm, nd);
   };
+  // diferença em dias corridos entre duas datas ISO (usada pelas frequências "por dias corridos":
+  // semanal, a cada 15 dias, personalizado) — positivo quando hiISO é depois de loISO
+  const daysBetweenISO = (loISO, hiISO) => {
+    const [ly,lm,ld] = loISO.split('-').map(Number);
+    const [hy,hm,hd] = hiISO.split('-').map(Number);
+    const a = new Date(ly, lm-1, ld);
+    const b = new Date(hy, hm-1, hd);
+    return Math.round((b - a) / 86400000);
+  };
   // (v === 0 ? 0 : v) normaliza "-0" pra "0" antes de formatar — sem isso, um valor que chega a
   // zero por causa de uma subtração/negação (ex.: "-0") apareceria como "-R$ 0,00", o que é
   // tecnicamente correto pro JS mas confunde quem tá lendo o valor
@@ -1302,7 +1351,32 @@
     return out;
   }
 
+  // ocorrências de uma recorrência com frequência "por dias corridos" (semanal, a cada 15 dias, ou
+  // personalizado) — bem mais simples que o cálculo por mês: começa em dataInicio e vai somando
+  // rec.intervalDias em dias corridos até passar de hiISO ou de dataFim; usa aritmética de datas pra
+  // já "pular" direto pra perto de loISO em vez de contar dia a dia desde o início (que pode ser anos atrás)
+  function occurrencesForRecInRangeDias(rec, loISO, hiISO){
+    const out = [];
+    const interval = Math.max(1, rec.intervalDias || 1);
+    if (rec.dataInicio > hiISO) return out;
+    const diasAteLo = daysBetweenISO(rec.dataInicio, loISO);
+    let k = diasAteLo > 0 ? Math.ceil(diasAteLo / interval) : 0;
+    let iso = addDays(rec.dataInicio, k*interval);
+    let guard = 0;
+    while (iso <= hiISO && guard < 5000){
+      if (rec.dataFim && iso > rec.dataFim) break;
+      if (iso >= loISO){
+        out.push({ id: rec.id+'@'+iso, tipo: rec.tipo, desc: rec.desc, valor: rec.valor, data: iso, recorrente:true, recId: rec.id, formaPagamento: rec.formaPagamento || null });
+      }
+      k++;
+      iso = addDays(rec.dataInicio, k*interval);
+      guard++;
+    }
+    return out;
+  }
+
   function occurrencesForRecInRange(rec, loISO, hiISO){
+    if (rec.freqType === 'dias') return occurrencesForRecInRangeDias(rec, loISO, hiISO);
     const months = monthsBetween(loISO, hiISO);
     const out = [];
     const [startY, startM] = rec.dataInicio.split('-').map(Number);
@@ -1324,12 +1398,47 @@
     return out;
   }
 
+  // opções do <select> de frequência ↔ { freqType, intervalMeses, intervalDias }. As de "por mês"
+  // continuam sendo o número de meses (como sempre foi); as novas "por dias corridos" (semanal,
+  // quinzenal, personalizado) viram freqType:'dias' com o intervalo em dias.
+  function isFreqDiasValue(v){ return v === 'semanal' || v === 'quinzenal' || v === 'personalizado'; }
+  function freqValueToInterval(value, customDiasStr){
+    if (value === 'semanal') return { freqType:'dias', intervalDias: 7 };
+    if (value === 'quinzenal') return { freqType:'dias', intervalDias: 15 };
+    if (value === 'personalizado') return { freqType:'dias', intervalDias: Math.max(1, parseInt(customDiasStr,10) || 1) };
+    return { freqType:'meses', intervalMeses: parseInt(value,10) || 1 };
+  }
+  function freqToSelectValue(rec){
+    if (rec.freqType === 'dias'){
+      if (rec.intervalDias === 7) return 'semanal';
+      if (rec.intervalDias === 15) return 'quinzenal';
+      return 'personalizado';
+    }
+    return String(rec.intervalMeses || 1);
+  }
+
   const FREQ_LABELS = { 1:'mensal', 2:'a cada 2 meses', 3:'a cada 3 meses', 4:'a cada 4 meses', 6:'a cada 6 meses', 12:'anual' };
-  const freqLabel = n => FREQ_LABELS[n] || 'mensal';
+  // recebe a recorrência inteira (não só o número) pra poder diferenciar frequência por mês de
+  // frequência por dias corridos
+  function freqLabel(rec){
+    if (rec && rec.freqType === 'dias'){
+      if (rec.intervalDias === 7) return 'semanal';
+      if (rec.intervalDias === 15) return 'a cada 15 dias';
+      return `a cada ${rec.intervalDias} dias`;
+    }
+    return FREQ_LABELS[rec && rec.intervalMeses] || 'mensal';
+  }
   // rótulo das parcelas no plural, de acordo com a frequência escolhida (ex.: "10 parcelas / mensais",
   // "4 parcelas / anuais"); pras frequências de "a cada N meses" o próprio texto já funciona no plural
   const PARCELA_FREQ_LABELS = { 1:'mensais', 2:'a cada 2 meses', 3:'a cada 3 meses', 4:'a cada 4 meses', 6:'a cada 6 meses', 12:'anuais' };
-  const parcelaFreqLabel = n => PARCELA_FREQ_LABELS[n] || 'mensais';
+  function parcelaFreqLabel(rec){
+    if (rec && rec.freqType === 'dias'){
+      if (rec.intervalDias === 7) return 'semanais';
+      if (rec.intervalDias === 15) return 'a cada 15 dias';
+      return `a cada ${rec.intervalDias} dias`;
+    }
+    return PARCELA_FREQ_LABELS[rec && rec.intervalMeses] || 'mensais';
+  }
 
   const getRecById = id => state.recorrentes.find(r=>r.id===id);
   const getCardById = id => state.cartoes.find(c=>c.id===id);
@@ -1445,8 +1554,10 @@
   // sempre pegar a 1ª ocorrência real (mesmo quando ela "escorrega" pro ciclo seguinte por causa do
   // dia de cobrança, como no caso de assinatura com mês de teste grátis)
   function firstOccurrenceCycleForCard(rec, card){
-    const interval = rec.intervalMeses || 1;
-    const hi = rec.dataFim || addMonthsISO(rec.dataInicio, interval);
+    let hi;
+    if (rec.dataFim) hi = rec.dataFim;
+    else if (rec.freqType === 'dias') hi = addDays(rec.dataInicio, Math.max(1, rec.intervalDias || 1));
+    else hi = addMonthsISO(rec.dataInicio, rec.intervalMeses || 1);
     const occs = occurrencesForRecInRange(rec, rec.dataInicio, hi);
     if (occs.length === 0) return null;
     return closingDateForCycleContaining(card, occs[0].data);
@@ -2067,16 +2178,26 @@
       } else if (o.recorrente){
         const rec = getRecById(o.recId);
         if (rec && rec.kind === 'parcelado'){
-          const [sy, sm] = rec.dataInicio.split('-').map(Number);
-          const [yy, mm] = iso.split('-').map(Number);
-          const interval = rec.intervalMeses || 1;
-          const parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
+          let parcelaAtual;
+          if (rec.freqType === 'dias'){
+            const diasPassados = daysBetweenISO(rec.dataInicio, iso);
+            parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(diasPassados / (rec.intervalDias || 1)) + 1));
+          } else {
+            const [sy, sm] = rec.dataInicio.split('-').map(Number);
+            const [yy, mm] = iso.split('-').map(Number);
+            const interval = rec.intervalMeses || 1;
+            parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
+          }
           const cardNote = rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
-          meta.textContent = `compra parcelada · parcela ${parcelaAtual} de ${rec.numParcelas} (${parcelaFreqLabel(interval)})${cardNote}`;
+          meta.textContent = `compra parcelada · parcela ${parcelaAtual} de ${rec.numParcelas} (${parcelaFreqLabel(rec)})${cardNote}`;
         } else {
           const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : (rec && rec.tipo === 'entrada' ? 'receita fixa' : 'conta fixa');
           const cardNote = rec && rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
-          meta.textContent = `${kindLabel} · ${freqLabel(rec ? rec.intervalMeses : 1)} · dia ${iso.split('-')[2]}${cardNote}`;
+          if (rec && rec.freqType === 'dias'){
+            meta.textContent = `${kindLabel} · ${freqLabel(rec)}${cardNote}`;
+          } else {
+            meta.textContent = `${kindLabel} · ${freqLabel(rec || {intervalMeses:1})} · dia ${iso.split('-')[2]}${cardNote}`;
+          }
         }
       } else if (o.formaPagamento){
         const card = getCardById(o.formaPagamento);
@@ -2168,7 +2289,9 @@
       ? `de ${fmtDateFull(r.dataInicio)} até ${fmtDateFull(r.dataFim)}`
       : `desde ${fmtDateFull(r.dataInicio)} · sem término`;
     const cardNote = r.formaPagamento ? ` · no cartão ${getCardById(r.formaPagamento)?.nome || 'removido'}` : '';
-    meta.textContent = `todo dia ${r.dia} · ${freqLabel(r.intervalMeses)} · ${periodo}${cardNote}`;
+    meta.textContent = r.freqType === 'dias'
+      ? `${freqLabel(r)} · ${periodo}${cardNote}`
+      : `todo dia ${r.dia} · ${freqLabel(r)} · ${periodo}${cardNote}`;
     info.appendChild(name); info.appendChild(meta);
     row.appendChild(info);
 
@@ -2245,16 +2368,24 @@
     name.textContent = r.desc;
     const meta = document.createElement('div');
     meta.className = 'meta';
-    const [sy, sm] = r.dataInicio.split('-').map(Number);
-    const [ty, tm] = todayISO.split('-').map(Number);
-    const diffMeses = (ty*12+tm) - (sy*12+sm);
-    const interval = r.intervalMeses || 1;
-    const parcelaAtual = Math.min(r.numParcelas, Math.max(0, Math.floor(diffMeses / interval) + 1));
+    let parcelaAtual;
+    if (r.freqType === 'dias'){
+      const diasPassados = daysBetweenISO(r.dataInicio, todayISO);
+      parcelaAtual = Math.min(r.numParcelas, Math.max(0, Math.floor(diasPassados / (r.intervalDias || 1)) + 1));
+    } else {
+      const [sy, sm] = r.dataInicio.split('-').map(Number);
+      const [ty, tm] = todayISO.split('-').map(Number);
+      const diffMeses = (ty*12+tm) - (sy*12+sm);
+      const interval = r.intervalMeses || 1;
+      parcelaAtual = Math.min(r.numParcelas, Math.max(0, Math.floor(diffMeses / interval) + 1));
+    }
+    const inicioTxt = r.freqType === 'dias' ? fmtDateFull(r.dataInicio) : fmtMonthYear(r.dataInicio);
+    const fimTxt = r.freqType === 'dias' ? fmtDateFull(r.dataFim) : fmtMonthYear(r.dataFim);
     const statusParcela = parcelaAtual < 1
-      ? `começa em ${fmtMonthYear(r.dataInicio)}`
+      ? `começa em ${inicioTxt}`
       : `parcela ${parcelaAtual} de ${r.numParcelas}`;
     const cardNote = r.formaPagamento ? ` · no cartão ${getCardById(r.formaPagamento)?.nome || 'removido'}` : '';
-    meta.textContent = `${statusParcela} · ${r.numParcelas} parcelas / ${parcelaFreqLabel(interval)} · até ${fmtMonthYear(r.dataFim)}${cardNote}`;
+    meta.textContent = `${statusParcela} · ${r.numParcelas} parcelas / ${parcelaFreqLabel(r)} · até ${fimTxt}${cardNote}`;
     info.appendChild(name); info.appendChild(meta);
     row.appendChild(info);
 
@@ -2544,6 +2675,26 @@
   function updateRecurFormaPagamentoVisibility(tipo){
     $('#recurFormaPagamentoField').style.display = (tipo === 'saida') ? '' : 'none';
   }
+  // frequência "por dias corridos" não usa "dia do mês/da cobrança" (não faz sentido pra semanal,
+  // quinzenal ou personalizado) — some quando escolhida; e o campo "a cada quantos dias" só aparece
+  // pra opção "Personalizado"
+  function updateRecurFreqFieldsVisibility(){
+    const isDias = isFreqDiasValue($('#recurFreq').value);
+    $('#recurDiaField').style.display = isDias ? 'none' : '';
+    $('#recurDia').required = !isDias;
+    $('#recurIntervaloDiasRow').hidden = $('#recurFreq').value !== 'personalizado';
+  }
+  function updateAssinFreqFieldsVisibility(){
+    const isDias = isFreqDiasValue($('#assinFreq').value);
+    $('#assinDiaField').style.display = isDias ? 'none' : '';
+    $('#assinDia').required = !isDias;
+    $('#assinIntervaloDiasRow').hidden = $('#assinFreq').value !== 'personalizado';
+  }
+  function updateParceladoFreqFieldsVisibility(){
+    $('#parceladoIntervaloDiasRow').hidden = $('#parceladoFreq').value !== 'personalizado';
+  }
+  $('#recurFreq').addEventListener('change', updateRecurFreqFieldsVisibility);
+  $('#assinFreq').addEventListener('change', updateAssinFreqFieldsVisibility);
   function populateFormaPagamentoSelect(selector, selectedValue){
     const sel = $(selector);
     sel.innerHTML = '';
@@ -2598,8 +2749,9 @@
       $('#recurTipo').value = editItem.tipo;
       $('#recurDesc').value = editItem.desc;
       $('#recurValor').value = editItem.valor;
-      $('#recurDia').value = editItem.dia;
-      $('#recurFreq').value = String(editItem.intervalMeses || 1);
+      $('#recurDia').value = editItem.dia || '';
+      $('#recurFreq').value = freqToSelectValue(editItem);
+      $('#recurIntervaloDias').value = editItem.freqType === 'dias' ? editItem.intervalDias : '';
       $('#recurInicio').value = editItem.dataInicio;
       $('#recurFim').value = editItem.dataFim || '';
       $('#recurSemFim').checked = !editItem.dataFim;
@@ -2612,6 +2764,7 @@
       $('#recurModalTitle').textContent = tipo === 'entrada' ? 'Nova receita fixa' : 'Nova conta fixa';
       $('#recurTipo').value = tipo;
       $('#recurFreq').value = '1';
+      $('#recurIntervaloDias').value = '';
       $('#recurInicio').value = todayISO;
       $('#recurSemFim').checked = true;
       $('#recurFim').disabled = true;
@@ -2619,6 +2772,7 @@
       populateFormaPagamentoSelect('#recurFormaPagamento', '');
       updateRecurFormaPagamentoVisibility(tipo);
     }
+    updateRecurFreqFieldsVisibility();
     openOverlay('#overlayRecur');
     $('#recurDesc').focus();
   }
@@ -2630,8 +2784,9 @@
       $('#assinModalTitle').textContent = 'Editar assinatura';
       $('#assinDesc').value = editItem.desc;
       $('#assinValor').value = editItem.valor;
-      $('#assinDia').value = editItem.dia;
-      $('#assinFreq').value = String(editItem.intervalMeses || 1);
+      $('#assinDia').value = editItem.dia || '';
+      $('#assinFreq').value = freqToSelectValue(editItem);
+      $('#assinIntervaloDias').value = editItem.freqType === 'dias' ? editItem.intervalDias : '';
       $('#assinInicio').value = editItem.dataInicio;
       $('#assinFim').value = editItem.dataFim || '';
       $('#assinSemFim').checked = !editItem.dataFim;
@@ -2641,12 +2796,14 @@
     } else {
       $('#assinModalTitle').textContent = 'Nova assinatura';
       $('#assinFreq').value = '1';
+      $('#assinIntervaloDias').value = '';
       $('#assinInicio').value = todayISO;
       $('#assinSemFim').checked = true;
       $('#assinFim').disabled = true;
       $('#assinFim').value = '';
       populateFormaPagamentoSelect('#assinFormaPagamento', '');
     }
+    updateAssinFreqFieldsVisibility();
     openOverlay('#overlayAssin');
     $('#assinDesc').focus();
   }
@@ -2654,15 +2811,18 @@
   function updateParceladoResumo(){
     const valor = parseFloat($('#parceladoValor').value);
     const qtd = parseInt($('#parceladoQtd').value, 10);
-    const interval = parseInt($('#parceladoFreq').value, 10) || 1;
+    const freqVal = $('#parceladoFreq').value;
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval(freqVal, $('#parceladoIntervaloDias').value);
     const inicio = $('#parceladoInicio').value;
     const el = $('#parceladoResumo');
-    if (!isNaN(valor) && !isNaN(qtd) && qtd>0 && inicio){
-      const fim = addMonthsISO(inicio, (qtd-1)*interval);
+    const freqValida = freqType === 'meses' || (intervalDias && intervalDias >= 1);
+    if (!isNaN(valor) && !isNaN(qtd) && qtd>0 && inicio && freqValida){
+      const fim = freqType === 'dias' ? addDays(inicio, (qtd-1)*intervalDias) : addMonthsISO(inicio, (qtd-1)*intervalMeses);
       const cardId = $('#parceladoFormaPagamento').value;
       const card = cardId ? getCardById(cardId) : null;
       const ondePaga = card ? ` · cobrado no cartão ${card.nome}` : '';
-      el.textContent = `${qtd} parcelas ${parcelaFreqLabel(interval)} de ${fmtBRL(valor)} = total de ${fmtBRL(valor*qtd)} · última parcela em ${fmtMonthYear(fim)}${ondePaga}`;
+      const fimTxt = freqType === 'dias' ? fmtDateFull(fim) : fmtMonthYear(fim);
+      el.textContent = `${qtd} parcelas ${parcelaFreqLabel({freqType, intervalMeses, intervalDias})} de ${fmtBRL(valor)} = total de ${fmtBRL(valor*qtd)} · última parcela em ${fimTxt}${ondePaga}`;
     } else {
       el.textContent = '';
     }
@@ -2676,16 +2836,19 @@
       $('#parceladoDesc').value = editItem.desc;
       $('#parceladoValor').value = editItem.valor;
       $('#parceladoQtd').value = editItem.numParcelas;
-      $('#parceladoFreq').value = String(editItem.intervalMeses || 1);
+      $('#parceladoFreq').value = freqToSelectValue(editItem);
+      $('#parceladoIntervaloDias').value = editItem.freqType === 'dias' ? editItem.intervalDias : '';
       $('#parceladoInicio').value = editItem.dataInicio;
       $('#parceladoEditId').value = editItem.id;
       populateFormaPagamentoSelect('#parceladoFormaPagamento', editItem.formaPagamento);
     } else {
       $('#parceladoModalTitle').textContent = 'Nova compra parcelada';
       $('#parceladoFreq').value = '1';
+      $('#parceladoIntervaloDias').value = '';
       $('#parceladoInicio').value = todayISO;
       populateFormaPagamentoSelect('#parceladoFormaPagamento', '');
     }
+    updateParceladoFreqFieldsVisibility();
     updateParceladoResumo();
     openOverlay('#overlayParcelado');
     $('#parceladoDesc').focus();
@@ -2734,10 +2897,16 @@
       for (const o of occurrencesForRecInRange(r, cycleStart, cycleEnd)){
         let meta;
         if (r.kind === 'parcelado'){
-          const [sy, sm] = r.dataInicio.split('-').map(Number);
-          const [yy, mm] = o.data.split('-').map(Number);
-          const interval = r.intervalMeses || 1;
-          const parcelaAtual = Math.min(r.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
+          let parcelaAtual;
+          if (r.freqType === 'dias'){
+            const diasPassados = daysBetweenISO(r.dataInicio, o.data);
+            parcelaAtual = Math.min(r.numParcelas, Math.max(1, Math.floor(diasPassados / (r.intervalDias || 1)) + 1));
+          } else {
+            const [sy, sm] = r.dataInicio.split('-').map(Number);
+            const [yy, mm] = o.data.split('-').map(Number);
+            const interval = r.intervalMeses || 1;
+            parcelaAtual = Math.min(r.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
+          }
           meta = `parcela ${parcelaAtual} de ${r.numParcelas}`;
         } else if (r.kind === 'assinatura'){
           meta = 'assinatura';
@@ -2976,9 +3145,10 @@
   $('#openCartoesBtn').addEventListener('click', ()=> openOverlay('#overlayCartoesList'));
   $('#parceladoValor').addEventListener('input', updateParceladoResumo);
   $('#parceladoQtd').addEventListener('input', updateParceladoResumo);
-  $('#parceladoFreq').addEventListener('change', updateParceladoResumo);
+  $('#parceladoFreq').addEventListener('change', () => { updateParceladoFreqFieldsVisibility(); updateParceladoResumo(); });
   $('#parceladoFormaPagamento').addEventListener('change', updateParceladoResumo);
   $('#parceladoInicio').addEventListener('input', updateParceladoResumo);
+  $('#parceladoIntervaloDias').addEventListener('input', updateParceladoResumo);
   $('#btnEntradasMes').addEventListener('click', ()=> openMesDetalheModal('entrada'));
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
   $('#oneForm').addEventListener('submit', e=>{
@@ -3027,23 +3197,25 @@
     const tipo = $('#recurTipo').value || 'saida';
     const desc = $('#recurDesc').value.trim();
     const valor = parseFloat($('#recurValor').value);
-    const dia = Math.min(31, Math.max(1, parseInt($('#recurDia').value,10)));
-    const intervalMeses = parseInt($('#recurFreq').value, 10) || 1;
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#recurFreq').value, $('#recurIntervaloDias').value);
+    const dia = freqType === 'dias' ? null : Math.min(31, Math.max(1, parseInt($('#recurDia').value,10)));
     const dataInicio = $('#recurInicio').value;
     const semFim = $('#recurSemFim').checked;
     const dataFim = semFim ? null : ($('#recurFim').value || null);
     const editId = $('#recurEditId').value;
     const formaPagamento = tipo === 'saida' ? ($('#recurFormaPagamento').value || null) : null;
     if (!desc || isNaN(valor) || !dataInicio) return;
+    if (freqType === 'meses' && isNaN(dia)) return;
+    if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
         const cartaoAntigo = r.formaPagamento;
-        r.tipo=tipo; r.desc=desc; r.valor=valor; r.dia=dia; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        r.tipo=tipo; r.desc=desc; r.valor=valor; r.dia=dia; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'fixa', tipo, desc, valor, dia, intervalMeses, dataInicio, dataFim, formaPagamento });
+      state.recorrentes.push({ id: nextId(), kind:'fixa', tipo, desc, valor, dia, freqType, intervalMeses, intervalDias, dataInicio, dataFim, formaPagamento });
     }
     closeOverlay('#overlayRecur');
     renderAll();
@@ -3053,23 +3225,25 @@
     e.preventDefault();
     const desc = $('#assinDesc').value.trim();
     const valor = parseFloat($('#assinValor').value);
-    const dia = Math.min(31, Math.max(1, parseInt($('#assinDia').value,10)));
-    const intervalMeses = parseInt($('#assinFreq').value, 10) || 1;
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#assinFreq').value, $('#assinIntervaloDias').value);
+    const dia = freqType === 'dias' ? null : Math.min(31, Math.max(1, parseInt($('#assinDia').value,10)));
     const dataInicio = $('#assinInicio').value;
     const semFim = $('#assinSemFim').checked;
     const dataFim = semFim ? null : ($('#assinFim').value || null);
     const editId = $('#assinEditId').value;
     const formaPagamento = $('#assinFormaPagamento').value || null;
-    if (!desc || isNaN(valor) || isNaN(dia) || !dataInicio) return;
+    if (!desc || isNaN(valor) || !dataInicio) return;
+    if (freqType === 'meses' && isNaN(dia)) return;
+    if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
         const cartaoAntigo = r.formaPagamento;
-        r.desc=desc; r.valor=valor; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        r.desc=desc; r.valor=valor; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'assinatura', tipo:'saida', desc, valor, dia, intervalMeses, dataInicio, dataFim, formaPagamento });
+      state.recorrentes.push({ id: nextId(), kind:'assinatura', tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, dataInicio, dataFim, formaPagamento });
     }
     closeOverlay('#overlayAssin');
     renderAll();
@@ -3080,22 +3254,23 @@
     const desc = $('#parceladoDesc').value.trim();
     const valor = parseFloat($('#parceladoValor').value);
     const numParcelas = Math.max(1, parseInt($('#parceladoQtd').value, 10));
-    const intervalMeses = parseInt($('#parceladoFreq').value, 10) || 1;
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#parceladoFreq').value, $('#parceladoIntervaloDias').value);
     const dataInicio = $('#parceladoInicio').value;
     const formaPagamento = $('#parceladoFormaPagamento').value || null;
     const editId = $('#parceladoEditId').value;
     if (!desc || isNaN(valor) || isNaN(numParcelas) || !dataInicio) return;
-    const dia = Number(dataInicio.split('-')[2]);
-    const dataFim = addMonthsISO(dataInicio, (numParcelas-1)*intervalMeses);
+    if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
+    const dia = freqType === 'dias' ? null : Number(dataInicio.split('-')[2]);
+    const dataFim = freqType === 'dias' ? addDays(dataInicio, (numParcelas-1)*intervalDias) : addMonthsISO(dataInicio, (numParcelas-1)*intervalMeses);
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
         const cartaoAntigo = r.formaPagamento;
-        r.desc=desc; r.valor=valor; r.numParcelas=numParcelas; r.intervalMeses=intervalMeses; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        r.desc=desc; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, intervalMeses, numParcelas, dataInicio, dataFim, formaPagamento });
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento });
     }
     closeOverlay('#overlayParcelado');
     renderAll();

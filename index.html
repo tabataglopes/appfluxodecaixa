@@ -562,15 +562,21 @@
      .nm-total-bar/.nm-add-btn acima), só com colunas próprias pra cada lista ---------- */
   .rl-header-row{ display:none; }
   .pc-header-row{ display:none; }
+  .ct-header-row{ display:none; }
   /* espaçamento da linha (mobile e desktop) — sem isso o texto fica colado na borda do cartão */
-  .rl-row, .pc-row{ padding:16px 20px; border-bottom:1px solid var(--border); }
-  .rl-row:last-child, .pc-row:last-child{ border-bottom:none; }
+  .rl-row, .pc-row, .ct-row{ padding:16px 20px; border-bottom:1px solid var(--border); }
+  .rl-row:last-child, .pc-row:last-child, .ct-row:last-child{ border-bottom:none; }
   .rl-col-actions{ display:flex; gap:6px; }
   .rl-cartao-tag{ font-size:12.5px; color:var(--ink-muted); }
   .rl-cartao-tag.empty{ color:var(--ink-muted); opacity:.6; }
   .pc-cartao-line{ font-size:12px; color:var(--ink-muted); margin-top:2px; }
   .pc-data1{ font-size:13px; }
   .pc-qtd{ font-size:13px; color:var(--ink-muted); }
+  /* mobile: linha de valor + (parcelas em cima, datas embaixo) lado a lado */
+  .pc-meta-mobile{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-top:2px; }
+  .pc-qtd-datas-mobile{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+  .pc-qtd-mobile{ font-size:13px; font-weight:700; }
+  .pc-datas-mobile{ font-size:11.5px; color:var(--ink-muted); white-space:nowrap; }
   .pc-pagamento{
     width:100%; min-width:0; border:1px solid var(--border); border-radius:8px; padding:6px 8px; font-size:12.5px;
     font-weight:600; font-family:inherit; cursor:pointer; background:var(--surface-2); color:var(--ink);
@@ -612,6 +618,13 @@
       display:grid; grid-template-columns: 1.35fr 0.95fr 0.85fr 0.85fr 0.65fr 1.15fr 64px; gap:16px;
       align-items:center;
     }
+
+    .ct-header-row{
+      display:grid; grid-template-columns: 1.7fr 1fr 1fr 64px; gap:16px;
+      padding:0 20px 12px; margin-top:14px; border-bottom:1px solid var(--border);
+      font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted); font-weight:600;
+    }
+    .ct-row{ display:grid; grid-template-columns: 1.7fr 1fr 1fr 64px; gap:16px; align-items:center; }
   }
 
   /* ---------- detalhe da fatura (lista de compras que compõem o total) ---------- */
@@ -975,7 +988,7 @@
     </div>
     <div class="nm-card">
       <div class="rl-header-row">
-        <span>Conta</span><span>Valor</span><span>Frequência</span><span>Cartão</span><span></span>
+        <span>Conta</span><span>Valor</span><span>Frequência</span><span>Meio de pagamento</span><span></span>
       </div>
       <div id="contasFixasPageList"></div>
     </div>
@@ -1000,7 +1013,7 @@
     </div>
     <div class="nm-card">
       <div class="rl-header-row">
-        <span>Conta</span><span>Valor</span><span>Frequência</span><span>Cartão</span><span></span>
+        <span>Receita</span><span>Valor</span><span>Frequência</span><span>Em que conta cai</span><span></span>
       </div>
       <div id="receitasFixasPageList"></div>
     </div>
@@ -1025,7 +1038,7 @@
     </div>
     <div class="nm-card">
       <div class="rl-header-row">
-        <span>Conta</span><span>Valor</span><span>Frequência</span><span>Cartão</span><span></span>
+        <span>Assinatura</span><span>Valor</span><span>Frequência</span><span>Meio de pagamento</span><span></span>
       </div>
       <div id="assinPageList"></div>
     </div>
@@ -1052,7 +1065,7 @@
     </div>
     <div class="nm-card">
       <div class="pc-header-row">
-        <span>Conta</span><span>Valor da parcela</span><span>Início</span><span>Fim</span><span>Parcelas</span><span>Pagamento</span><span></span>
+        <span>Compra</span><span>Valor da parcela</span><span>Início</span><span>Fim</span><span>Parcelas</span><span>Pagamento</span><span></span>
       </div>
       <div id="parceladosPageList"></div>
     </div>
@@ -1061,6 +1074,27 @@
       <span class="val mono" id="parceladosTotalVal">R$ 0,00</span>
     </div>
     <button class="btn primary nm-add-btn" id="addParceladoBtn" type="button">+ Novo parcelado</button>
+  </div>
+
+  <!-- Cartão de crédito: página cheia (substitui o pop-up antigo) -->
+  <div class="nm-view" id="cartoesView" hidden>
+    <div class="nm-page-head">
+      <button class="nm-back-btn" id="cartoesBackBtn" aria-label="Voltar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <h2>Cartão de Crédito</h2>
+    </div>
+    <div class="nm-intro">
+      <span class="icon">💳</span>
+      <span>Seus cartões cadastrados, com o dia do fechamento e do pagamento da fatura de cada um.</span>
+    </div>
+    <div class="nm-card">
+      <div class="ct-header-row">
+        <span>Cartão</span><span>Data do fechamento</span><span>Data do pagamento</span><span></span>
+      </div>
+      <div id="cartoesPageList"></div>
+    </div>
+    <button class="btn primary nm-add-btn" id="addCartaoBtn" type="button">+ Novo cartão</button>
   </div>
 
 </div>
@@ -1142,17 +1176,6 @@
 </div>
 
 <!-- Modal: lista de cartões -->
-<div class="overlay" id="overlayCartoesList" hidden>
-  <div class="modal" style="max-width:480px;">
-    <button class="modal-close" data-close="overlayCartoesList" aria-label="Fechar">&times;</button>
-    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
-      <h3 style="margin:0;">Cartão de crédito</h3>
-      <button class="btn primary small" id="addCartaoBtn">+ Novo cartão</button>
-    </div>
-    <div class="recur-list" id="cartoesList"></div>
-  </div>
-</div>
-
 <!-- Modal: detalhe de um cartão — ciclo atual e próximo ciclo, com a lista de compras de cada um -->
 <div class="overlay" id="overlayCartaoCiclo" hidden>
   <div class="modal" style="max-width:460px;">
@@ -1341,6 +1364,12 @@
       <div class="field" id="recurFormaPagamentoField">
         <label for="recurFormaPagamento">Forma de pagamento</label>
         <select id="recurFormaPagamento"></select>
+      </div>
+      <!-- só pra receita fixa (entrada): o app não tem conceito de "conta bancária", então isso é
+           só uma anotação livre da pessoa pra lembrar onde aquela receita cai -->
+      <div class="field" id="recurOndeCaiField">
+        <label for="recurOndeCai">Em que conta cai (opcional)</label>
+        <input type="text" id="recurOndeCai" placeholder="Ex.: Conta corrente, poupança...">
       </div>
       <input type="hidden" id="recurEditId">
       <div class="modal-actions">
@@ -2598,12 +2627,19 @@
   // visual da Contas Não Mensais) ----------------
   const PAGAMENTO_STATUS_LABELS = { em_curso:'Em curso', pago:'Paguei tudo', atrasado:'Atrasado' };
 
-  function buildContaReceitaRow(r){
+  function buildContaReceitaRow(r, mode){
     const row = document.createElement('div');
     row.className = 'rl-row';
     const sinal = r.tipo === 'entrada' ? '+' : '-';
     const amtCls = r.tipo === 'entrada' ? 'mob-amt-in' : 'mob-amt-out';
     const cardNome = r.formaPagamento ? (getCardById(r.formaPagamento)?.nome || 'removido') : '';
+    // 'pagamento' (contas fixas / assinaturas): mostra o cartão escolhido, ou o padrão do
+    // formulário quando nenhum cartão foi selecionado (não é um estado "vazio").
+    // 'nota' (receitas fixas): mostra a anotação livre de onde a receita cai.
+    const lastColTxt = mode === 'nota'
+      ? (r.ondeCai || '—')
+      : (cardNome || 'Dinheiro/Pix/Débito');
+    const lastColEmpty = mode === 'nota' ? !r.ondeCai : false;
     const freqTxt = freqLabel(r);
     const freqCap = freqTxt.charAt(0).toUpperCase() + freqTxt.slice(1);
 
@@ -2618,7 +2654,7 @@
     amtSpanMob.className = amtCls + ' mono';
     amtSpanMob.textContent = `${sinal} ${fmtBRL(r.valor)}`;
     mobileLine.appendChild(amtSpanMob);
-    mobileLine.appendChild(document.createTextNode(` · ${freqCap}` + (cardNome ? ` · no cartão ${cardNome}` : '')));
+    mobileLine.appendChild(document.createTextNode(` · ${freqCap}` + (lastColEmpty ? '' : ` · ${mode === 'nota' ? 'cai em' : 'via'} ${lastColTxt}`)));
     nomeWrap.appendChild(mobileLine);
     row.appendChild(nomeWrap);
 
@@ -2638,8 +2674,8 @@
     row.appendChild(freqCol);
 
     const cartaoCol = document.createElement('div');
-    cartaoCol.className = 'rl-cartao-tag nm-desktop-only' + (cardNome ? '' : ' empty');
-    cartaoCol.textContent = cardNome || '—';
+    cartaoCol.className = 'rl-cartao-tag nm-desktop-only' + (lastColEmpty ? ' empty' : '');
+    cartaoCol.textContent = lastColTxt;
     row.appendChild(cartaoCol);
 
     const actions = document.createElement('div');
@@ -2665,7 +2701,7 @@
     if (contas.length===0){
       wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma conta fixa cadastrada ainda.</div>';
     } else {
-      for (const r of contas) wrap.appendChild(buildContaReceitaRow(r));
+      for (const r of contas) wrap.appendChild(buildContaReceitaRow(r, 'pagamento'));
     }
     $('#contasFixasTotalVal').textContent = fmtBRL(contas.reduce((sum,r)=>sum+r.valor,0));
   }
@@ -2677,7 +2713,7 @@
     if (receitas.length===0){
       wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma receita fixa cadastrada ainda.</div>';
     } else {
-      for (const r of receitas) wrap.appendChild(buildContaReceitaRow(r));
+      for (const r of receitas) wrap.appendChild(buildContaReceitaRow(r, 'nota'));
     }
     $('#receitasFixasTotalVal').textContent = fmtBRL(receitas.reduce((sum,r)=>sum+r.valor,0));
   }
@@ -2689,7 +2725,7 @@
     if (assinaturas.length===0){
       wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma assinatura cadastrada ainda.</div>';
     } else {
-      for (const r of assinaturas) wrap.appendChild(buildContaReceitaRow(r));
+      for (const r of assinaturas) wrap.appendChild(buildContaReceitaRow(r, 'pagamento'));
     }
     $('#assinTotalVal').textContent = fmtBRL(assinaturas.reduce((sum,r)=>sum+r.valor,0));
   }
@@ -2758,13 +2794,25 @@
     });
     row.appendChild(sel);
 
+    // mobile: valor à esquerda, e do lado (à direita) o número de parcelas com as datas
+    // logo embaixo dele — nome e dropdown de status já ficam na linha de cima (área "name"/"pagamento")
     const metaMobile = document.createElement('div');
-    metaMobile.className = 'nm-valor-inline nm-mobile-only pc-meta-mobile';
+    metaMobile.className = 'nm-mobile-only pc-meta-mobile';
     const amtSpanMob = document.createElement('span');
     amtSpanMob.className = 'mob-amt-out mono';
     amtSpanMob.textContent = '- ' + fmtBRL(r.valor);
     metaMobile.appendChild(amtSpanMob);
-    metaMobile.appendChild(document.createTextNode(` · de ${inicioTxt} até ${fimTxt} · ${r.numParcelas} parcelas ao todo`));
+    const qtdDatasWrap = document.createElement('div');
+    qtdDatasWrap.className = 'pc-qtd-datas-mobile';
+    const qtdSpanMob = document.createElement('div');
+    qtdSpanMob.className = 'pc-qtd-mobile mono';
+    qtdSpanMob.textContent = `${r.numParcelas}x`;
+    const datasSpanMob = document.createElement('div');
+    datasSpanMob.className = 'pc-datas-mobile mono';
+    datasSpanMob.textContent = `${inicioTxt} – ${fimTxt}`;
+    qtdDatasWrap.appendChild(qtdSpanMob);
+    qtdDatasWrap.appendChild(datasSpanMob);
+    metaMobile.appendChild(qtdDatasWrap);
     row.appendChild(metaMobile);
 
     const actions = document.createElement('div');
@@ -2899,43 +2947,52 @@
     $('#nmTotalVal').textContent = fmtBRL(total);
   }
 
-  function buildCartaoRow(c){
+  function buildCartaoPageRow(c){
     const row = document.createElement('div');
-    row.className = 'recur-row';
-    const info = document.createElement('div');
-    info.className = 'info';
-    const name = document.createElement('div');
-    name.className = 'name';
-    name.textContent = c.nome;
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = `fecha dia ${c.diaFechamento} · paga dia ${c.diaPagamento}`;
-    info.appendChild(name); info.appendChild(meta);
-    row.appendChild(info);
+    row.className = 'ct-row';
+
+    const nomeWrap = document.createElement('div');
+    const nome = document.createElement('div');
+    nome.className = 'nm-nome';
+    nome.textContent = c.nome;
+    nomeWrap.appendChild(nome);
+    const mobileLine = document.createElement('div');
+    mobileLine.className = 'nm-valor-inline nm-mobile-only';
+    mobileLine.textContent = `Fecha dia ${c.diaFechamento} · Paga dia ${c.diaPagamento}`;
+    nomeWrap.appendChild(mobileLine);
+    row.appendChild(nomeWrap);
+
+    const fechCol = document.createElement('div');
+    fechCol.className = 'mono nm-desktop-only';
+    fechCol.textContent = `Dia ${c.diaFechamento}`;
+    row.appendChild(fechCol);
+
+    const pagCol = document.createElement('div');
+    pagCol.className = 'mono nm-desktop-only';
+    pagCol.textContent = `Dia ${c.diaPagamento}`;
+    row.appendChild(pagCol);
 
     const actions = document.createElement('div');
-    actions.className = 'actions';
+    actions.className = 'rl-col-actions';
     const editBtn = document.createElement('button');
-    editBtn.className = 'btn small';
-    editBtn.textContent = 'Editar';
+    editBtn.type = 'button'; editBtn.className = 'icon-btn'; editBtn.setAttribute('aria-label','Editar'); editBtn.textContent = '✎';
     editBtn.addEventListener('click', () => openCartaoModal(c));
     const delBtn = document.createElement('button');
-    delBtn.className = 'icon-btn';
-    delBtn.setAttribute('aria-label','Remover');
-    delBtn.textContent = '✕';
+    delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.setAttribute('aria-label','Remover'); delBtn.textContent = '✕';
     delBtn.addEventListener('click', () => removeCartao(c.id, c.nome));
     actions.appendChild(editBtn); actions.appendChild(delBtn);
     row.appendChild(actions);
+
     return row;
   }
 
-  function renderCartoesList(){
-    const wrap = $('#cartoesList');
+  function renderCartoesPage(){
+    const wrap = $('#cartoesPageList');
     wrap.innerHTML = '';
     if (state.cartoes.length===0){
-      wrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhum cartão cadastrado ainda.</div>';
+      wrap.innerHTML = '<div class="nm-empty-hint">Nenhum cartão cadastrado ainda.</div>';
     } else {
-      for (const c of state.cartoes) wrap.appendChild(buildCartaoRow(c));
+      for (const c of state.cartoes) wrap.appendChild(buildCartaoPageRow(c));
     }
   }
 
@@ -3002,6 +3059,7 @@
     receitasfixas: { viewId:'#receitasFixasView', render:renderReceitasFixasPage },
     assinaturas: { viewId:'#assinView', render:renderAssinPage },
     parcelados: { viewId:'#parceladosView', render:renderParceladosPage },
+    cartoes: { viewId:'#cartoesView', render:renderCartoesPage },
   };
 
   function setViewMode(mode){
@@ -3036,7 +3094,6 @@
     } else {
       renderCalendar();
     }
-    renderCartoesList();
     // se o pop-up "Lançamentos do mês" estiver aberto, atualiza a lista dele também — assim editar
     // ou apagar um item de dentro dele reflete na hora, sem precisar fechar e abrir de novo
     if (!$('#overlayLancamentosMes').hidden) openLancamentosMesModal();
@@ -3195,6 +3252,8 @@
   }
   function updateRecurFormaPagamentoVisibility(tipo){
     $('#recurFormaPagamentoField').style.display = (tipo === 'saida') ? '' : 'none';
+    // "em que conta cai" só faz sentido pra receita (entrada) — é o espelho do campo acima
+    $('#recurOndeCaiField').style.display = (tipo === 'entrada') ? '' : 'none';
   }
   // frequência "por dias corridos" não usa "dia do mês/da cobrança" (não faz sentido pra semanal,
   // quinzenal ou personalizado) — some quando escolhida; e o campo "a cada quantos dias" só aparece
@@ -3279,6 +3338,7 @@
       $('#recurFim').disabled = !editItem.dataFim;
       $('#recurEditId').value = editItem.id;
       populateFormaPagamentoSelect('#recurFormaPagamento', editItem.formaPagamento || '');
+      $('#recurOndeCai').value = editItem.ondeCai || '';
       updateRecurFormaPagamentoVisibility(editItem.tipo);
     } else {
       const tipo = forcedTipo || 'saida';
@@ -3698,7 +3758,8 @@
   $('#receitasFixasBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#assinBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#parceladosBackBtn').addEventListener('click', ()=> setViewMode('month'));
-  $('#openCartoesBtn').addEventListener('click', ()=> openOverlay('#overlayCartoesList'));
+  $('#openCartoesBtn').addEventListener('click', ()=> setViewMode('cartoes'));
+  $('#cartoesBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#parceladoValor').addEventListener('input', updateParceladoResumo);
   $('#parceladoQtd').addEventListener('input', updateParceladoResumo);
   $('#parceladoFreq').addEventListener('change', () => { updateParceladoFreqFieldsVisibility(); updateParceladoResumo(); });
@@ -3761,6 +3822,9 @@
     const dataFim = semFim ? null : ($('#recurFim').value || null);
     const editId = $('#recurEditId').value;
     const formaPagamento = tipo === 'saida' ? ($('#recurFormaPagamento').value || null) : null;
+    // anotação livre de onde a receita cai — só existe pra entrada (o app não tem conta bancária de
+    // verdade), guarda null quando vazio ou quando o item é uma saída
+    const ondeCai = tipo === 'entrada' ? ($('#recurOndeCai').value.trim() || null) : null;
     if (!desc || isNaN(valor) || !dataInicio) return;
     if (freqType === 'meses' && isNaN(dia)) return;
     if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
@@ -3768,11 +3832,11 @@
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
         const cartaoAntigo = r.formaPagamento;
-        r.tipo=tipo; r.desc=desc; r.valor=valor; r.dia=dia; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        r.tipo=tipo; r.desc=desc; r.valor=valor; r.dia=dia; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dataFim=dataFim; r.formaPagamento=formaPagamento; r.ondeCai=ondeCai;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'fixa', tipo, desc, valor, dia, freqType, intervalMeses, intervalDias, dataInicio, dataFim, formaPagamento });
+      state.recorrentes.push({ id: nextId(), kind:'fixa', tipo, desc, valor, dia, freqType, intervalMeses, intervalDias, dataInicio, dataFim, formaPagamento, ondeCai });
     }
     closeOverlay('#overlayRecur');
     renderAll();

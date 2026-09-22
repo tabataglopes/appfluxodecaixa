@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 </head>
 <body>
+<!-- tema claro/escuro: aplica o que a pessoa escolheu (ou nada, se for "Automático") o quanto
+     antes, antes do resto da página desenhar — sem isso apareceria um "flash" rápido no tema
+     errado (ex.: claro por uma fração de segundo, antes de trocar pro escuro escolhido) -->
+<script>
+  (function(){
+    try{
+      var t = localStorage.getItem('mareTema');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch(e){}
+  })();
+</script>
 <title>Maré</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -130,6 +141,19 @@
   .brand .tag{ color:var(--ink-muted); font-size:13px; }
   .brand .hamburger-icon{ display:flex; align-items:center; color:var(--ink-muted); transition:color .15s ease; }
   .brand:hover .hamburger-icon{ color:var(--accent); }
+
+  /* ---------- seletor de tema (barra de cima): Automático / Claro / Escuro ---------- */
+  .theme-seg{
+    display:flex; border:1px solid var(--border); border-radius:9px; overflow:hidden;
+    background:var(--surface); flex-shrink:0;
+  }
+  .theme-seg-btn{
+    display:flex; align-items:center; justify-content:center; width:32px; height:32px;
+    border:none; background:transparent; color:var(--ink-muted); cursor:pointer; padding:0;
+  }
+  .theme-seg-btn + .theme-seg-btn{ border-left:1px solid var(--border); }
+  .theme-seg-btn:hover{ color:var(--ink); background:var(--surface-2); }
+  .theme-seg-btn.active{ background:var(--accent-soft); color:var(--accent-strong); }
   .proto-note{
     font-size:12.5px; color:var(--ink-muted); background:var(--surface-2);
     border:1px solid var(--border); border-radius:8px; padding:6px 10px;
@@ -935,6 +959,14 @@
       </span>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <!-- seletor de tema: Automático (segue o sistema), Claro, Escuro — a escolha fica só nesse
+           aparelho (localStorage), não é dado financeiro nem precisa sincronizar entre aparelhos,
+           por isso não passa pelo mesmo caminho de salvamento na nuvem do resto do Maré -->
+      <div class="theme-seg" id="themeSeg" role="group" aria-label="Tema do aplicativo">
+        <button type="button" class="theme-seg-btn" data-theme-opt="auto" title="Automático (segue o sistema)" aria-label="Tema automático"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></button>
+        <button type="button" class="theme-seg-btn" data-theme-opt="light" title="Claro" aria-label="Tema claro"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="1.5" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22.5"></line><line x1="4.2" y1="4.2" x2="6" y2="6"></line><line x1="18" y1="18" x2="19.8" y2="19.8"></line><line x1="1.5" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22.5" y2="12"></line><line x1="4.2" y1="19.8" x2="6" y2="18"></line><line x1="18" y1="6" x2="19.8" y2="4.2"></line></svg></button>
+        <button type="button" class="theme-seg-btn" data-theme-opt="dark" title="Escuro" aria-label="Tema escuro"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path></svg></button>
+      </div>
       <!-- link externo pro site de calculadoras da Tabata (comparar preços) — abre numa aba nova,
            não mexe em nada do estado do Maré, só um atalho -->
       <a class="btn" href="https://www.valemeudinheiro.site/" target="_blank" rel="noopener noreferrer" title="Compare preços antes de comprar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="12" y1="10" x2="12" y2="10.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="8" y1="18" x2="16" y2="18"></line></svg>Calculadora</a>
@@ -4438,6 +4470,38 @@
   $('#toggleViewBtn').addEventListener('click', ()=>{
     setViewMode(state.viewMode === 'year' ? 'month' : 'year');
   });
+
+  /* ---------------- tema claro/escuro (Automático / Claro / Escuro) ----------------
+     fica salvo só nesse aparelho (localStorage) — é preferência de tela, não dado financeiro,
+     então não precisa sincronizar entre aparelhos nem passar pelo salvamento na nuvem do resto
+     do Maré. "Automático" = sem atributo, o navegador decide sozinho pelo tema do sistema
+     (já é o comportamento padrão de sempre, de antes desse seletor existir). */
+  const THEME_KEY = 'mareTema';
+  function getThemePref(){
+    try{
+      const t = localStorage.getItem(THEME_KEY);
+      return (t === 'light' || t === 'dark') ? t : 'auto';
+    } catch(e){ return 'auto'; }
+  }
+  function applyTheme(pref){
+    if (pref === 'light' || pref === 'dark') document.documentElement.setAttribute('data-theme', pref);
+    else document.documentElement.removeAttribute('data-theme');
+    document.querySelectorAll('#themeSeg .theme-seg-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.themeOpt === pref);
+    });
+  }
+  function setThemePref(pref){
+    try{
+      if (pref === 'auto') localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, pref);
+    } catch(e){}
+    applyTheme(pref);
+  }
+  applyTheme(getThemePref());
+  document.querySelectorAll('#themeSeg .theme-seg-btn').forEach(b => {
+    b.addEventListener('click', () => setThemePref(b.dataset.themeOpt));
+  });
+
   $('#prevYear').addEventListener('click', ()=>{
     state.yearViewYear--;
     renderYearGrid();

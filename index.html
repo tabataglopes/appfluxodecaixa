@@ -76,8 +76,10 @@
       --cal-negative-bg:#d96c43;
       --cal-dot-in:#55e418;
       --cal-dot-out:#a90909;
-      --tile-balance-bg:#262f3d;
+      --tile-balance-bg:rgba(92,225,230,0.20);
       --proj-val-pos:#224e0f;
+      --proj-val-neg:#a90909;
+      --atual-val-neg:#c20a0a;
       --atual-val-pos:#41961d;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
     }
@@ -102,8 +104,10 @@
     --cal-negative-bg:#d96c43;
     --cal-dot-in:#55e418;
     --cal-dot-out:#a90909;
-    --tile-balance-bg:#262f3d;
+    --tile-balance-bg:rgba(92,225,230,0.20);
     --proj-val-pos:#224e0f;
+    --proj-val-neg:#a90909;
+    --atual-val-neg:#c20a0a;
     --atual-val-pos:#41961d;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
   }
@@ -268,7 +272,8 @@
   }
   .bc-half.projetado .val.pos{ color:var(--proj-val-pos, var(--income)); }
   .bc-half.atual .val.pos{ color:var(--atual-val-pos, var(--income)); }
-  .bc-half .val.neg{ color:var(--cal-dot-out, var(--expense)); }
+  .bc-half.projetado .val.neg{ color:var(--proj-val-neg, var(--expense)); }
+  .bc-half.atual .val.neg{ color:var(--atual-val-neg, var(--expense)); }
   .bc-half .sub{ font-size:11.5px; color:var(--ink-muted); line-height:1.3; }
 
   .bc-mid{

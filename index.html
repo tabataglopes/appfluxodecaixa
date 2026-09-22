@@ -61,9 +61,13 @@
       --expense-soft:#3B201D;
       --warn:#E4BC6C;
       --warn-soft:#3C2F15;
-      --cal-ok-bg:#1f3d2e;
-      --cal-negative-bg:#4a3420;
-      --tile-balance-bg:#4a4420;
+      --cal-ok-bg:#5bac68;
+      --cal-negative-bg:#d96c43;
+      --cal-dot-in:#55e418;
+      --cal-dot-out:#a90909;
+      --tile-balance-bg:#262f3d;
+      --proj-val-pos:#224e0f;
+      --atual-val-pos:#41961d;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
     }
   }
@@ -83,9 +87,13 @@
     --expense-soft:#3B201D;
     --warn:#E4BC6C;
     --warn-soft:#3C2F15;
-    --cal-ok-bg:#1f3d2e;
-    --cal-negative-bg:#4a3420;
-    --tile-balance-bg:#4a4420;
+    --cal-ok-bg:#5bac68;
+    --cal-negative-bg:#d96c43;
+    --cal-dot-in:#55e418;
+    --cal-dot-out:#a90909;
+    --tile-balance-bg:#262f3d;
+    --proj-val-pos:#224e0f;
+    --atual-val-pos:#41961d;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
   }
 
@@ -226,13 +234,17 @@
   .bc-half .lbl{
     font-family:"Fraunces", Georgia, serif; font-weight:600; font-size:15px; color:var(--ink);
     text-transform:none; letter-spacing:normal;
+    /* reserva altura de 2 linhas pra "Saldo até o fim do mês" (que quebra linha) e "Saldo na
+       conta hoje" (que não quebra) começarem o número embaixo sempre na mesma altura */
+    line-height:1.5; min-height:calc(15px * 1.5 * 2); display:flex; align-items:flex-start;
   }
   .bc-half .val{
     font-size:clamp(17px, 4.6vw, 20px); font-weight:600; font-family:"JetBrains Mono", ui-monospace, monospace;
     font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink);
   }
-  .bc-half .val.pos{ color:var(--income); }
-  .bc-half .val.neg{ color:var(--expense); }
+  .bc-half.projetado .val.pos{ color:var(--proj-val-pos, var(--income)); }
+  .bc-half.atual .val.pos{ color:var(--atual-val-pos, var(--income)); }
+  .bc-half .val.neg{ color:var(--cal-dot-out, var(--expense)); }
   .bc-half .sub{ font-size:11.5px; color:var(--ink-muted); line-height:1.3; }
 
   .bc-mid{
@@ -251,8 +263,8 @@
   .bc-bar-slot.left{ margin-right:2px; justify-content:flex-end; }
   .bc-bar-slot.right{ margin-left:2px; justify-content:flex-start; }
   .bc-bar{ width:20px; border-radius:4px 4px 0 0; position:relative; z-index:1; transition:height .15s ease; }
-  .bc-bar.pos{ background:var(--income); }
-  .bc-bar.neg{ background:var(--expense); }
+  .bc-bar.pos{ background:var(--cal-dot-in, var(--income)); }
+  .bc-bar.neg{ background:var(--cal-dot-out, var(--expense)); }
   @media (max-width:480px){
     .bc-mid{ width:52px; }
     .bc-bar-slot{ width:16px; }
@@ -370,19 +382,19 @@
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]) .cal-cell .card-purchase-dot{
-      background:#fdaa2e; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
+      background:#ffd41e; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
     }
   }
   :root[data-theme="dark"] .cal-cell .card-purchase-dot{
-    background:#fdaa2e; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
+    background:#ffd41e; box-shadow:0 0 0 1.5px rgba(0,0,0,0.45);
   }
   .cal-cell .pills{ display:flex; flex-direction:column; gap:2px; margin-top:auto; }
   .pill{
     font-size:11px; font-weight:700; line-height:1.3;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .pill.in{ color:var(--income); }
-  .pill.out{ color:var(--expense); }
+  .pill.in{ color:var(--cal-dot-in, var(--income)); }
+  .pill.out{ color:var(--cal-dot-out, var(--expense)); }
   .cal-cell .cell-dots{ display:none; }
   .cal-cell .bal-preview{
     font-size:10.5px; font-weight:600; color:var(--ink); opacity:1; margin-top:2px;
@@ -422,8 +434,8 @@
       width:7px; height:7px; min-width:7px; flex-shrink:0; border-radius:50%;
       box-shadow:0 0 0 1.5px rgba(0,0,0,0.18);
     }
-    .cal-cell .cell-dots .dot.in{ background:var(--income); }
-    .cal-cell .cell-dots .dot.out{ background:var(--expense); }
+    .cal-cell .cell-dots .dot.in{ background:var(--cal-dot-in, var(--income)); }
+    .cal-cell .cell-dots .dot.out{ background:var(--cal-dot-out, var(--expense)); }
     .cal-cell .card-flag{ font-size:9px; top:2px; right:2px; }
   }
 
@@ -462,6 +474,10 @@
   .btn:hover{ border-color:var(--accent); }
   .btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .btn.primary:hover{ background:var(--accent-strong); }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) #addOneTimeBtn{ color:#000; }
+  }
+  :root[data-theme="dark"] #addOneTimeBtn{ color:#000; }
   .btn.small{ padding:6px 10px; font-size:12.5px; }
   .btn.block{ width:100%; }
   /* .btn num <a> (ex.: link "Calculadora" que abre o site externo) — o resto do app só usa .btn

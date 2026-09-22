@@ -330,6 +330,10 @@
     padding:16px;
   }
   .card h2{ font-size:16px; margin-bottom:12px; }
+  /* cartão que também é botão (ex.: "Lançamentos do mês") — reseta os estilos nativos de <button>
+     pra ele ficar visualmente idêntico a um .card comum, só que clicável */
+  .card-btn{ display:block; width:100%; text-align:left; cursor:pointer; }
+  .card-btn:hover{ border-color:var(--accent); }
 
   .weekdays{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px; margin-bottom:6px; }
   .weekdays span{
@@ -432,6 +436,9 @@
   .txn-row .txn-amt{ font-size:13.5px; font-weight:600; white-space:nowrap; }
   .txn-row .txn-amt.in{ color:var(--income); }
   .txn-row .txn-amt.out{ color:var(--expense); }
+  /* lista de "Lançamentos do mês" (pop-up): pode ter muitos dias, então rola dentro do modal
+     em vez de esticar ele até virar maior que a tela */
+  .lanc-mes-list{ max-height:60vh; overflow-y:auto; }
   .icon-btn{
     border:1px solid var(--border); background:var(--surface-2); border-radius:7px; width:26px; height:26px;
     display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-muted); font-size:13px;
@@ -776,7 +783,7 @@
   <div class="tiles" id="tilesRow">
     <div class="tile balance-combo">
       <div class="bc-half projetado" id="bcProjetadoHalf" title="Saldo de referência + tudo que entra e sai até essa data">
-        <span class="lbl">Saldo projetado</span>
+        <span class="lbl">Saldo até o fim do mês</span>
         <span class="val mono" id="tileBal">R$ 0,00</span>
         <span class="sub" id="tileBalSub">&nbsp;</span>
       </div>
@@ -787,7 +794,7 @@
         <div class="bc-bar-slot right"><div class="bc-bar pos" id="bcBarAtual" style="height:0px;"></div></div>
       </div>
       <div class="bc-half atual">
-        <span class="lbl">Saldo atual</span>
+        <span class="lbl">Saldo na conta hoje</span>
         <span class="val mono" id="tileAtual">R$ 0,00</span>
         <span class="sub" id="tileAtualSub">&nbsp;</span>
       </div>
@@ -845,11 +852,10 @@
         <div class="cartoes-ciclo-wrap" id="cartoesCicloWrap"></div>
       </div>
 
-      <div class="card day-detail">
-        <h2>Gastos/Receitas Avulsas (não recorrentes)</h2>
-        <p class="date-title" id="dayTitle">Selecione um dia</p>
-        <div id="dayList"></div>
-      </div>
+      <button type="button" class="card day-detail card-btn" id="btnLancamentosMes">
+        <h2>Lançamentos do mês</h2>
+        <p class="date-title">Tudo que está lançado, dia por dia · toque para ver</p>
+      </button>
     </div>
   </div>
 
@@ -920,6 +926,19 @@
       <button class="btn drawer-item" id="openNaoMensaisBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 15h.01M12 15h.01M16 15h.01"></path></svg>Contas Não Mensais &amp; Objetivos</button>
       <button class="btn drawer-item" id="openCartoesBtn">🚩 Cartão de crédito</button>
     </nav>
+  </div>
+</div>
+
+<!-- Modal: todos os lançamentos do mês, dia por dia, numa lista só (substitui o antigo cartão que
+     mudava ao clicar em cada dia do calendário). Fica logo no início da lista de overlays de
+     propósito: editar/apagar um item de dentro dele abre outro modal (lançamento, recorrência,
+     fatura...) por cima, e como não há z-index entre eles, quem vem depois no HTML é quem fica
+     visível por cima — todo modal que pode abrir a partir daqui precisa vir depois no documento. -->
+<div class="overlay" id="overlayLancamentosMes" hidden>
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-close" data-close="overlayLancamentosMes" aria-label="Fechar">&times;</button>
+    <h3 id="lancamentosMesTitle" style="margin-bottom:14px;">Lançamentos do mês</h3>
+    <div class="lanc-mes-list" id="lancamentosMesList"></div>
   </div>
 </div>
 
@@ -2311,139 +2330,157 @@
     }
   }
 
-  function renderDayDetail(){
-    const iso = state.selectedDate;
-    const [y,m,d] = iso.split('-').map(Number);
-    const wd = WEEKDAY_FULL[new Date(y, m-1, d).getDay()];
-    $('#dayTitle').textContent = `${fmtDateFull(iso)} · ${wd}${iso===todayISO ? ' (hoje)' : ''}`;
-    const occ = occurrencesOnDate(iso).sort((a,b)=> a.tipo===b.tipo ? 0 : (a.tipo==='entrada'?-1:1));
-    const wrap = $('#dayList');
+  // texto da 2ª linha de um lançamento (tipo/frequência/cartão/fatura) — sem a data, que cada
+  // lugar que usa isso decide se mostra ou não (o pop-up "Lançamentos do mês" mostra; um contexto
+  // que já deixa a data implícita, como mostrava o antigo painel do dia selecionado, não precisa)
+  function txnMetaText(o){
+    if (o.isInvoice){
+      const periodo = `${fmtDateShort(o.cycleStart)} a ${fmtDateShort(o.cycleEnd)}`;
+      const carryNote = o.carryIn > 0.005 ? ` · inclui ${fmtBRL(o.carryIn)} não pago de fatura anterior` : '';
+      if (o.pendente > 0.005){
+        return (o.pago > 0
+          ? `fatura pendente · período ${periodo} · já confirmado ${fmtBRL(o.pago)}`
+          : `fatura pendente · período ${periodo}`) + carryNote;
+      }
+      return `fatura paga · período ${periodo}` + carryNote;
+    }
+    if (o.recorrente){
+      const rec = getRecById(o.recId);
+      if (rec && rec.kind === 'parcelado'){
+        let parcelaAtual;
+        if (rec.freqType === 'dias'){
+          const diasPassados = daysBetweenISO(rec.dataInicio, o.data);
+          parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(diasPassados / (rec.intervalDias || 1)) + 1));
+        } else {
+          const [sy, sm] = rec.dataInicio.split('-').map(Number);
+          const [yy, mm] = o.data.split('-').map(Number);
+          const interval = rec.intervalMeses || 1;
+          parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
+        }
+        const cardNote = rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
+        return `compra parcelada · parcela ${parcelaAtual} de ${rec.numParcelas} (${parcelaFreqLabel(rec)})${cardNote}`;
+      }
+      const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : (rec && rec.tipo === 'entrada' ? 'receita fixa' : 'conta fixa');
+      const cardNote = rec && rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
+      if (rec && rec.freqType === 'dias'){
+        return `${kindLabel} · ${freqLabel(rec)}${cardNote}`;
+      }
+      return `${kindLabel} · ${freqLabel(rec || {intervalMeses:1})} · dia ${o.data.split('-')[2]}${cardNote}`;
+    }
+    if (o.formaPagamento){
+      const card = getCardById(o.formaPagamento);
+      const cardName = card ? card.nome : 'cartão removido';
+      let paymentNote = '';
+      if (card){
+        const closingISO = closingDateForCycleContaining(card, o.data);
+        paymentNote = ` · fatura em ${fmtDateShort(paymentDateForClosing(card, closingISO))}`;
+      }
+      return `no cartão ${cardName}${paymentNote}`;
+    }
+    return 'lançamento único';
+  }
+
+  // monta a linha (nome + meta + valor + ações) de um lançamento — usada tanto na lista de
+  // entradas/saídas do mês quanto no novo pop-up "Lançamentos do mês". Com showDate:true, prefixa
+  // a 2ª linha com a data (útil quando a lista mistura vários dias, não só um).
+  function buildTxnRow(o, opts){
+    opts = opts || {};
+    const row = document.createElement('div');
+    row.className = 'txn-row';
+    const desc = document.createElement('div');
+    desc.className = 'txn-desc';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = o.desc;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const metaText = txnMetaText(o);
+    meta.textContent = opts.showDate ? `${fmtDateShort(o.data)} · ${metaText}` : metaText;
+    desc.appendChild(name); desc.appendChild(meta);
+    row.appendChild(desc);
+
+    if (o.isInvoice){
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => openFaturaDetalheModal(o.cardId, o.cycleEnd));
+    }
+
+    const right = document.createElement('div');
+    right.style.display='flex'; right.style.alignItems='center'; right.style.gap='8px';
+    const amt = document.createElement('div');
+    amt.className = 'txn-amt mono ' + (o.tipo==='entrada' ? 'in':'out');
+    amt.textContent = (o.tipo==='entrada' ? '+ ':'- ') + fmtBRL(o.valor);
+    right.appendChild(amt);
+
+    if (o.isInvoice){
+      if (o.pendente > 0.005){
+        const payBtn = document.createElement('button');
+        payBtn.className = 'btn small';
+        payBtn.textContent = 'Pagar cartão';
+        payBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openFaturaDetalheModal(o.cardId, o.cycleEnd);
+        });
+        right.appendChild(payBtn);
+      }
+    } else {
+      // qualquer lançamento (avulso ou recorrente) pode ser reeditado direto daqui — valor, data,
+      // descrição, forma de pagamento etc. — sem precisar apagar e recriar (o que faria perder o
+      // vínculo/histórico dele) só pra corrigir um dado errado
+      const editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn';
+      editBtn.setAttribute('aria-label','Editar');
+      editBtn.textContent = '✎';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (o.recorrente){
+          const rec = getRecById(o.recId);
+          if (!rec) return;
+          if (rec.kind === 'parcelado') openParceladoModal(rec);
+          else if (rec.kind === 'assinatura') openAssinModal(rec);
+          else openRecurModal(rec);
+        } else {
+          openOneModal(o.data, o);
+        }
+      });
+      right.appendChild(editBtn);
+
+      const del = document.createElement('button');
+      del.className = 'icon-btn';
+      del.setAttribute('aria-label','Remover');
+      del.textContent = '✕';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (o.recorrente) removeRecurrente(o.recId, o.desc, true);
+        else removeOneTime(o.id, o.desc);
+      });
+      right.appendChild(del);
+    }
+    row.appendChild(right);
+    return row;
+  }
+
+  // todos os lançamentos do mês (de todos os dias), na ordem do calendário — usada pelo pop-up
+  // "Lançamentos do mês" que substituiu o antigo painel que só mostrava o dia selecionado
+  function occurrencesInMonthFull(year, month0){
+    const dim = daysInMonth(year, month0);
+    const out = [];
+    for (let day=1; day<=dim; day++) out.push(...occurrencesOnDate(toISO(year, month0, day)));
+    return out;
+  }
+
+  function openLancamentosMesModal(){
+    const {year, month} = state.view;
+    $('#lancamentosMesTitle').textContent = `Lançamentos de ${MONTHS[month]} ${year}`;
+    const occ = occurrencesInMonthFull(year, month)
+      .sort((a,b) => a.data === b.data ? (a.tipo===b.tipo ? 0 : (a.tipo==='entrada'?-1:1)) : a.data.localeCompare(b.data));
+    const wrap = $('#lancamentosMesList');
     wrap.innerHTML = '';
-    if (occ.length===0){
-      const p = document.createElement('div');
-      p.className = 'empty-hint';
-      p.textContent = 'Nada lançado neste dia.';
-      wrap.appendChild(p);
-      return;
+    if (occ.length === 0){
+      wrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nada lançado neste mês.</div>';
+    } else {
+      for (const o of occ) wrap.appendChild(buildTxnRow(o, {showDate:true}));
     }
-    for (const o of occ){
-      const row = document.createElement('div');
-      row.className = 'txn-row';
-      const desc = document.createElement('div');
-      desc.className = 'txn-desc';
-      const name = document.createElement('div');
-      name.className = 'name';
-      name.textContent = o.desc;
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      if (o.isInvoice){
-        const periodo = `${fmtDateShort(o.cycleStart)} a ${fmtDateShort(o.cycleEnd)}`;
-        const carryNote = o.carryIn > 0.005 ? ` · inclui ${fmtBRL(o.carryIn)} não pago de fatura anterior` : '';
-        if (o.pendente > 0.005){
-          meta.textContent = (o.pago > 0
-            ? `fatura pendente · período ${periodo} · já confirmado ${fmtBRL(o.pago)}`
-            : `fatura pendente · período ${periodo}`) + carryNote;
-        } else {
-          meta.textContent = `fatura paga · período ${periodo}` + carryNote;
-        }
-      } else if (o.recorrente){
-        const rec = getRecById(o.recId);
-        if (rec && rec.kind === 'parcelado'){
-          let parcelaAtual;
-          if (rec.freqType === 'dias'){
-            const diasPassados = daysBetweenISO(rec.dataInicio, iso);
-            parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(diasPassados / (rec.intervalDias || 1)) + 1));
-          } else {
-            const [sy, sm] = rec.dataInicio.split('-').map(Number);
-            const [yy, mm] = iso.split('-').map(Number);
-            const interval = rec.intervalMeses || 1;
-            parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
-          }
-          const cardNote = rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
-          meta.textContent = `compra parcelada · parcela ${parcelaAtual} de ${rec.numParcelas} (${parcelaFreqLabel(rec)})${cardNote}`;
-        } else {
-          const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : (rec && rec.tipo === 'entrada' ? 'receita fixa' : 'conta fixa');
-          const cardNote = rec && rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
-          if (rec && rec.freqType === 'dias'){
-            meta.textContent = `${kindLabel} · ${freqLabel(rec)}${cardNote}`;
-          } else {
-            meta.textContent = `${kindLabel} · ${freqLabel(rec || {intervalMeses:1})} · dia ${iso.split('-')[2]}${cardNote}`;
-          }
-        }
-      } else if (o.formaPagamento){
-        const card = getCardById(o.formaPagamento);
-        const cardName = card ? card.nome : 'cartão removido';
-        let paymentNote = '';
-        if (card){
-          const closingISO = closingDateForCycleContaining(card, o.data);
-          paymentNote = ` · fatura em ${fmtDateShort(paymentDateForClosing(card, closingISO))}`;
-        }
-        meta.textContent = `no cartão ${cardName}${paymentNote}`;
-      } else {
-        meta.textContent = 'lançamento único';
-      }
-      desc.appendChild(name); desc.appendChild(meta);
-      row.appendChild(desc);
-
-      if (o.isInvoice){
-        row.style.cursor = 'pointer';
-        row.addEventListener('click', () => openFaturaDetalheModal(o.cardId, o.cycleEnd));
-      }
-
-      const right = document.createElement('div');
-      right.style.display='flex'; right.style.alignItems='center'; right.style.gap='8px';
-      const amt = document.createElement('div');
-      amt.className = 'txn-amt mono ' + (o.tipo==='entrada' ? 'in':'out');
-      amt.textContent = (o.tipo==='entrada' ? '+ ':'- ') + fmtBRL(o.valor);
-      right.appendChild(amt);
-
-      if (o.isInvoice){
-        if (o.pendente > 0.005){
-          const payBtn = document.createElement('button');
-          payBtn.className = 'btn small';
-          payBtn.textContent = 'Pagar cartão';
-          payBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openFaturaDetalheModal(o.cardId, o.cycleEnd);
-          });
-          right.appendChild(payBtn);
-        }
-      } else {
-        // qualquer lançamento (avulso ou recorrente) pode ser reeditado direto daqui — valor, data,
-        // descrição, forma de pagamento etc. — sem precisar apagar e recriar (o que faria perder o
-        // vínculo/histórico dele) só pra corrigir um dado errado
-        const editBtn = document.createElement('button');
-        editBtn.className = 'icon-btn';
-        editBtn.setAttribute('aria-label','Editar');
-        editBtn.textContent = '✎';
-        editBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (o.recorrente){
-            const rec = getRecById(o.recId);
-            if (!rec) return;
-            if (rec.kind === 'parcelado') openParceladoModal(rec);
-            else if (rec.kind === 'assinatura') openAssinModal(rec);
-            else openRecurModal(rec);
-          } else {
-            openOneModal(o.data, o);
-          }
-        });
-        right.appendChild(editBtn);
-
-        const del = document.createElement('button');
-        del.className = 'icon-btn';
-        del.setAttribute('aria-label','Remover');
-        del.textContent = '✕';
-        del.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (o.recorrente) removeRecurrente(o.recId, o.desc, true);
-          else removeOneTime(o.id, o.desc);
-        });
-        right.appendChild(del);
-      }
-      row.appendChild(right);
-      wrap.appendChild(row);
-    }
+    openOverlay('#overlayLancamentosMes');
   }
 
   function buildRecurRow(r){
@@ -2815,10 +2852,12 @@
       renderContasNaoMensais();
     } else {
       renderCalendar();
-      renderDayDetail();
     }
     renderRecurLists();
     renderCartoesList();
+    // se o pop-up "Lançamentos do mês" estiver aberto, atualiza a lista dele também — assim editar
+    // ou apagar um item de dentro dele reflete na hora, sem precisar fechar e abrir de novo
+    if (!$('#overlayLancamentosMes').hidden) openLancamentosMesModal();
     if (!anyOverlayOpen()) showFaturaPendingPromptIfAny();
     schedulePersist();
   }
@@ -3482,6 +3521,7 @@
   $('#parceladoIntervaloDias').addEventListener('input', updateParceladoResumo);
   $('#btnEntradasMes').addEventListener('click', ()=> openMesDetalheModal('entrada'));
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
+  $('#btnLancamentosMes').addEventListener('click', ()=> openLancamentosMesModal());
   $('#oneForm').addEventListener('submit', e=>{
     e.preventDefault();
     const tipo = $('#oneSeg').querySelector('.active').dataset.tipo;

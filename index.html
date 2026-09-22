@@ -907,6 +907,7 @@
     <button class="modal-close" data-close="overlayMenu" aria-label="Fechar">&times;</button>
     <h3>Menu</h3>
     <nav class="drawer-nav">
+      <button class="btn drawer-item" id="openDashboardBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg>Dashboard</button>
       <div class="base-chip drawer-item" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
         <span class="lbl">Saldo em conta inicial <span id="baseDateLbl" class="mono"></span>:</span>
         <span class="val mono" id="baseValLbl"></span>
@@ -3467,6 +3468,7 @@
   $('#addAssinaturaBtn').addEventListener('click', ()=> openAssinModal(null));
   $('#addParceladoBtn').addEventListener('click', ()=> openParceladoModal(null));
   $('#addCartaoBtn').addEventListener('click', ()=> openCartaoModal(null));
+  $('#openDashboardBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openContasBtn').addEventListener('click', ()=> openOverlay('#overlayContasList'));
   $('#openReceitasBtn').addEventListener('click', ()=> openOverlay('#overlayReceitasList'));
   $('#openAssinBtn').addEventListener('click', ()=> openOverlay('#overlayAssinList'));

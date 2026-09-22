@@ -738,11 +738,12 @@
   .qs-bill-form[hidden]{ display:none; }
 
   /* passos 4/5 do assistente rápido: mini-calendário ilustrativo (só cor, sem números/datas de
-     verdade) pra explicar de cara o que o verde/laranja do calendário real do Maré significam */
-  .qs-explain-cal{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px; margin:16px 0 14px; }
+     verdade) pra explicar de cara o que o verde/laranja do calendário real do Maré significam —
+     a frase "calendário verde/laranja = ..." vai dentro do .step-hint, em cima da imagem, como
+     continuação do mesmo texto (em vez de legenda separada embaixo) */
+  .qs-explain-cal{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px; margin:16px 0 18px; }
   .qs-explain-cal .c{ aspect-ratio:1; border-radius:6px; background:var(--cal-ok-bg); }
   .qs-explain-cal .c.negative{ background:var(--cal-negative-bg); }
-  .qs-explain-caption{ display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; color:var(--ink); margin:0 0 18px; }
 
   /* ---------- banner "projeção incompleta" (aparece no app depois da configuração rápida) ---------- */
   .onboarding-banner{
@@ -753,8 +754,10 @@
   .onboarding-banner-head h3{ font-size:15px; color:var(--accent-strong); margin:0; }
   .onboarding-banner-msg{ font-size:13px; color:var(--accent-strong); line-height:1.45; margin:8px 0 0; }
   .mini-checklist{ display:flex; flex-wrap:wrap; gap:9px 20px; margin-top:12px; }
-  .mini-checklist .item{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--accent-strong); font-weight:600; }
-  .mini-checklist .item .circ{ width:15px; height:15px; border-radius:50%; border:1.5px solid var(--accent); flex-shrink:0; box-sizing:border-box; position:relative; }
+  /* align-items:flex-start (em vez de center) porque o item de "Receitas fixas" agora tem uma
+     explicação de várias linhas — com center, a bolinha ficava flutuando no meio do texto todo */
+  .mini-checklist .item{ display:flex; align-items:flex-start; gap:7px; font-size:12.5px; color:var(--accent-strong); font-weight:600; line-height:1.4; max-width:320px; }
+  .mini-checklist .item .circ{ width:15px; height:15px; border-radius:50%; border:1.5px solid var(--accent); flex-shrink:0; box-sizing:border-box; position:relative; margin-top:2px; }
   .mini-checklist .item.done .circ{ background:var(--accent); }
   .mini-checklist .item.done .circ::after{
     content:''; position:absolute; left:4px; top:1px; width:4px; height:8px;
@@ -935,7 +938,7 @@
     </div>
     <p class="onboarding-banner-msg">Você começou pela configuração rápida — quanto mais você adicionar, mais precisa fica a projeção.</p>
     <div class="mini-checklist" id="onboardingChecklist">
-      <div class="item" data-check="receitas"><span class="circ"></span> Receitas fixas (deixe o salário recorrente)</div>
+      <div class="item" data-check="receitas"><span class="circ"></span> Receitas fixas — no menu (logo Maré, canto superior esquerdo), vá em Receitas e troque o que você lançou pra recorrente: assim o Maré lança sozinho todo mês</div>
       <div class="item" data-check="contas"><span class="circ"></span> Contas fixas</div>
       <div class="item" data-check="assinaturas"><span class="circ"></span> Assinaturas</div>
       <div class="item" data-check="cartoes"><span class="circ"></span> Cartão de crédito</div>
@@ -1790,13 +1793,12 @@
          de verdade — por isso não têm "Passo X de 3"/bolinhas, é um intervalo à parte -->
     <div class="qs-step" id="qsStep4" hidden>
       <h3 class="step-q">Como funciona o calendário</h3>
-      <p class="step-hint">O calendário vai te mostrar quando você vai ficar sem dinheiro, se for o caso.</p>
+      <p class="step-hint">O calendário vai te mostrar quando você vai ficar sem dinheiro, se for o caso. Calendário verde = tem dinheiro naquele dia.</p>
       <div class="qs-explain-cal">
         <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
         <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
         <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
       </div>
-      <p class="qs-explain-caption"><i class="swatch ok"></i> Calendário verde = tem dinheiro naquele dia</p>
       <div class="step-actions">
         <button type="button" class="btn primary block" id="qsStep4Next">Continuar</button>
       </div>
@@ -1804,13 +1806,12 @@
 
     <div class="qs-step" id="qsStep5" hidden>
       <h3 class="step-q">E quando o dinheiro acaba?</h3>
-      <p class="step-hint">Assim que vir o laranja, já dá pra saber que precisa se planejar antes daquela data.</p>
+      <p class="step-hint">Calendário laranja = a partir daquele dia vai faltar dinheiro. Assim que vir o laranja, já dá pra saber que precisa se planejar antes daquela data.</p>
       <div class="qs-explain-cal">
         <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
         <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div>
         <div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div>
       </div>
-      <p class="qs-explain-caption"><i class="swatch negative"></i> Calendário laranja = a partir daquele dia vai faltar dinheiro</p>
       <div class="step-actions">
         <button type="button" class="btn primary block" id="qsStep5Next">Continuar</button>
       </div>

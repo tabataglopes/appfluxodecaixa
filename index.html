@@ -557,6 +557,63 @@
   .nm-add-btn{ align-self:flex-start; }
   .nm-empty-hint{ color:var(--ink-muted); font-size:13.5px; padding:20px 16px; text-align:center; }
 
+  /* ---------- páginas "Contas fixas / Receitas fixas / Assinaturas / Parcelados": mesmo padrão
+     visual da página de Contas Não Mensais (reaproveita .nm-view/.nm-page-head/.nm-intro/.nm-card/
+     .nm-total-bar/.nm-add-btn acima), só com colunas próprias pra cada lista ---------- */
+  .rl-header-row{ display:none; }
+  .pc-header-row{ display:none; }
+  /* espaçamento da linha (mobile e desktop) — sem isso o texto fica colado na borda do cartão */
+  .rl-row, .pc-row{ padding:16px 20px; border-bottom:1px solid var(--border); }
+  .rl-row:last-child, .pc-row:last-child{ border-bottom:none; }
+  .rl-col-actions{ display:flex; gap:6px; }
+  .rl-cartao-tag{ font-size:12.5px; color:var(--ink-muted); }
+  .rl-cartao-tag.empty{ color:var(--ink-muted); opacity:.6; }
+  .pc-cartao-line{ font-size:12px; color:var(--ink-muted); margin-top:2px; }
+  .pc-data1{ font-size:13px; }
+  .pc-qtd{ font-size:13px; color:var(--ink-muted); }
+  .pc-pagamento{
+    width:100%; min-width:0; border:1px solid var(--border); border-radius:8px; padding:6px 8px; font-size:12.5px;
+    font-weight:600; font-family:inherit; cursor:pointer; background:var(--surface-2); color:var(--ink);
+  }
+  .pc-pagamento.em-curso{ background:var(--warn-soft); color:var(--warn); }
+  .pc-pagamento.pago{ background:var(--income-soft); color:var(--income); }
+  .pc-pagamento.atrasado{ background:var(--expense-soft); color:var(--expense); }
+  /* valor destacado em vermelho/verde na linha de meta-dados do mobile (onde valor e resto do
+     texto ficam juntos, sem coluna própria) */
+  .mob-amt-out{ color:var(--expense); font-weight:700; }
+  .mob-amt-in{ color:var(--income); font-weight:700; }
+  /* no mobile, o dropdown "Pagamento" fica do lado do nome em vez de numa linha separada embaixo —
+     usa grid-template-areas pra reordenar sem duplicar o HTML */
+  @media (max-width:759px){
+    .pc-row{
+      display:grid; grid-template-columns:1fr auto; column-gap:10px; row-gap:6px;
+      grid-template-areas: "name pagamento" "meta meta" "actions actions";
+      align-items:start;
+    }
+    .pc-row .pc-name-block{ grid-area:name; min-width:0; }
+    .pc-row .pc-pagamento{ grid-area:pagamento; width:auto; justify-self:end; }
+    .pc-row .pc-meta-mobile{ grid-area:meta; }
+    .pc-row .rl-col-actions{ grid-area:actions; justify-content:flex-end; }
+  }
+  @media (min-width:760px){
+    .rl-header-row{
+      display:grid; grid-template-columns: 1.7fr 1fr 1fr 1.3fr 64px; gap:16px;
+      padding:0 20px 12px; margin-top:14px; border-bottom:1px solid var(--border);
+      font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted); font-weight:600;
+    }
+    .rl-row{ display:grid; grid-template-columns: 1.7fr 1fr 1fr 1.3fr 64px; gap:16px; align-items:center; }
+
+    .pc-header-row{
+      display:grid; grid-template-columns: 1.35fr 0.95fr 0.85fr 0.85fr 0.65fr 1.15fr 64px; gap:16px;
+      padding:0 20px 12px; margin-top:14px; border-bottom:1px solid var(--border);
+      font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted); font-weight:600;
+    }
+    .pc-row{
+      display:grid; grid-template-columns: 1.35fr 0.95fr 0.85fr 0.85fr 0.65fr 1.15fr 64px; gap:16px;
+      align-items:center;
+    }
+  }
+
   /* ---------- detalhe da fatura (lista de compras que compõem o total) ---------- */
   .fatura-list{ display:flex; flex-direction:column; gap:0; margin-bottom:6px; max-height:50vh; overflow-y:auto; }
   .fatura-row{
@@ -904,6 +961,108 @@
     <button class="btn primary nm-add-btn" id="addNaoMensalBtn" type="button">+ Nova conta não mensal</button>
   </div>
 
+  <!-- Contas fixas: página cheia (substitui o calendário, mesmo padrão visual da Contas Não Mensais) -->
+  <div class="nm-view" id="contasFixasView" hidden>
+    <div class="nm-page-head">
+      <button class="nm-back-btn" id="contasFixasBackBtn" aria-label="Voltar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <h2>Contas Fixas</h2>
+    </div>
+    <div class="nm-intro">
+      <span class="icon">🏠</span>
+      <span>Contas que se repetem todo mês (ou em outra frequência fixa), como aluguel, internet e condomínio.</span>
+    </div>
+    <div class="nm-card">
+      <div class="rl-header-row">
+        <span>Conta</span><span>Valor</span><span>Frequência</span><span>Cartão</span><span></span>
+      </div>
+      <div id="contasFixasPageList"></div>
+    </div>
+    <div class="nm-total-bar">
+      <span class="lbl">Total de contas fixas por mês</span>
+      <span class="val mono" id="contasFixasTotalVal">R$ 0,00</span>
+    </div>
+    <button class="btn primary nm-add-btn" id="addContaFixaBtn" type="button">+ Nova conta fixa</button>
+  </div>
+
+  <!-- Receitas fixas: página cheia -->
+  <div class="nm-view" id="receitasFixasView" hidden>
+    <div class="nm-page-head">
+      <button class="nm-back-btn" id="receitasFixasBackBtn" aria-label="Voltar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <h2>Receitas Fixas</h2>
+    </div>
+    <div class="nm-intro">
+      <span class="icon">💰</span>
+      <span>Entradas que se repetem todo mês (ou em outra frequência fixa), como salário e freelas recorrentes.</span>
+    </div>
+    <div class="nm-card">
+      <div class="rl-header-row">
+        <span>Conta</span><span>Valor</span><span>Frequência</span><span>Cartão</span><span></span>
+      </div>
+      <div id="receitasFixasPageList"></div>
+    </div>
+    <div class="nm-total-bar">
+      <span class="lbl">Total de receitas fixas por mês</span>
+      <span class="val mono" id="receitasFixasTotalVal" style="color:var(--income);">R$ 0,00</span>
+    </div>
+    <button class="btn primary nm-add-btn" id="addReceitaFixaBtn" type="button">+ Nova receita fixa</button>
+  </div>
+
+  <!-- Assinaturas: página cheia -->
+  <div class="nm-view" id="assinView" hidden>
+    <div class="nm-page-head">
+      <button class="nm-back-btn" id="assinBackBtn" aria-label="Voltar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <h2>Assinaturas</h2>
+    </div>
+    <div class="nm-intro">
+      <span class="icon">📺</span>
+      <span>Streamings, apps e outras assinaturas recorrentes — pra ver de uma vez só quanto elas somam por mês.</span>
+    </div>
+    <div class="nm-card">
+      <div class="rl-header-row">
+        <span>Conta</span><span>Valor</span><span>Frequência</span><span>Cartão</span><span></span>
+      </div>
+      <div id="assinPageList"></div>
+    </div>
+    <div class="nm-total-bar">
+      <span class="lbl">Total de assinaturas por mês</span>
+      <span class="val mono" id="assinTotalVal">R$ 0,00</span>
+    </div>
+    <button class="btn primary nm-add-btn" id="addAssinaturaBtn" type="button">+ Nova assinatura</button>
+  </div>
+
+  <!-- Parcelados: página cheia (formato próprio, com início/fim calculados e status de pagamento
+       marcado manualmente pela pessoa — o app não tem como confirmar pagamento sozinho, só
+       calendariza a compra) -->
+  <div class="nm-view" id="parceladosView" hidden>
+    <div class="nm-page-head">
+      <button class="nm-back-btn" id="parceladosBackBtn" aria-label="Voltar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <h2>Parcelados</h2>
+    </div>
+    <div class="nm-intro">
+      <span class="icon">🧾</span>
+      <span>Compras parceladas em andamento. Veja quando começou, quando termina e quantas parcelas ao todo, e marque você mesma o status de pagamento — o app não tem como confirmar isso sozinho.</span>
+    </div>
+    <div class="nm-card">
+      <div class="pc-header-row">
+        <span>Conta</span><span>Valor da parcela</span><span>Início</span><span>Fim</span><span>Parcelas</span><span>Pagamento</span><span></span>
+      </div>
+      <div id="parceladosPageList"></div>
+    </div>
+    <div class="nm-total-bar">
+      <span class="lbl">Valor total em parcelas no mês</span>
+      <span class="val mono" id="parceladosTotalVal">R$ 0,00</span>
+    </div>
+    <button class="btn primary nm-add-btn" id="addParceladoBtn" type="button">+ Novo parcelado</button>
+  </div>
+
 </div>
 
 <!-- Menu lateral: tudo que não é usado no dia a dia (saldo inicial, contas fixas, receitas fixas,
@@ -979,54 +1138,6 @@
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
-  </div>
-</div>
-
-<!-- Modal: lista de assinaturas -->
-<div class="overlay" id="overlayAssinList" hidden>
-  <div class="modal" style="max-width:480px;">
-    <button class="modal-close" data-close="overlayAssinList" aria-label="Fechar">&times;</button>
-    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
-      <h3 style="margin:0;">Assinaturas</h3>
-      <button class="btn primary small" id="addAssinaturaBtn">+ Nova assinatura</button>
-    </div>
-    <div class="recur-list" id="assinaturasList"></div>
-  </div>
-</div>
-
-<!-- Modal: lista de contas fixas -->
-<div class="overlay" id="overlayContasList" hidden>
-  <div class="modal" style="max-width:480px;">
-    <button class="modal-close" data-close="overlayContasList" aria-label="Fechar">&times;</button>
-    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
-      <h3 style="margin:0;">Contas fixas</h3>
-      <button class="btn primary small" id="addContaFixaBtn">+ Nova conta fixa</button>
-    </div>
-    <div class="recur-list" id="contasFixasList"></div>
-  </div>
-</div>
-
-<!-- Modal: lista de receitas fixas -->
-<div class="overlay" id="overlayReceitasList" hidden>
-  <div class="modal" style="max-width:480px;">
-    <button class="modal-close" data-close="overlayReceitasList" aria-label="Fechar">&times;</button>
-    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
-      <h3 style="margin:0;">Receitas fixas</h3>
-      <button class="btn primary small" id="addReceitaFixaBtn">+ Nova receita fixa</button>
-    </div>
-    <div class="recur-list" id="receitasFixasList"></div>
-  </div>
-</div>
-
-<!-- Modal: lista de compras parceladas -->
-<div class="overlay" id="overlayParceladosList" hidden>
-  <div class="modal" style="max-width:480px;">
-    <button class="modal-close" data-close="overlayParceladosList" aria-label="Fechar">&times;</button>
-    <div class="recur-head" style="margin-bottom:14px; padding-right:26px;">
-      <h3 style="margin:0;">Compras parceladas</h3>
-      <button class="btn primary small" id="addParceladoBtn">+ Nova compra parcelada</button>
-    </div>
-    <div class="recur-list" id="parceladosList"></div>
   </div>
 </div>
 
@@ -2483,87 +2594,205 @@
     openOverlay('#overlayLancamentosMes');
   }
 
-  function buildRecurRow(r){
-    const row = document.createElement('div');
-    row.className = 'recur-row';
-    const info = document.createElement('div');
-    info.className = 'info';
-    const name = document.createElement('div');
-    name.className = 'name';
-    name.textContent = r.desc;
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    const periodo = r.dataFim
-      ? `de ${fmtDateFull(r.dataInicio)} até ${fmtDateFull(r.dataFim)}`
-      : `desde ${fmtDateFull(r.dataInicio)} · sem término`;
-    const cardNote = r.formaPagamento ? ` · no cartão ${getCardById(r.formaPagamento)?.nome || 'removido'}` : '';
-    meta.textContent = r.freqType === 'dias'
-      ? `${freqLabel(r)} · ${periodo}${cardNote}`
-      : `todo dia ${r.dia} · ${freqLabel(r)} · ${periodo}${cardNote}`;
-    info.appendChild(name); info.appendChild(meta);
-    row.appendChild(info);
+  // ---------------- Contas fixas / Receitas fixas / Assinaturas (páginas cheias, mesmo padrão
+  // visual da Contas Não Mensais) ----------------
+  const PAGAMENTO_STATUS_LABELS = { em_curso:'Em curso', pago:'Paguei tudo', atrasado:'Atrasado' };
 
-    const amt = document.createElement('div');
-    amt.className = 'amt mono ' + (r.tipo==='entrada'?'in':'out');
-    amt.textContent = (r.tipo==='entrada'?'+ ':'- ') + fmtBRL(r.valor);
-    row.appendChild(amt);
+  function buildContaReceitaRow(r){
+    const row = document.createElement('div');
+    row.className = 'rl-row';
+    const sinal = r.tipo === 'entrada' ? '+' : '-';
+    const amtCls = r.tipo === 'entrada' ? 'mob-amt-in' : 'mob-amt-out';
+    const cardNome = r.formaPagamento ? (getCardById(r.formaPagamento)?.nome || 'removido') : '';
+    const freqTxt = freqLabel(r);
+    const freqCap = freqTxt.charAt(0).toUpperCase() + freqTxt.slice(1);
+
+    const nomeWrap = document.createElement('div');
+    const nome = document.createElement('div');
+    nome.className = 'nm-nome';
+    nome.textContent = r.desc;
+    nomeWrap.appendChild(nome);
+    const mobileLine = document.createElement('div');
+    mobileLine.className = 'nm-valor-inline nm-mobile-only';
+    const amtSpanMob = document.createElement('span');
+    amtSpanMob.className = amtCls + ' mono';
+    amtSpanMob.textContent = `${sinal} ${fmtBRL(r.valor)}`;
+    mobileLine.appendChild(amtSpanMob);
+    mobileLine.appendChild(document.createTextNode(` · ${freqCap}` + (cardNome ? ` · no cartão ${cardNome}` : '')));
+    nomeWrap.appendChild(mobileLine);
+    row.appendChild(nomeWrap);
+
+    const valorCol = document.createElement('div');
+    valorCol.className = 'mono nm-desktop-only';
+    valorCol.style.color = r.tipo === 'entrada' ? 'var(--income)' : 'var(--expense)';
+    valorCol.style.fontWeight = '600';
+    valorCol.textContent = `${sinal} ${fmtBRL(r.valor)}`;
+    row.appendChild(valorCol);
+
+    const freqCol = document.createElement('div');
+    freqCol.className = 'nm-desktop-only';
+    const freqTag = document.createElement('span');
+    freqTag.className = 'nm-freq-tag';
+    freqTag.textContent = freqCap;
+    freqCol.appendChild(freqTag);
+    row.appendChild(freqCol);
+
+    const cartaoCol = document.createElement('div');
+    cartaoCol.className = 'rl-cartao-tag nm-desktop-only' + (cardNome ? '' : ' empty');
+    cartaoCol.textContent = cardNome || '—';
+    row.appendChild(cartaoCol);
 
     const actions = document.createElement('div');
-    actions.className = 'actions';
+    actions.className = 'rl-col-actions';
     const editBtn = document.createElement('button');
-    editBtn.className = 'btn small';
-    editBtn.textContent = 'Editar';
+    editBtn.type = 'button'; editBtn.className = 'icon-btn'; editBtn.setAttribute('aria-label','Editar'); editBtn.textContent = '✎';
     editBtn.addEventListener('click', () => {
       if (r.kind === 'assinatura') openAssinModal(r); else openRecurModal(r);
     });
     const delBtn = document.createElement('button');
-    delBtn.className = 'icon-btn';
-    delBtn.setAttribute('aria-label','Remover');
-    delBtn.textContent = '✕';
+    delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.setAttribute('aria-label','Remover'); delBtn.textContent = '✕';
     delBtn.addEventListener('click', () => removeRecurrente(r.id, r.desc, false));
     actions.appendChild(editBtn); actions.appendChild(delBtn);
     row.appendChild(actions);
+
     return row;
   }
 
-  function renderRecurLists(){
-    const assinWrap = $('#assinaturasList');
-    const contasWrap = $('#contasFixasList');
-    const receitasWrap = $('#receitasFixasList');
-    const parceladosWrap = $('#parceladosList');
-    assinWrap.innerHTML = '';
-    contasWrap.innerHTML = '';
-    receitasWrap.innerHTML = '';
-    parceladosWrap.innerHTML = '';
-
-    const assinaturas = state.recorrentes.filter(r=>r.kind==='assinatura').sort((a,b)=>a.dia-b.dia);
+  function renderContasFixasPage(){
+    const wrap = $('#contasFixasPageList');
+    wrap.innerHTML = '';
     const contas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='saida').sort((a,b)=>a.dia-b.dia);
-    const receitas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='entrada').sort((a,b)=>a.dia-b.dia);
-    const parcelados = state.recorrentes.filter(r=>r.kind==='parcelado').sort((a,b)=>a.dataInicio.localeCompare(b.dataInicio));
-
-    if (assinaturas.length===0){
-      assinWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma assinatura cadastrada ainda.</div>';
-    } else {
-      for (const r of assinaturas) assinWrap.appendChild(buildRecurRow(r));
-    }
-
     if (contas.length===0){
-      contasWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma conta fixa cadastrada ainda.</div>';
+      wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma conta fixa cadastrada ainda.</div>';
     } else {
-      for (const r of contas) contasWrap.appendChild(buildRecurRow(r));
+      for (const r of contas) wrap.appendChild(buildContaReceitaRow(r));
     }
+    $('#contasFixasTotalVal').textContent = fmtBRL(contas.reduce((sum,r)=>sum+r.valor,0));
+  }
 
+  function renderReceitasFixasPage(){
+    const wrap = $('#receitasFixasPageList');
+    wrap.innerHTML = '';
+    const receitas = state.recorrentes.filter(r=>r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='entrada').sort((a,b)=>a.dia-b.dia);
     if (receitas.length===0){
-      receitasWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma receita fixa cadastrada ainda.</div>';
+      wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma receita fixa cadastrada ainda.</div>';
     } else {
-      for (const r of receitas) receitasWrap.appendChild(buildRecurRow(r));
+      for (const r of receitas) wrap.appendChild(buildContaReceitaRow(r));
     }
+    $('#receitasFixasTotalVal').textContent = fmtBRL(receitas.reduce((sum,r)=>sum+r.valor,0));
+  }
 
-    if (parcelados.length===0){
-      parceladosWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma compra parcelada em andamento.</div>';
+  function renderAssinPage(){
+    const wrap = $('#assinPageList');
+    wrap.innerHTML = '';
+    const assinaturas = state.recorrentes.filter(r=>r.kind==='assinatura').sort((a,b)=>a.dia-b.dia);
+    if (assinaturas.length===0){
+      wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma assinatura cadastrada ainda.</div>';
     } else {
-      for (const r of parcelados) parceladosWrap.appendChild(buildParceladoRow(r));
+      for (const r of assinaturas) wrap.appendChild(buildContaReceitaRow(r));
     }
+    $('#assinTotalVal').textContent = fmtBRL(assinaturas.reduce((sum,r)=>sum+r.valor,0));
+  }
+
+  // ---------------- Parcelados (página cheia, formato próprio) ----------------
+  // Início/Fim são fatos (data que a pessoa registrou / data calculada pela quantidade de
+  // parcelas) — não mostra "parcela X de Y" calculado, porque isso passaria a falsa impressão de
+  // saber quantas foram realmente pagas. O status de pagamento é só o que a pessoa marca na mão.
+  function buildParceladoPageRow(r){
+    const row = document.createElement('div');
+    row.className = 'pc-row';
+    const cardNome = r.formaPagamento ? (getCardById(r.formaPagamento)?.nome || 'removido') : '';
+    const inicioTxt = fmtDateFull(r.dataInicio);
+    const fimTxt = r.dataFim ? fmtDateFull(r.dataFim) : '—';
+
+    const nameBlock = document.createElement('div');
+    nameBlock.className = 'pc-name-block';
+    const nome = document.createElement('div');
+    nome.className = 'nm-nome';
+    nome.textContent = r.desc;
+    nameBlock.appendChild(nome);
+    if (cardNome){
+      const cardLine = document.createElement('div');
+      cardLine.className = 'pc-cartao-line';
+      cardLine.textContent = `no cartão ${cardNome}`;
+      nameBlock.appendChild(cardLine);
+    }
+    row.appendChild(nameBlock);
+
+    const valorCol = document.createElement('div');
+    valorCol.className = 'mono nm-desktop-only';
+    valorCol.style.color = 'var(--expense)';
+    valorCol.style.fontWeight = '600';
+    valorCol.textContent = '- ' + fmtBRL(r.valor);
+    row.appendChild(valorCol);
+
+    const inicioCol = document.createElement('div');
+    inicioCol.className = 'mono pc-data1 nm-desktop-only';
+    inicioCol.textContent = inicioTxt;
+    row.appendChild(inicioCol);
+
+    const fimCol = document.createElement('div');
+    fimCol.className = 'mono pc-data1 nm-desktop-only';
+    fimCol.textContent = fimTxt;
+    row.appendChild(fimCol);
+
+    const qtdCol = document.createElement('div');
+    qtdCol.className = 'mono pc-qtd nm-desktop-only';
+    qtdCol.textContent = `${r.numParcelas}x`;
+    row.appendChild(qtdCol);
+
+    const status = r.statusPagamento || 'em_curso';
+    const statusClass = status === 'pago' ? 'pago' : status === 'atrasado' ? 'atrasado' : 'em-curso';
+    const sel = document.createElement('select');
+    sel.className = 'pc-pagamento ' + statusClass;
+    for (const val of ['em_curso','pago','atrasado']){
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = PAGAMENTO_STATUS_LABELS[val];
+      if (val === status) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => {
+      r.statusPagamento = sel.value;
+      renderAll();
+    });
+    row.appendChild(sel);
+
+    const metaMobile = document.createElement('div');
+    metaMobile.className = 'nm-valor-inline nm-mobile-only pc-meta-mobile';
+    const amtSpanMob = document.createElement('span');
+    amtSpanMob.className = 'mob-amt-out mono';
+    amtSpanMob.textContent = '- ' + fmtBRL(r.valor);
+    metaMobile.appendChild(amtSpanMob);
+    metaMobile.appendChild(document.createTextNode(` · de ${inicioTxt} até ${fimTxt} · ${r.numParcelas} parcelas ao todo`));
+    row.appendChild(metaMobile);
+
+    const actions = document.createElement('div');
+    actions.className = 'rl-col-actions';
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button'; editBtn.className = 'icon-btn'; editBtn.setAttribute('aria-label','Editar'); editBtn.textContent = '✎';
+    editBtn.addEventListener('click', () => openParceladoModal(r));
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.setAttribute('aria-label','Remover'); delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => removeRecurrente(r.id, r.desc, false));
+    actions.appendChild(editBtn); actions.appendChild(delBtn);
+    row.appendChild(actions);
+
+    return row;
+  }
+
+  function renderParceladosPage(){
+    const wrap = $('#parceladosPageList');
+    wrap.innerHTML = '';
+    const parcelados = state.recorrentes.filter(r=>r.kind==='parcelado').sort((a,b)=>a.dataInicio.localeCompare(b.dataInicio));
+    if (parcelados.length===0){
+      wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma compra parcelada em andamento.</div>';
+    } else {
+      for (const r of parcelados) wrap.appendChild(buildParceladoPageRow(r));
+    }
+    // exclui as marcadas como "Paguei tudo" do total — o valor mostrado é só o que ainda está ativo
+    const total = parcelados.filter(r=>(r.statusPagamento||'em_curso')!=='pago').reduce((sum,r)=>sum+r.valor,0);
+    $('#parceladosTotalVal').textContent = fmtBRL(total);
   }
 
   // ---------------- Contas não mensais (planejamento visual, não mexe em saldo/calendário) ----------------
@@ -2670,58 +2899,6 @@
     $('#nmTotalVal').textContent = fmtBRL(total);
   }
 
-  function buildParceladoRow(r){
-    const row = document.createElement('div');
-    row.className = 'recur-row';
-    const info = document.createElement('div');
-    info.className = 'info';
-    const name = document.createElement('div');
-    name.className = 'name';
-    name.textContent = r.desc;
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    let parcelaAtual;
-    if (r.freqType === 'dias'){
-      const diasPassados = daysBetweenISO(r.dataInicio, todayISO);
-      parcelaAtual = Math.min(r.numParcelas, Math.max(0, Math.floor(diasPassados / (r.intervalDias || 1)) + 1));
-    } else {
-      const [sy, sm] = r.dataInicio.split('-').map(Number);
-      const [ty, tm] = todayISO.split('-').map(Number);
-      const diffMeses = (ty*12+tm) - (sy*12+sm);
-      const interval = r.intervalMeses || 1;
-      parcelaAtual = Math.min(r.numParcelas, Math.max(0, Math.floor(diffMeses / interval) + 1));
-    }
-    const inicioTxt = r.freqType === 'dias' ? fmtDateFull(r.dataInicio) : fmtMonthYear(r.dataInicio);
-    const fimTxt = r.freqType === 'dias' ? fmtDateFull(r.dataFim) : fmtMonthYear(r.dataFim);
-    const statusParcela = parcelaAtual < 1
-      ? `começa em ${inicioTxt}`
-      : `parcela ${parcelaAtual} de ${r.numParcelas}`;
-    const cardNote = r.formaPagamento ? ` · no cartão ${getCardById(r.formaPagamento)?.nome || 'removido'}` : '';
-    meta.textContent = `${statusParcela} · ${r.numParcelas} parcelas / ${parcelaFreqLabel(r)} · até ${fimTxt}${cardNote}`;
-    info.appendChild(name); info.appendChild(meta);
-    row.appendChild(info);
-
-    const amt = document.createElement('div');
-    amt.className = 'amt mono out';
-    amt.textContent = '- ' + fmtBRL(r.valor);
-    row.appendChild(amt);
-
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    const editBtn = document.createElement('button');
-    editBtn.className = 'btn small';
-    editBtn.textContent = 'Editar';
-    editBtn.addEventListener('click', () => openParceladoModal(r));
-    const delBtn = document.createElement('button');
-    delBtn.className = 'icon-btn';
-    delBtn.setAttribute('aria-label','Remover');
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', () => removeRecurrente(r.id, r.desc, false));
-    actions.appendChild(editBtn); actions.appendChild(delBtn);
-    row.appendChild(actions);
-    return row;
-  }
-
   function buildCartaoRow(c){
     const row = document.createElement('div');
     row.className = 'recur-row';
@@ -2816,29 +2993,35 @@
     }
   }
 
+  // cada "página cheia" (que substitui o calendário, igual a Contas Não Mensais) fica registrada
+  // aqui: id da view + qual renderiza ela. 'month' e 'year' continuam com o comportamento próprio
+  // (elas têm o botão de alternar visão e a fileira de tiles, as páginas cheias não têm).
+  const FULL_PAGE_VIEWS = {
+    naomensais: { viewId:'#nmView', render:renderContasNaoMensais },
+    contasfixas: { viewId:'#contasFixasView', render:renderContasFixasPage },
+    receitasfixas: { viewId:'#receitasFixasView', render:renderReceitasFixasPage },
+    assinaturas: { viewId:'#assinView', render:renderAssinPage },
+    parcelados: { viewId:'#parceladosView', render:renderParceladosPage },
+  };
+
   function setViewMode(mode){
     state.viewMode = mode;
     const btn = $('#toggleViewBtn');
+    $('#monthView').hidden = mode !== 'month';
+    $('#yearView').hidden = mode !== 'year';
+    for (const key in FULL_PAGE_VIEWS) $(FULL_PAGE_VIEWS[key].viewId).hidden = (mode !== key);
     if (mode === 'year'){
-      $('#monthView').hidden = true;
-      $('#yearView').hidden = false;
-      $('#nmView').hidden = true;
       btn.hidden = false;
       btn.textContent = 'Visão mensal';
       $('#tilesRow').hidden = false;
-    } else if (mode === 'naomensais'){
-      $('#monthView').hidden = true;
-      $('#yearView').hidden = true;
-      $('#nmView').hidden = false;
-      btn.hidden = true;
-      $('#tilesRow').hidden = true;
-    } else {
-      $('#monthView').hidden = false;
-      $('#yearView').hidden = true;
-      $('#nmView').hidden = true;
+    } else if (mode === 'month'){
       btn.hidden = false;
       btn.textContent = 'Visão anual';
       $('#tilesRow').hidden = false;
+    } else {
+      // qualquer página cheia (contas não mensais, contas/receitas fixas, assinaturas, parcelados)
+      btn.hidden = true;
+      $('#tilesRow').hidden = true;
     }
     renderAll();
   }
@@ -2848,12 +3031,11 @@
     renderTiles();
     if (state.viewMode === 'year'){
       renderYearGrid();
-    } else if (state.viewMode === 'naomensais'){
-      renderContasNaoMensais();
+    } else if (FULL_PAGE_VIEWS[state.viewMode]){
+      FULL_PAGE_VIEWS[state.viewMode].render();
     } else {
       renderCalendar();
     }
-    renderRecurLists();
     renderCartoesList();
     // se o pop-up "Lançamentos do mês" estiver aberto, atualiza a lista dele também — assim editar
     // ou apagar um item de dentro dele reflete na hora, sem precisar fechar e abrir de novo
@@ -3508,10 +3690,14 @@
   $('#addParceladoBtn').addEventListener('click', ()=> openParceladoModal(null));
   $('#addCartaoBtn').addEventListener('click', ()=> openCartaoModal(null));
   $('#openDashboardBtn').addEventListener('click', ()=> setViewMode('month'));
-  $('#openContasBtn').addEventListener('click', ()=> openOverlay('#overlayContasList'));
-  $('#openReceitasBtn').addEventListener('click', ()=> openOverlay('#overlayReceitasList'));
-  $('#openAssinBtn').addEventListener('click', ()=> openOverlay('#overlayAssinList'));
-  $('#openParceladosBtn').addEventListener('click', ()=> openOverlay('#overlayParceladosList'));
+  $('#openContasBtn').addEventListener('click', ()=> setViewMode('contasfixas'));
+  $('#openReceitasBtn').addEventListener('click', ()=> setViewMode('receitasfixas'));
+  $('#openAssinBtn').addEventListener('click', ()=> setViewMode('assinaturas'));
+  $('#openParceladosBtn').addEventListener('click', ()=> setViewMode('parcelados'));
+  $('#contasFixasBackBtn').addEventListener('click', ()=> setViewMode('month'));
+  $('#receitasFixasBackBtn').addEventListener('click', ()=> setViewMode('month'));
+  $('#assinBackBtn').addEventListener('click', ()=> setViewMode('month'));
+  $('#parceladosBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openCartoesBtn').addEventListener('click', ()=> openOverlay('#overlayCartoesList'));
   $('#parceladoValor').addEventListener('input', updateParceladoResumo);
   $('#parceladoQtd').addEventListener('input', updateParceladoResumo);
@@ -3641,7 +3827,9 @@
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento });
+      // statusPagamento é só o que a pessoa marca na mão (o app não confirma pagamento sozinho,
+      // só calcula datas) — começa como "em_curso" e só muda quando ela mexe no dropdown da página
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso' });
     }
     closeOverlay('#overlayParcelado');
     renderAll();

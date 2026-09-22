@@ -215,6 +215,9 @@
 
   /* ---------- saldo atual + saldo projetado combinados, com barrinhas comparativas ---------- */
   .tile.balance-combo{ display:flex; flex-direction:row; align-items:stretch; padding:0; gap:0; overflow:hidden; }
+  /* .tile já define display:flex, então o atributo [hidden] sozinho (regra do navegador) não
+     teria efeito nenhum aqui — precisa de um display:none explícito pra vencer */
+  .tile.balance-combo[hidden]{ display:none; }
   .bc-half{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; padding:16px 16px; }
   .bc-half.atual{ background:var(--tile-balance-bg); }
   .bc-half.projetado{ transition:background .15s ease; }
@@ -262,6 +265,12 @@
     border:none; background:transparent; font-family:inherit; text-align:left; cursor:pointer;
   }
   .tile.inout .inout-half:hover{ background:var(--surface-2); }
+  /* #tileAnoInOut usa a mesma classe .tile.inout (mesmo visual dos números), mas os lados são <div>,
+     não <button> — não abre nada ao tocar, então sem cursor de botão nem hover */
+  #tileAnoInOut .inout-half{ cursor:default; }
+  #tileAnoInOut .inout-half:hover{ background:none; }
+  /* .tile já define display:flex, então o atributo [hidden] sozinho não bastaria pra esconder */
+  #tileAnoInOut[hidden]{ display:none; }
   .tile.inout .inout-divider{ width:1px; background:var(--border); flex-shrink:0; }
   .tile.inout .val{ font-size:clamp(15px, 4.4vw, 22px); }
   .tile.inout .inout-half.in .val{ color:var(--income); }
@@ -869,6 +878,22 @@
         <span class="sub" id="tileAtualSub">&nbsp;</span>
       </div>
     </div>
+    <!-- Visão anual: no lugar do saldo (que é um cálculo de referência pra HOJE, sem muito sentido
+         pro ano inteiro), mostra só a soma de entradas/saídas do ano até hoje — informativo, não é
+         um botão (não abre nada ao tocar) -->
+    <div class="tile inout" id="tileAnoInOut" hidden>
+      <div class="inout-half in">
+        <span class="lbl">Entradas</span>
+        <span class="val mono" id="tileAnoIn">R$ 0,00</span>
+        <span class="sub" id="tileAnoInSub">no ano · até hoje</span>
+      </div>
+      <div class="inout-divider"></div>
+      <div class="inout-half out">
+        <span class="lbl">Saídas</span>
+        <span class="val mono" id="tileAnoOut">R$ 0,00</span>
+        <span class="sub" id="tileAnoOutSub">no ano · até hoje</span>
+      </div>
+    </div>
     <div class="tile add-tile">
       <button class="btn primary block" id="addOneTimeBtn">+ Novo lançamento</button>
     </div>
@@ -922,10 +947,11 @@
         <div class="cartoes-ciclo-wrap" id="cartoesCicloWrap"></div>
       </div>
 
-      <button type="button" class="card day-detail card-btn" id="btnLancamentosMes">
-        <h2>Lançamentos do mês</h2>
-        <p class="date-title">Tudo que está lançado, dia por dia · toque para ver</p>
-      </button>
+      <div class="card day-detail" id="dayDetailCard">
+        <h2>Lançamentos do dia</h2>
+        <p class="date-title" id="dayDetailDate"></p>
+        <div id="dayDetailList"></div>
+      </div>
     </div>
   </div>
 
@@ -1122,16 +1148,15 @@
   </div>
 </div>
 
-<!-- Modal: todos os lançamentos do mês, dia por dia, numa lista só (substitui o antigo cartão que
-     mudava ao clicar em cada dia do calendário). Fica logo no início da lista de overlays de
-     propósito: editar/apagar um item de dentro dele abre outro modal (lançamento, recorrência,
-     fatura...) por cima, e como não há z-index entre eles, quem vem depois no HTML é quem fica
-     visível por cima — todo modal que pode abrir a partir daqui precisa vir depois no documento. -->
-<div class="overlay" id="overlayLancamentosMes" hidden>
+<!-- Modal: lista de entradas/saídas do mês — fica ANTES dos modais de edição (overlayOne, overlayRecur,
+     overlayAssin, overlayParcelado, overlayCartao, overlayFaturaDetalhe...) na ordem do documento, senão
+     esses modais de edição abririam por baixo dela e ficariam impossíveis de usar (a regra da stacking de
+     overlay é a ordem no documento: quem vem depois pinta por cima) -->
+<div class="overlay" id="overlayMesDetalhe" hidden>
   <div class="modal" style="max-width:480px;">
-    <button class="modal-close" data-close="overlayLancamentosMes" aria-label="Fechar">&times;</button>
-    <h3 id="lancamentosMesTitle" style="margin-bottom:14px;">Lançamentos do mês</h3>
-    <div class="lanc-mes-list" id="lancamentosMesList"></div>
+    <button class="modal-close" data-close="overlayMesDetalhe" aria-label="Fechar">&times;</button>
+    <h3 id="mesDetalheTitle" style="margin-bottom:14px;">Entradas do mês</h3>
+    <div class="lanc-mes-list" id="mesDetalheList"></div>
   </div>
 </div>
 
@@ -1182,15 +1207,6 @@
     <button class="modal-close" data-close="overlayCartaoCiclo" aria-label="Fechar">&times;</button>
     <h3 id="cartaoCicloTitle" style="margin-bottom:14px;"></h3>
     <div id="cartaoCicloBody"></div>
-  </div>
-</div>
-
-<!-- Modal: lista de entradas/saídas do mês -->
-<div class="overlay" id="overlayMesDetalhe" hidden>
-  <div class="modal" style="max-width:480px;">
-    <button class="modal-close" data-close="overlayMesDetalhe" aria-label="Fechar">&times;</button>
-    <h3 id="mesDetalheTitle" style="margin-bottom:14px;">Entradas do mês</h3>
-    <div class="recur-list" id="mesDetalheList"></div>
   </div>
 </div>
 
@@ -2096,6 +2112,44 @@
     return list;
   }
 
+  // igual occurrencesInMonth, mas pra um intervalo de datas arbitrário (usado no tile
+  // "Entradas/saídas do ano" da Visão Anual) — mesma regra: compras no cartão só contam
+  // quando a fatura delas vence dentro do intervalo, nunca no dia da compra em si
+  function occurrencesInRange(loISO, hiISO){
+    const list = [];
+    for (const t of state.oneTime) if (!t.formaPagamento && t.data >= loISO && t.data <= hiISO) list.push(Object.assign({recorrente:false}, t));
+    for (const r of state.recorrentes) list.push(...occurrencesForRecInRange(r, loISO, hiISO).filter(o=>!o.formaPagamento));
+    for (const inv of allCardInvoicesForMonths(loISO, hiISO)){
+      if (inv.data < loISO || inv.data > hiISO) continue;
+      if (Math.abs(inv.raw) < 0.005) continue;
+      list.push({ tipo: inv.raw < 0 ? 'saida' : 'entrada', valor: Math.abs(inv.raw) });
+    }
+    return list;
+  }
+
+  // tile informativo "Entradas/Saídas do ano" da Visão Anual: soma de 1º de janeiro até hoje
+  // (ano atual), ano inteiro (ano passado), ou vazio (ano futuro) — nunca é um botão
+  function renderAnoInOutTile(){
+    const y = state.yearViewYear;
+    const loAno = toISO(y, 0, 1);
+    const hiAnoFull = toISO(y, 11, 31);
+    let hiAno;
+    if (todayISO < loAno) hiAno = null; // ano todo no futuro: nada a somar ainda
+    else if (todayISO < hiAnoFull) hiAno = todayISO; // ano atual: até hoje
+    else hiAno = hiAnoFull; // ano passado (ou já terminado): ano inteiro
+
+    let totalIn = 0, totalOut = 0;
+    if (hiAno){
+      const occ = occurrencesInRange(loAno, hiAno);
+      for (const o of occ){ if (o.tipo === 'entrada') totalIn += o.valor; else totalOut += o.valor; }
+    }
+    $('#tileAnoIn').textContent = fmtBRL(totalIn);
+    $('#tileAnoOut').textContent = fmtBRL(totalOut);
+    const subTxt = hiAno ? `no ano · de jan até ${fmtDateShort(hiAno)}` : `no ano · ainda sem dados`;
+    $('#tileAnoInSub').textContent = subTxt;
+    $('#tileAnoOutSub').textContent = subTxt;
+  }
+
   function balanceAt(dateISO){
     let sum = 0;
     if (dateISO >= state.dataBase){
@@ -2210,6 +2264,7 @@
     updateSaldoBars(atualBal, bal);
 
     renderCartoesCicloList();
+    renderAnoInOutTile();
   }
 
   // lista principal do tile "Total gasto por cartão, por ciclo": uma linha por cartão, com o total
@@ -2336,7 +2391,13 @@
 
   // lista, num pop-up, todas as entradas (ou todas as saídas) já lançadas pro mês em exibição —
   // inclui lançamentos avulsos, contas/receitas fixas, assinaturas e faturas de cartão
+  // mesmo layout/comportamento do pop-up "Lançamentos do mês" (buildTxnRow: nome, data + descrição,
+  // valor colorido, e editar/apagar direto na lista — ou "Pagar cartão" quando é uma fatura),
+  // só que filtrado pra só entradas ou só saídas. Guarda o tipo mostrado por último pra dar pra
+  // atualizar a lista sozinha (ver renderAll) quando a pessoa edita/apaga algo de dentro dela.
+  let mesDetalheTipoAtual = null;
   function openMesDetalheModal(tipo){
+    mesDetalheTipoAtual = tipo;
     const occ = occurrencesInMonth(state.view.year, state.view.month)
       .filter(o => o.tipo === tipo)
       .sort((a,b) => a.data.localeCompare(b.data));
@@ -2346,25 +2407,7 @@
     if (occ.length === 0){
       wrap.innerHTML = `<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma ${tipo==='entrada'?'entrada':'saída'} lançada neste mês.</div>`;
     } else {
-      for (const o of occ){
-        const row = document.createElement('div');
-        row.className = 'recur-row';
-        const info = document.createElement('div');
-        info.className = 'info';
-        const name = document.createElement('div');
-        name.className = 'name';
-        name.textContent = o.desc;
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        meta.textContent = fmtDateFull(o.data);
-        info.appendChild(name); info.appendChild(meta);
-        row.appendChild(info);
-        const amt = document.createElement('div');
-        amt.className = 'amt mono ' + (tipo==='entrada' ? 'in':'out');
-        amt.textContent = fmtBRL(o.valor);
-        row.appendChild(amt);
-        wrap.appendChild(row);
-      }
+      for (const o of occ) wrap.appendChild(buildTxnRow(o, {showDate:true}));
     }
     openOverlay('#overlayMesDetalhe');
   }
@@ -2599,28 +2642,20 @@
     return row;
   }
 
-  // todos os lançamentos do mês (de todos os dias), na ordem do calendário — usada pelo pop-up
-  // "Lançamentos do mês" que substituiu o antigo painel que só mostrava o dia selecionado
-  function occurrencesInMonthFull(year, month0){
-    const dim = daysInMonth(year, month0);
-    const out = [];
-    for (let day=1; day<=dim; day++) out.push(...occurrencesOnDate(toISO(year, month0, day)));
-    return out;
-  }
-
-  function openLancamentosMesModal(){
-    const {year, month} = state.view;
-    $('#lancamentosMesTitle').textContent = `Lançamentos de ${MONTHS[month]} ${year}`;
-    const occ = occurrencesInMonthFull(year, month)
-      .sort((a,b) => a.data === b.data ? (a.tipo===b.tipo ? 0 : (a.tipo==='entrada'?-1:1)) : a.data.localeCompare(b.data));
-    const wrap = $('#lancamentosMesList');
+  // painel "Lançamentos do dia": mostra só os lançamentos do dia selecionado no calendário, direto
+  // na barra lateral (sem pop-up) — como era antes de virar o pop-up "Lançamentos do mês"
+  function renderDayDetail(){
+    const iso = state.selectedDate;
+    $('#dayDetailDate').textContent = fmtDateFull(iso);
+    const occ = occurrencesOnDate(iso)
+      .sort((a,b) => a.tipo===b.tipo ? 0 : (a.tipo==='entrada'?-1:1));
+    const wrap = $('#dayDetailList');
     wrap.innerHTML = '';
     if (occ.length === 0){
-      wrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nada lançado neste mês.</div>';
+      wrap.innerHTML = '<div class="empty-hint">Nada lançado nesse dia.</div>';
     } else {
-      for (const o of occ) wrap.appendChild(buildTxnRow(o, {showDate:true}));
+      for (const o of occ) wrap.appendChild(buildTxnRow(o, {showDate:false}));
     }
-    openOverlay('#overlayLancamentosMes');
   }
 
   // ---------------- Contas fixas / Receitas fixas / Assinaturas (páginas cheias, mesmo padrão
@@ -2641,7 +2676,10 @@
       : (cardNome || 'Dinheiro/Pix/Débito');
     const lastColEmpty = mode === 'nota' ? !r.ondeCai : false;
     const freqTxt = freqLabel(r);
-    const freqCap = freqTxt.charAt(0).toUpperCase() + freqTxt.slice(1);
+    // dia do mês que a pessoa escolheu ao criar (só existe pra frequência mensal/a cada N meses —
+    // frequências "a cada N dias" não têm um dia fixo do mês, então não mostra nada aqui)
+    const diaTxt = (r.dia != null) ? ` · dia ${String(r.dia).padStart(2,'0')}` : '';
+    const freqCap = freqTxt.charAt(0).toUpperCase() + freqTxt.slice(1) + diaTxt;
 
     const nomeWrap = document.createElement('div');
     const nome = document.createElement('div');
@@ -3068,6 +3106,10 @@
     $('#monthView').hidden = mode !== 'month';
     $('#yearView').hidden = mode !== 'year';
     for (const key in FULL_PAGE_VIEWS) $(FULL_PAGE_VIEWS[key].viewId).hidden = (mode !== key);
+    // visão anual: troca o tile de saldo (referência de HOJE, sem muito sentido pro ano inteiro)
+    // pelo tile informativo de entradas/saídas do ano
+    $('.tile.balance-combo').hidden = mode === 'year';
+    $('#tileAnoInOut').hidden = mode !== 'year';
     if (mode === 'year'){
       btn.hidden = false;
       btn.textContent = 'Visão mensal';
@@ -3093,10 +3135,11 @@
       FULL_PAGE_VIEWS[state.viewMode].render();
     } else {
       renderCalendar();
+      renderDayDetail();
     }
-    // se o pop-up "Lançamentos do mês" estiver aberto, atualiza a lista dele também — assim editar
-    // ou apagar um item de dentro dele reflete na hora, sem precisar fechar e abrir de novo
-    if (!$('#overlayLancamentosMes').hidden) openLancamentosMesModal();
+    // se o pop-up "Saídas/Entradas do mês" estiver aberto, atualiza a lista dele também — assim
+    // editar ou apagar um item de dentro dele reflete na hora, sem precisar fechar e abrir de novo
+    if (!$('#overlayMesDetalhe').hidden) openMesDetalheModal(mesDetalheTipoAtual);
     if (!anyOverlayOpen()) showFaturaPendingPromptIfAny();
     schedulePersist();
   }
@@ -3768,7 +3811,6 @@
   $('#parceladoIntervaloDias').addEventListener('input', updateParceladoResumo);
   $('#btnEntradasMes').addEventListener('click', ()=> openMesDetalheModal('entrada'));
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
-  $('#btnLancamentosMes').addEventListener('click', ()=> openLancamentosMesModal());
   $('#oneForm').addEventListener('submit', e=>{
     e.preventDefault();
     const tipo = $('#oneSeg').querySelector('.active').dataset.tipo;
@@ -3959,10 +4001,12 @@
   $('#prevYear').addEventListener('click', ()=>{
     state.yearViewYear--;
     renderYearGrid();
+    renderAnoInOutTile();
   });
   $('#nextYear').addEventListener('click', ()=>{
     state.yearViewYear++;
     renderYearGrid();
+    renderAnoInOutTile();
   });
 
   /* ---------------- login (Google via Supabase) ----------------

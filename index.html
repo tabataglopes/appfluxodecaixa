@@ -697,6 +697,71 @@
   }
   .modal{ position:relative; }
 
+  /* ---------- onboarding progressivo: escolha inicial + configuração rápida (3 passos) ---------- */
+  .onboarding-title{ font-size:26px; margin:0 0 6px; }
+  .onboarding-sub{ font-size:13.5px; color:var(--ink-muted); margin:0 0 22px; line-height:1.5; }
+  .choice-btn{
+    display:block; width:100%; text-align:left; border:1px solid var(--border); background:var(--surface);
+    border-radius:12px; padding:14px 16px; margin-bottom:10px; cursor:pointer; font-family:inherit;
+  }
+  .choice-btn.primary{ border-color:var(--accent); background:var(--accent-soft); }
+  .choice-btn .t{ display:block; font-weight:700; font-size:14.5px; color:var(--ink); font-family:"Fraunces", serif; }
+  .choice-btn .d{ display:block; font-size:12px; color:var(--ink-muted); margin-top:3px; line-height:1.4; }
+
+  .step-progress{ display:flex; gap:5px; margin-bottom:18px; }
+  /* mesmo motivo do .tile[hidden] lá em cima: .step-progress já define display:flex, então o
+     [hidden] sozinho (regra do navegador) não bastaria pra esconder nos passos 4-6 (sem bolinha) */
+  .step-progress[hidden]{ display:none; }
+  .step-progress .dot{ flex:1; height:4px; border-radius:2px; background:var(--surface-2); }
+  .step-progress .dot.done{ background:var(--accent); }
+  .step-kicker{ font-size:11.5px; font-weight:700; color:var(--accent-strong); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; }
+  .step-q{ font-size:19px; margin:0 0 6px; line-height:1.3; }
+  .step-hint{ font-size:12.5px; color:var(--ink-muted); margin:0 0 18px; line-height:1.4; }
+  .step-actions{ display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+  .skip-link{ text-align:center; font-size:12.5px; color:var(--ink-muted); text-decoration:underline; cursor:pointer; }
+
+  .qs-step[hidden]{ display:none; }
+  .bill-row{
+    display:flex; gap:8px; align-items:center; border:1px solid var(--border); border-radius:10px;
+    padding:9px 10px; margin-bottom:8px; background:var(--surface);
+  }
+  .bill-row .nm{ flex:1; font-size:13.5px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bill-row .vl{ font-size:13.5px; font-weight:600; color:var(--expense); font-family:"JetBrains Mono", monospace; white-space:nowrap; }
+  .bill-row-remove{
+    border:none; background:transparent; color:var(--ink-muted); font-size:16px; line-height:1; cursor:pointer; padding:0 2px;
+  }
+  .add-bill-btn{
+    display:block; width:100%; border:1px dashed var(--border); background:transparent; color:var(--accent);
+    border-radius:10px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; text-align:center;
+    margin-bottom:8px; font-family:inherit;
+  }
+  .qs-bill-form[hidden]{ display:none; }
+
+  /* passos 4/5 do assistente rápido: mini-calendário ilustrativo (só cor, sem números/datas de
+     verdade) pra explicar de cara o que o verde/laranja do calendário real do Maré significam */
+  .qs-explain-cal{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px; margin:16px 0 14px; }
+  .qs-explain-cal .c{ aspect-ratio:1; border-radius:6px; background:var(--cal-ok-bg); }
+  .qs-explain-cal .c.negative{ background:var(--cal-negative-bg); }
+  .qs-explain-caption{ display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; color:var(--ink); margin:0 0 18px; }
+
+  /* ---------- banner "projeção incompleta" (aparece no app depois da configuração rápida) ---------- */
+  .onboarding-banner{
+    background:var(--accent-soft); border:1px solid var(--accent); border-radius:14px; padding:16px 18px;
+  }
+  .onboarding-banner[hidden]{ display:none; }
+  .onboarding-banner-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .onboarding-banner-head h3{ font-size:15px; color:var(--accent-strong); margin:0; }
+  .onboarding-banner-msg{ font-size:13px; color:var(--accent-strong); line-height:1.45; margin:8px 0 0; }
+  .mini-checklist{ display:flex; flex-wrap:wrap; gap:9px 20px; margin-top:12px; }
+  .mini-checklist .item{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--accent-strong); font-weight:600; }
+  .mini-checklist .item .circ{ width:15px; height:15px; border-radius:50%; border:1.5px solid var(--accent); flex-shrink:0; box-sizing:border-box; position:relative; }
+  .mini-checklist .item.done .circ{ background:var(--accent); }
+  .mini-checklist .item.done .circ::after{
+    content:''; position:absolute; left:4px; top:1px; width:4px; height:8px;
+    border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
+  }
+  .mini-checklist .item.done{ text-decoration:line-through; opacity:0.75; }
+
   /* ---------- menu lateral (drawer) ---------- */
   .drawer-overlay{ justify-content:flex-start; padding:0; }
   .modal.drawer{
@@ -855,6 +920,25 @@
            não mexe em nada do estado do Maré, só um atalho -->
       <a class="btn" href="https://www.valemeudinheiro.site/" target="_blank" rel="noopener noreferrer" title="Compare preços antes de comprar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="12" y1="10" x2="12" y2="10.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="8" y1="18" x2="16" y2="18"></line></svg>Calculadora</a>
       <button class="btn" id="toggleViewBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="8" y1="18" x2="8.01" y2="18"></line><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>Visão anual</button>
+    </div>
+  </div>
+
+  <!-- Banner "projeção incompleta": só aparece pra quem entrou pela Configuração rápida
+       (state.configRapida) e ainda não cadastrou as 4 categorias que tornam a projeção completa
+       (receitas fixas, contas fixas, assinaturas, cartão) — ver renderOnboardingBanner(). Fica
+       fixo no topo, acima dos tiles, em qualquer página do app; some sozinho (e desliga
+       configRapida) assim que as 4 categorias tiverem pelo menos um item. -->
+  <div class="onboarding-banner" id="onboardingBanner" hidden>
+    <div class="onboarding-banner-head">
+      <h3>Sua projeção ainda está incompleta</h3>
+      <button type="button" class="btn primary" id="onboardingCompleteBtn">Completar minha projeção</button>
+    </div>
+    <p class="onboarding-banner-msg">Você começou pela configuração rápida — quanto mais você adicionar, mais precisa fica a projeção.</p>
+    <div class="mini-checklist" id="onboardingChecklist">
+      <div class="item" data-check="receitas"><span class="circ"></span> Receitas fixas (deixe o salário recorrente)</div>
+      <div class="item" data-check="contas"><span class="circ"></span> Contas fixas</div>
+      <div class="item" data-check="assinaturas"><span class="circ"></span> Assinaturas</div>
+      <div class="item" data-check="cartoes"><span class="circ"></span> Cartão de crédito</div>
     </div>
   </div>
 
@@ -1591,6 +1675,25 @@
   </div>
 </div>
 
+<!-- Modal: escolha inicial de configuração (onboarding progressivo) — primeira coisa que quem
+     nunca usou o Maré vê. Obrigatório (sem X, sem fechar por fora, sem Esc — ver podeFechar), tem
+     que aparecer ANTES de #overlayBase no documento porque é dela que se abre tanto #overlayBase
+     ("Configuração completa") quanto #overlayQuickSetup ("Configuração rápida"). -->
+<div class="overlay" id="overlayOnboardingChoice" hidden>
+  <div class="modal onboarding-choice-modal" style="max-width:380px; text-align:center;">
+    <h1 class="onboarding-title">Maré</h1>
+    <p class="onboarding-sub">Seu fluxo de caixa pessoal, organizado dia a dia. Como você quer começar?</p>
+    <button type="button" class="choice-btn primary" id="choiceQuickBtn">
+      <span class="t">⚡ Configuração rápida</span>
+      <span class="d">Veja sua primeira projeção em menos de 2 minutos. Você completa o resto depois.</span>
+    </button>
+    <button type="button" class="choice-btn" id="choiceFullBtn">
+      <span class="t">📋 Configuração completa</span>
+      <span class="d">Cadastre contas fixas, assinaturas e cartões antes de começar (como é hoje).</span>
+    </button>
+  </div>
+</div>
+
 <!-- Modal: saldo em conta inicial -->
 <div class="overlay" id="overlayBase" hidden>
   <div class="modal" style="max-width:360px;">
@@ -1611,6 +1714,115 @@
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal: configuração rápida (onboarding progressivo) — 3 passos: saldo atual, próximo
+     recebimento (opcional/pulável) e contas até lá. Obrigatório enquanto aberto (ver podeFechar).
+     Ao terminar, fecha e cai direto no calendário real, com o banner #onboardingBanner mostrando
+     o checklist do que falta cadastrar pra projeção ficar completa. -->
+<div class="overlay" id="overlayQuickSetup" hidden>
+  <div class="modal" style="max-width:380px;">
+    <div class="step-progress" id="qsProgress">
+      <div class="dot" data-step="1"></div><div class="dot" data-step="2"></div><div class="dot" data-step="3"></div>
+    </div>
+
+    <div class="qs-step" id="qsStep1">
+      <div class="step-kicker">Passo 1 de 3</div>
+      <h3 class="step-q">Quanto você tem na conta hoje?</h3>
+      <p class="step-hint">É só um ponto de partida — o resto do app soma e subtrai a partir daqui.</p>
+      <div class="field">
+        <label for="qsSaldo">Saldo atual (R$)</label>
+        <input type="number" step="0.01" id="qsSaldo" class="mono" required>
+      </div>
+      <div class="step-actions">
+        <button type="button" class="btn primary block" id="qsStep1Next">Continuar</button>
+      </div>
+    </div>
+
+    <div class="qs-step" id="qsStep2" hidden>
+      <div class="step-kicker">Passo 2 de 3</div>
+      <h3 class="step-q">Quando e quanto você vai receber?</h3>
+      <p class="step-hint">Pode ser salário, freela, o que for — o próximo dinheiro que vai cair na conta.</p>
+      <div class="field">
+        <label for="qsRecebData">Data</label>
+        <input type="date" id="qsRecebData">
+      </div>
+      <div class="field">
+        <label for="qsRecebValor">Valor (R$)</label>
+        <input type="number" step="0.01" id="qsRecebValor" class="mono">
+      </div>
+      <div class="step-actions">
+        <button type="button" class="btn primary block" id="qsStep2Next">Continuar</button>
+        <span class="skip-link" id="qsStep2Skip">Ainda não sei / pular</span>
+      </div>
+    </div>
+
+    <div class="qs-step" id="qsStep3" hidden>
+      <div class="step-kicker">Passo 3 de 3</div>
+      <h3 class="step-q" id="qsStep3Question">O que ainda precisa ser pago até lá?</h3>
+      <p class="step-hint">Adicione os principais — dá pra completar o resto depois.</p>
+      <div id="qsBillsList"></div>
+      <div class="qs-bill-form" id="qsBillForm" hidden>
+        <div class="row2">
+          <div class="field">
+            <label for="qsBillNome">Nome</label>
+            <input type="text" id="qsBillNome" placeholder="Ex.: Aluguel">
+          </div>
+          <div class="field">
+            <label for="qsBillValor">Valor (R$)</label>
+            <input type="number" step="0.01" id="qsBillValor" class="mono">
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-bottom:12px;">
+          <button type="button" class="btn" id="qsBillCancelBtn">Cancelar</button>
+          <button type="button" class="btn primary" id="qsBillConfirmBtn">Adicionar</button>
+        </div>
+      </div>
+      <button type="button" class="add-bill-btn" id="qsAddBillBtn">+ Adicionar outro pagamento</button>
+      <div class="step-actions">
+        <button type="button" class="btn primary block" id="qsStep3Next">Continuar</button>
+      </div>
+    </div>
+
+    <!-- passos 4 e 5: não coletam dado nenhum, só explicam de cara pra que serve o calendário do
+         Maré (verde = tem dinheiro, laranja = a partir dali falta) antes da pessoa ver o resultado
+         de verdade — por isso não têm "Passo X de 3"/bolinhas, é um intervalo à parte -->
+    <div class="qs-step" id="qsStep4" hidden>
+      <h3 class="step-q">Como funciona o calendário</h3>
+      <p class="step-hint">O calendário vai te mostrar quando você vai ficar sem dinheiro, se for o caso.</p>
+      <div class="qs-explain-cal">
+        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
+        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
+        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
+      </div>
+      <p class="qs-explain-caption"><i class="swatch ok"></i> Calendário verde = tem dinheiro naquele dia</p>
+      <div class="step-actions">
+        <button type="button" class="btn primary block" id="qsStep4Next">Continuar</button>
+      </div>
+    </div>
+
+    <div class="qs-step" id="qsStep5" hidden>
+      <h3 class="step-q">E quando o dinheiro acaba?</h3>
+      <p class="step-hint">Assim que vir o laranja, já dá pra saber que precisa se planejar antes daquela data.</p>
+      <div class="qs-explain-cal">
+        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
+        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div>
+        <div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div>
+      </div>
+      <p class="qs-explain-caption"><i class="swatch negative"></i> Calendário laranja = a partir daquele dia vai faltar dinheiro</p>
+      <div class="step-actions">
+        <button type="button" class="btn primary block" id="qsStep5Next">Continuar</button>
+      </div>
+    </div>
+
+    <div class="qs-step" id="qsStep6" hidden>
+      <h3 class="step-q">Sua primeira projeção está pronta</h3>
+      <p class="step-hint">Veja seu resultado de acordo com os dados fornecidos até agora.</p>
+      <div class="step-actions">
+        <button type="button" class="btn primary block" id="qsFinishBtn">Ver minha projeção</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1680,6 +1892,10 @@
   const state = {
     saldoInicial: 0.00,
     saldoDefinido: false,
+    // true quando a pessoa entrou pela "Configuração rápida" (onboarding progressivo) — liga o
+    // banner de "projeção incompleta" até ela cadastrar receitas fixas, contas fixas, assinaturas
+    // e cartão; some sozinho (e volta pra false) assim que as 4 categorias tiverem algo
+    configRapida: false,
     dataBase: todayISO,
     oneTime: [],
     recorrentes: [],
@@ -2257,6 +2473,30 @@
         barProj.style.height = Math.max(3, MAXH * (Math.abs(projBal)/maxAbs)) + 'px';
       }
     }
+  }
+
+  // liga/desliga e atualiza o banner "projeção incompleta" (só existe pra quem entrou pela
+  // Configuração rápida) — as 4 categorias vêm dos mesmos filtros usados nas páginas de
+  // Receitas fixas / Contas fixas / Assinaturas / Cartões. Quando as 4 têm pelo menos 1 item,
+  // o banner some pra sempre (desliga configRapida também, então nem recalcula mais depois).
+  function renderOnboardingBanner(){
+    const banner = $('#onboardingBanner');
+    if (!state.configRapida){ banner.hidden = true; return; }
+    const checks = {
+      receitas: state.recorrentes.some(r => r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='entrada'),
+      contas: state.recorrentes.some(r => r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='saida'),
+      assinaturas: state.recorrentes.some(r => r.kind==='assinatura'),
+      cartoes: state.cartoes.length > 0,
+    };
+    if (checks.receitas && checks.contas && checks.assinaturas && checks.cartoes){
+      banner.hidden = true;
+      state.configRapida = false;
+      return;
+    }
+    banner.hidden = false;
+    document.querySelectorAll('#onboardingChecklist .item').forEach(el => {
+      el.classList.toggle('done', !!checks[el.dataset.check]);
+    });
   }
 
   function renderTiles(){
@@ -3150,6 +3390,7 @@
 
   function renderAll(){
     renderBaseChip();
+    renderOnboardingBanner();
     renderTiles();
     if (state.viewMode === 'year'){
       renderYearGrid();
@@ -3284,8 +3525,15 @@
   function closeOverlay(id){ $(id).hidden = true; }
 
   // enquanto o saldo em conta inicial não foi definido, o pop-up correspondente não pode ser
-  // fechado por fora (nem pelo X, backdrop ou Esc) — a pessoa precisa preencher um valor
-  function podeFechar(id){ return id !== 'overlayBase' || state.saldoDefinido; }
+  // fechado por fora (nem pelo X, backdrop ou Esc) — a pessoa precisa preencher um valor. Mesma
+  // regra pros dois pop-ups do onboarding progressivo: a escolha inicial e os 3 passos da
+  // configuração rápida — nenhum dos dois tem botão de fechar, só sai escolhendo/terminando.
+  function podeFechar(id){
+    if (id === 'overlayBase') return state.saldoDefinido;
+    if (id === 'overlayOnboardingChoice') return false;
+    if (id === 'overlayQuickSetup') return false;
+    return true;
+  }
 
   document.querySelectorAll('[data-close]').forEach(btn=>{
     btn.addEventListener('click', () => { if (podeFechar(btn.dataset.close)) closeOverlay('#'+btn.dataset.close); });
@@ -3542,6 +3790,159 @@
     openOverlay('#overlayBase');
     $('#baseValor').focus();
   }
+
+  /* ---------------- onboarding progressivo: escolha inicial + configuração rápida ----------------
+     Primeira tela que quem nunca usou o Maré vê, no lugar do antigo #overlayBase direto (chamado
+     agora só pela opção "Configuração completa", com comportamento 100% igual ao de antes). */
+  function openOnboardingChoice(){
+    openOverlay('#overlayOnboardingChoice');
+  }
+
+  $('#choiceFullBtn').addEventListener('click', () => {
+    closeOverlay('#overlayOnboardingChoice');
+    openBaseModal(true);
+  });
+  $('#choiceQuickBtn').addEventListener('click', () => {
+    closeOverlay('#overlayOnboardingChoice');
+    openQuickSetup();
+  });
+
+  // estado local do assistente de 3 passos — só existe enquanto o pop-up está aberto, some junto
+  // com ele (não faz parte de state porque nada aqui é definitivo até "Ver minha projeção")
+  let qsBills = [];
+
+  function openQuickSetup(){
+    qsBills = [];
+    $('#qsSaldo').value = '';
+    $('#qsRecebData').value = '';
+    $('#qsRecebValor').value = '';
+    $('#qsBillForm').hidden = true;
+    $('#qsBillNome').value = '';
+    $('#qsBillValor').value = '';
+    renderQsBills();
+    showQsStep(1);
+    openOverlay('#overlayQuickSetup');
+    $('#qsSaldo').focus();
+  }
+
+  // "done" no indicador de passos marca o passo já alcançado (inclusive o atual), não só os
+  // concluídos — é assim que o protótipo aprovado mostra (passo 1 já vem com a 1ª bolinha cheia)
+  // passos 1-3 coletam dado (saldo, recebimento, contas) e têm as bolinhas de progresso; 4 e 5 só
+  // explicam o verde/laranja do calendário (sem bolinha, sem coletar nada); 6 é o "clique pra ver o
+  // resultado" — closeOverlay+dashboard só acontece de verdade no clique do #qsFinishBtn (passo 6)
+  function showQsStep(n){
+    $('#qsStep1').hidden = n !== 1;
+    $('#qsStep2').hidden = n !== 2;
+    $('#qsStep3').hidden = n !== 3;
+    $('#qsStep4').hidden = n !== 4;
+    $('#qsStep5').hidden = n !== 5;
+    $('#qsStep6').hidden = n !== 6;
+    $('#qsProgress').hidden = n > 3;
+    document.querySelectorAll('#qsProgress .dot').forEach(dot => {
+      dot.classList.toggle('done', Number(dot.dataset.step) <= n);
+    });
+    if (n === 3){
+      const dataLimite = $('#qsRecebData').value;
+      $('#qsStep3Question').textContent = dataLimite
+        ? `O que ainda precisa ser pago até ${fmtDateFull(dataLimite)}?`
+        : 'O que ainda precisa ser pago nos próximos dias?';
+    }
+  }
+
+  $('#qsStep1Next').addEventListener('click', () => {
+    const v = parseFloat($('#qsSaldo').value);
+    if (isNaN(v)){ $('#qsSaldo').focus(); return; }
+    showQsStep(2);
+    $('#qsRecebData').focus();
+  });
+  $('#qsStep2Next').addEventListener('click', () => showQsStep(3));
+  // "pular": mesmo efeito de deixar os campos em branco e seguir — só um atalho mais claro pra
+  // quem realmente não sabe ainda quando/quanto vai receber
+  $('#qsStep2Skip').addEventListener('click', () => {
+    $('#qsRecebData').value = '';
+    $('#qsRecebValor').value = '';
+    showQsStep(3);
+  });
+
+  function renderQsBills(){
+    const list = $('#qsBillsList');
+    list.innerHTML = '';
+    for (const b of qsBills){
+      const row = document.createElement('div');
+      row.className = 'bill-row';
+      const nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = b.nome;
+      const vl = document.createElement('span');
+      vl.className = 'vl';
+      vl.textContent = fmtBRL(b.valor);
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'bill-row-remove';
+      rm.setAttribute('aria-label', 'Remover');
+      rm.innerHTML = '&times;';
+      rm.addEventListener('click', () => {
+        qsBills = qsBills.filter(x => x.id !== b.id);
+        renderQsBills();
+      });
+      row.appendChild(nm); row.appendChild(vl); row.appendChild(rm);
+      list.appendChild(row);
+    }
+  }
+
+  $('#qsAddBillBtn').addEventListener('click', () => {
+    $('#qsBillForm').hidden = false;
+    $('#qsBillNome').focus();
+  });
+  $('#qsBillCancelBtn').addEventListener('click', () => {
+    $('#qsBillForm').hidden = true;
+    $('#qsBillNome').value = '';
+    $('#qsBillValor').value = '';
+  });
+  $('#qsBillConfirmBtn').addEventListener('click', () => {
+    const nome = $('#qsBillNome').value.trim();
+    const valor = parseFloat($('#qsBillValor').value);
+    if (!nome || isNaN(valor)) return;
+    qsBills.push({ id: nextId(), nome, valor });
+    $('#qsBillForm').hidden = true;
+    $('#qsBillNome').value = '';
+    $('#qsBillValor').value = '';
+    renderQsBills();
+  });
+
+  // passos 4 e 5 (explicação do verde/laranja do calendário) e a virada pro passo 6 ("veja o
+  // resultado") — nenhum dos três mexe em dado nenhum, só navega
+  $('#qsStep3Next').addEventListener('click', () => showQsStep(4));
+  $('#qsStep4Next').addEventListener('click', () => showQsStep(5));
+  $('#qsStep5Next').addEventListener('click', () => showQsStep(6));
+
+  // finaliza a configuração rápida: define o saldo inicial (igual ao #baseForm), lança o próximo
+  // recebimento e cada conta do passo 3 como lançamentos avulsos (não recorrentes — a pessoa pode
+  // depois torná-los fixos/assinaturas quando completar a configuração pelo banner), liga
+  // configRapida (pro banner de checklist aparecer) e cai direto no calendário real.
+  $('#qsFinishBtn').addEventListener('click', () => {
+    const saldo = parseFloat($('#qsSaldo').value);
+    state.saldoInicial = isNaN(saldo) ? 0 : saldo;
+    state.dataBase = todayISO;
+    state.saldoDefinido = true;
+    state.configRapida = true;
+
+    const recebData = $('#qsRecebData').value;
+    const recebValor = parseFloat($('#qsRecebValor').value);
+    if (recebData && !isNaN(recebValor)){
+      state.oneTime.push({ id: nextId(), tipo:'entrada', desc:'Recebimento', valor: recebValor, data: recebData, formaPagamento: null });
+    }
+    for (const b of qsBills){
+      state.oneTime.push({ id: nextId(), tipo:'saida', desc: b.nome, valor: b.valor, data: recebData || todayISO, formaPagamento: null });
+    }
+
+    closeOverlay('#overlayQuickSetup');
+    renderAll();
+  });
+
+  // botão do banner "projeção incompleta": leva a pessoa pro menu lateral, de onde ela alcança
+  // qualquer uma das 4 páginas do checklist (Receitas fixas, Contas fixas, Assinaturas, Cartões)
+  $('#onboardingCompleteBtn').addEventListener('click', () => openOverlay('#overlayMenu'));
 
   function openCartaoModal(editItem){
     $('#cartaoForm').reset();
@@ -4056,7 +4457,7 @@
 
   function startApp(){
     renderAll();
-    if (!state.saldoDefinido) openBaseModal(true);
+    if (!state.saldoDefinido) openOnboardingChoice();
   }
 
   /* ---------------- persistência na nuvem (tabela user_data no Supabase) ----------------

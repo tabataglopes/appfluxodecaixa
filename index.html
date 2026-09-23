@@ -627,9 +627,15 @@
   .rl-header-row{ display:none; }
   .pc-header-row{ display:none; }
   .ct-header-row{ display:none; }
+  .pp-header-row{ display:none; }
   /* espaçamento da linha (mobile e desktop) — sem isso o texto fica colado na borda do cartão */
-  .rl-row, .pc-row, .ct-row{ padding:16px 20px; border-bottom:1px solid var(--border); }
-  .rl-row:last-child, .pc-row:last-child, .ct-row:last-child{ border-bottom:none; }
+  .rl-row, .pc-row, .ct-row, .pp-row{ padding:16px 20px; border-bottom:1px solid var(--border); }
+  .rl-row:last-child, .pc-row:last-child, .ct-row:last-child, .pp-row:last-child{ border-bottom:none; }
+  /* poupança (mobile): nome+valor numa linha, botões guardar/retirar embaixo, editar/excluir por
+     último — mesma ideia visual das outras páginas, sem precisar de grid antes dos 760px */
+  .pp-row{ display:flex; flex-direction:column; gap:10px; }
+  .pp-nome-line{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .pp-mov-actions{ display:flex; gap:6px; flex-wrap:wrap; }
   .rl-col-actions{ display:flex; gap:6px; }
   .rl-cartao-tag{ font-size:12.5px; color:var(--ink-muted); }
   .rl-cartao-tag.empty{ color:var(--ink-muted); opacity:.6; }
@@ -689,6 +695,13 @@
       font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted); font-weight:600;
     }
     .ct-row{ display:grid; grid-template-columns: 1.7fr 1fr 1fr 64px; gap:16px; align-items:center; }
+
+    .pp-header-row{
+      display:grid; grid-template-columns: 1.3fr 1fr 1.6fr 64px; gap:16px;
+      padding:0 20px 12px; margin-top:14px; border-bottom:1px solid var(--border);
+      font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted); font-weight:600;
+    }
+    .pp-row{ display:grid; grid-template-columns: 1.3fr 1fr 1.6fr 64px; gap:16px; align-items:center; }
   }
 
   /* ---------- detalhe da fatura (lista de compras que compõem o total) ---------- */
@@ -1252,6 +1265,32 @@
     <button class="btn primary nm-add-btn" id="addParceladoBtn" type="button">+ Novo parcelado</button>
   </div>
 
+  <!-- Dívidas: mesma estrutura/layout da página de Parcelados acima, só com a linguagem de "dívida"
+       em vez de "compra" e um campo a mais (valor total inicial da dívida) -->
+  <div class="nm-view" id="dividasView" hidden>
+    <div class="nm-page-head">
+      <button class="nm-back-btn" id="dividasBackBtn" aria-label="Voltar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <h2>Dívidas</h2>
+    </div>
+    <div class="nm-intro">
+      <span class="icon">🧾</span>
+      <span>Dívidas parceladas em andamento. Veja quando começou, quando termina e quantas parcelas ao todo, e marque você mesma o status de pagamento — o app não tem como confirmar isso sozinho.</span>
+    </div>
+    <div class="nm-card">
+      <div class="pc-header-row">
+        <span>Dívida</span><span>Valor da parcela</span><span>Início</span><span>Fim</span><span>Parcelas</span><span>Pagamento</span><span></span>
+      </div>
+      <div id="dividasPageList"></div>
+    </div>
+    <div class="nm-total-bar">
+      <span class="lbl">Valor total em parcelas no mês</span>
+      <span class="val mono" id="dividasTotalVal">R$ 0,00</span>
+    </div>
+    <button class="btn primary nm-add-btn" id="addDividaBtn" type="button">+ Nova dívida</button>
+  </div>
+
   <!-- Cartão de crédito: página cheia (substitui o pop-up antigo) -->
   <div class="nm-view" id="cartoesView" hidden>
     <div class="nm-page-head">
@@ -1285,9 +1324,12 @@
     </div>
     <div class="nm-intro">
       <span class="icon">🐷</span>
-      <span>Guarde o que sobrar num mês numa conta separada. Esse valor sai do seu saldo principal (pra você não achar que ainda tem esse dinheiro disponível), mas não conta como gasto — só como economia.</span>
+      <span>Guarde o que sobrar num mês numa conta separada. Esse valor sai do seu saldo principal (pra você não achar que ainda tem esse dinheiro disponível), mas não conta como gasto — só como economia. Você também pode mandar esse dinheiro de volta pro saldo principal quando quiser — por exemplo, pra usar essa reserva pra pagar uma fatura do cartão.</span>
     </div>
     <div class="nm-card">
+      <div class="pp-header-row">
+        <span>Poupança</span><span>Valor total</span><span></span><span></span>
+      </div>
       <div id="poupancaPageList"></div>
     </div>
     <div class="nm-total-bar">
@@ -1316,6 +1358,7 @@
       <button class="btn drawer-item" id="openContasBtn"><i class="swatch out" style="vertical-align:middle; margin-right:6px;"></i>Contas fixas</button>
       <button class="btn drawer-item" id="openAssinBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>Assinaturas</button>
       <button class="btn drawer-item" id="openParceladosBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Parcelados</button>
+      <button class="btn drawer-item" id="openDividasBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Dívidas</button>
       <button class="btn drawer-item" id="openNaoMensaisBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 15h.01M12 15h.01M16 15h.01"></path></svg>Espaço de Anotações</button>
       <button class="btn drawer-item" id="openCartoesBtn">🚩 Cartão de crédito</button>
       <button class="btn drawer-item" id="openPoupancaBtn">🐷 Poupança</button>
@@ -1782,6 +1825,76 @@
       <input type="hidden" id="parceladoEditId">
       <div class="modal-actions">
         <button type="button" class="btn" data-close="overlayParcelado">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Dívidas: mesmo formulário do modal de Parcelados acima, só com linguagem de "dívida" em vez de
+     "compra" e um campo a mais (valor total inicial da dívida) logo depois do nome -->
+<div class="overlay" id="overlayDivida" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close="overlayDivida" aria-label="Fechar">&times;</button>
+    <h3 id="dividaModalTitle">Nova dívida</h3>
+    <form id="dividaForm">
+      <div class="field">
+        <label for="dividaDesc">Qual é a dívida</label>
+        <input type="text" id="dividaDesc" placeholder="Ex.: Empréstimo, cartão atrasado, financiamento..." required>
+      </div>
+      <div class="field">
+        <label for="dividaValorTotalInicial">Valor total inicial da dívida (R$)</label>
+        <input type="number" step="0.01" min="0" id="dividaValorTotalInicial" class="mono" placeholder="0,00" required>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="dividaValor">Valor da parcela (R$)</label>
+          <input type="number" step="0.01" min="0" id="dividaValor" class="mono" placeholder="0,00" required>
+        </div>
+        <div class="field">
+          <label for="dividaQtd">Em quantas parcelas</label>
+          <input type="number" min="1" max="60" id="dividaQtd" class="mono" placeholder="Ex.: 10" required>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="dividaFreq">Frequência</label>
+          <select id="dividaFreq">
+            <optgroup label="Por mês">
+              <option value="1">Mensal</option>
+              <option value="2">A cada 2 meses</option>
+              <option value="3">A cada 3 meses</option>
+              <option value="4">A cada 4 meses</option>
+              <option value="6">A cada 6 meses</option>
+              <option value="12">Anual</option>
+            </optgroup>
+            <optgroup label="Por dias corridos">
+              <option value="semanal">Semanal (a cada 7 dias)</option>
+              <option value="quinzenal">A cada 15 dias</option>
+              <option value="personalizado">Personalizado (a cada X dias)</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="field">
+          <label for="dividaInicio">Pagamento a partir de</label>
+          <input type="date" id="dividaInicio" required>
+          <p class="piso-data-hint" id="dividaInicioHint" hidden></p>
+        </div>
+      </div>
+      <div class="row2" id="dividaIntervaloDiasRow" hidden>
+        <div class="field">
+          <label for="dividaIntervaloDias">A cada quantos dias</label>
+          <input type="number" min="1" id="dividaIntervaloDias" class="mono" placeholder="Ex.: 10">
+        </div>
+      </div>
+      <div class="field">
+        <label for="dividaFormaPagamento">Forma de pagamento</label>
+        <select id="dividaFormaPagamento"></select>
+      </div>
+      <p id="dividaResumo" style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;"></p>
+      <input type="hidden" id="dividaEditId">
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="overlayDivida">Cancelar</button>
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
@@ -3062,7 +3175,8 @@
           parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
         }
         const cardNote = rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
-        return `compra parcelada · parcela ${parcelaAtual} de ${rec.numParcelas} (${parcelaFreqLabel(rec)})${cardNote}`;
+        const tipoLabel = rec.isDivida ? 'dívida' : 'compra parcelada';
+        return `${tipoLabel} · parcela ${parcelaAtual} de ${rec.numParcelas} (${parcelaFreqLabel(rec)})${cardNote}`;
       }
       const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : (rec && rec.tipo === 'entrada' ? 'receita fixa' : 'conta fixa');
       const cardNote = rec && rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
@@ -3139,7 +3253,7 @@
         if (o.recorrente){
           const rec = getRecById(o.recId);
           if (!rec) return;
-          if (rec.kind === 'parcelado') openParceladoModal(rec);
+          if (rec.kind === 'parcelado'){ if (rec.isDivida) openDividaModal(rec); else openParceladoModal(rec); }
           else if (rec.kind === 'assinatura') openAssinModal(rec);
           else openRecurModal(rec);
         } else {
@@ -3391,7 +3505,9 @@
   function renderParceladosPage(){
     const wrap = $('#parceladosPageList');
     wrap.innerHTML = '';
-    const parcelados = state.recorrentes.filter(r=>r.kind==='parcelado').sort((a,b)=>a.dataInicio.localeCompare(b.dataInicio));
+    // exclui as dívidas daqui — elas têm a própria página (mesmo dado por baixo, kind:'parcelado',
+    // só que marcado com isDivida:true), pra não aparecer duplicado nas duas listas
+    const parcelados = state.recorrentes.filter(r=>r.kind==='parcelado' && !r.isDivida).sort((a,b)=>a.dataInicio.localeCompare(b.dataInicio));
     if (parcelados.length===0){
       wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma compra parcelada em andamento.</div>';
     } else {
@@ -3400,6 +3516,115 @@
     // exclui as marcadas como "Paguei tudo" do total — o valor mostrado é só o que ainda está ativo
     const total = parcelados.filter(r=>(r.statusPagamento||'em_curso')!=='pago').reduce((sum,r)=>sum+r.valor,0);
     $('#parceladosTotalVal').textContent = fmtBRL(total);
+  }
+
+  // ---------------- Dívidas (mesmo layout/mecânica de Parcelados acima — reaproveita o mesmo
+  // kind:'parcelado' por baixo dos panos, só marcado com isDivida:true, pra herdar de graça todo o
+  // cálculo de saldo/fatura/checklist já existente) ----------------
+  function buildDividaPageRow(r){
+    const row = document.createElement('div');
+    row.className = 'pc-row';
+    const cardNome = r.formaPagamento ? (getCardById(r.formaPagamento)?.nome || 'removido') : '';
+    const inicioTxt = fmtDateFull(r.dataInicio);
+    const fimTxt = r.dataFim ? fmtDateFull(r.dataFim) : '—';
+
+    const nameBlock = document.createElement('div');
+    nameBlock.className = 'pc-name-block';
+    const nome = document.createElement('div');
+    nome.className = 'nm-nome';
+    nome.textContent = r.desc;
+    nameBlock.appendChild(nome);
+    if (cardNome){
+      const cardLine = document.createElement('div');
+      cardLine.className = 'pc-cartao-line';
+      cardLine.textContent = `no cartão ${cardNome}`;
+      nameBlock.appendChild(cardLine);
+    }
+    row.appendChild(nameBlock);
+
+    const valorCol = document.createElement('div');
+    valorCol.className = 'mono nm-desktop-only';
+    valorCol.style.color = 'var(--expense)';
+    valorCol.style.fontWeight = '600';
+    valorCol.textContent = '- ' + fmtBRL(r.valor);
+    row.appendChild(valorCol);
+
+    const inicioCol = document.createElement('div');
+    inicioCol.className = 'mono pc-data1 nm-desktop-only';
+    inicioCol.textContent = inicioTxt;
+    row.appendChild(inicioCol);
+
+    const fimCol = document.createElement('div');
+    fimCol.className = 'mono pc-data1 nm-desktop-only';
+    fimCol.textContent = fimTxt;
+    row.appendChild(fimCol);
+
+    const qtdCol = document.createElement('div');
+    qtdCol.className = 'mono pc-qtd nm-desktop-only';
+    qtdCol.textContent = `${r.numParcelas}x`;
+    row.appendChild(qtdCol);
+
+    const status = r.statusPagamento || 'em_curso';
+    const statusClass = status === 'pago' ? 'pago' : status === 'atrasado' ? 'atrasado' : 'em-curso';
+    const sel = document.createElement('select');
+    sel.className = 'pc-pagamento ' + statusClass;
+    for (const val of ['em_curso','pago','atrasado']){
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = PAGAMENTO_STATUS_LABELS[val];
+      if (val === status) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => {
+      r.statusPagamento = sel.value;
+      renderAll();
+    });
+    row.appendChild(sel);
+
+    const metaMobile = document.createElement('div');
+    metaMobile.className = 'nm-mobile-only pc-meta-mobile';
+    const amtSpanMob = document.createElement('span');
+    amtSpanMob.className = 'mob-amt-out mono';
+    amtSpanMob.textContent = '- ' + fmtBRL(r.valor);
+    metaMobile.appendChild(amtSpanMob);
+    const qtdDatasWrap = document.createElement('div');
+    qtdDatasWrap.className = 'pc-qtd-datas-mobile';
+    const qtdSpanMob = document.createElement('div');
+    qtdSpanMob.className = 'pc-qtd-mobile mono';
+    qtdSpanMob.textContent = `${r.numParcelas}x`;
+    const datasSpanMob = document.createElement('div');
+    datasSpanMob.className = 'pc-datas-mobile mono';
+    datasSpanMob.textContent = `${inicioTxt} – ${fimTxt}`;
+    qtdDatasWrap.appendChild(qtdSpanMob);
+    qtdDatasWrap.appendChild(datasSpanMob);
+    metaMobile.appendChild(qtdDatasWrap);
+    row.appendChild(metaMobile);
+
+    const actions = document.createElement('div');
+    actions.className = 'rl-col-actions';
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button'; editBtn.className = 'icon-btn'; editBtn.setAttribute('aria-label','Editar'); editBtn.textContent = '✎';
+    editBtn.addEventListener('click', () => openDividaModal(r));
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.setAttribute('aria-label','Remover'); delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => removeRecurrente(r.id, r.desc, false));
+    actions.appendChild(editBtn); actions.appendChild(delBtn);
+    row.appendChild(actions);
+
+    return row;
+  }
+
+  function renderDividasPage(){
+    const wrap = $('#dividasPageList');
+    wrap.innerHTML = '';
+    const dividas = state.recorrentes.filter(r=>r.kind==='parcelado' && r.isDivida).sort((a,b)=>a.dataInicio.localeCompare(b.dataInicio));
+    if (dividas.length===0){
+      wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma dívida em andamento.</div>';
+    } else {
+      for (const r of dividas) wrap.appendChild(buildDividaPageRow(r));
+    }
+    const total = dividas.filter(r=>(r.statusPagamento||'em_curso')!=='pago').reduce((sum,r)=>sum+r.valor,0);
+    $('#dividasTotalVal').textContent = fmtBRL(total);
   }
 
   // ---------------- Contas não mensais (planejamento visual, não mexe em saldo/calendário) ----------------
@@ -3601,35 +3826,53 @@
 
   function buildPoupancaPageRow(p){
     const row = document.createElement('div');
-    row.className = 'nm-row';
+    row.className = 'pp-row';
 
-    const topLine = document.createElement('div');
-    topLine.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:10px;';
+    // coluna 1: nome (+ valor total logo abaixo, só no mobile — no desktop o valor vira coluna própria)
+    const nomeWrap = document.createElement('div');
+    const nomeLine = document.createElement('div');
+    nomeLine.className = 'pp-nome-line';
     const nome = document.createElement('div');
     nome.className = 'nm-nome';
     nome.textContent = p.nome;
-    const saldo = document.createElement('div');
-    saldo.className = 'mono';
-    saldo.style.cssText = 'font-weight:700; font-size:15px; color:var(--accent-strong);';
-    saldo.textContent = fmtBRL(poupancaSaldoAtual(p));
-    topLine.appendChild(nome); topLine.appendChild(saldo);
-    row.appendChild(topLine);
+    nomeLine.appendChild(nome);
+    const valorMobile = document.createElement('div');
+    valorMobile.className = 'mono nm-mobile-only';
+    valorMobile.style.cssText = 'font-weight:700; color:var(--accent-strong);';
+    valorMobile.textContent = fmtBRL(poupancaSaldoAtual(p));
+    nomeLine.appendChild(valorMobile);
+    nomeWrap.appendChild(nomeLine);
+    row.appendChild(nomeWrap);
 
-    const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap; align-items:center;';
+    // coluna 2: valor total (só desktop — no mobile já apareceu do lado do nome, acima)
+    const valorCol = document.createElement('div');
+    valorCol.className = 'mono nm-desktop-only';
+    valorCol.style.cssText = 'font-weight:700; color:var(--accent-strong);';
+    valorCol.textContent = fmtBRL(poupancaSaldoAtual(p));
+    row.appendChild(valorCol);
+
+    // coluna 3: guardar / retirar
+    const movActions = document.createElement('div');
+    movActions.className = 'pp-mov-actions';
     const guardarBtn = document.createElement('button');
     guardarBtn.type = 'button'; guardarBtn.className = 'btn small'; guardarBtn.textContent = '+ Guardar';
     guardarBtn.addEventListener('click', () => openPoupancaMovModal(p, 'guardar'));
     const retirarBtn = document.createElement('button');
     retirarBtn.type = 'button'; retirarBtn.className = 'btn small'; retirarBtn.textContent = 'Retirar';
     retirarBtn.addEventListener('click', () => openPoupancaMovModal(p, 'retirar'));
+    movActions.appendChild(guardarBtn); movActions.appendChild(retirarBtn);
+    row.appendChild(movActions);
+
+    // coluna 4: editar/excluir a poupança em si
+    const actions = document.createElement('div');
+    actions.className = 'rl-col-actions';
     const editBtn = document.createElement('button');
     editBtn.type = 'button'; editBtn.className = 'icon-btn'; editBtn.setAttribute('aria-label','Editar'); editBtn.textContent = '✎';
     editBtn.addEventListener('click', () => openPoupancaModal(p));
     const delBtn = document.createElement('button');
     delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.setAttribute('aria-label','Remover'); delBtn.textContent = '✕';
     delBtn.addEventListener('click', () => removePoupanca(p.id, p.nome));
-    actions.appendChild(guardarBtn); actions.appendChild(retirarBtn); actions.appendChild(editBtn); actions.appendChild(delBtn);
+    actions.appendChild(editBtn); actions.appendChild(delBtn);
     row.appendChild(actions);
 
     return row;
@@ -3710,6 +3953,7 @@
     receitasfixas: { viewId:'#receitasFixasView', render:renderReceitasFixasPage },
     assinaturas: { viewId:'#assinView', render:renderAssinPage },
     parcelados: { viewId:'#parceladosView', render:renderParceladosPage },
+    dividas: { viewId:'#dividasView', render:renderDividasPage },
     cartoes: { viewId:'#cartoesView', render:renderCartoesPage },
     poupanca: { viewId:'#poupancaView', render:renderPoupancaPage },
   };
@@ -3951,6 +4195,9 @@
   function updateParceladoFreqFieldsVisibility(){
     $('#parceladoIntervaloDiasRow').hidden = $('#parceladoFreq').value !== 'personalizado';
   }
+  function updateDividaFreqFieldsVisibility(){
+    $('#dividaIntervaloDiasRow').hidden = $('#dividaFreq').value !== 'personalizado';
+  }
   $('#recurFreq').addEventListener('change', updateRecurFreqFieldsVisibility);
   $('#assinFreq').addEventListener('change', updateAssinFreqFieldsVisibility);
   function populateFormaPagamentoSelect(selector, selectedValue){
@@ -3975,13 +4222,23 @@
       updateOnePoupancaVisibility(e.target.dataset.tipo);
     }
   });
-  // poupança e cartão são mutuamente exclusivos num mesmo lançamento — escolher um zera o outro
+  // poupança e cartão são mutuamente exclusivos num mesmo lançamento: escolher um zera E BLOQUEIA
+  // o outro (fica desabilitado/acinzentado), pra ficar impossível escolher os dois por engano em
+  // vez de só zerar em silêncio depois que a pessoa já selecionou errado
+  function syncPoupancaCartaoExclusividade(){
+    const poupancaAtiva = !!$('#onePoupanca').value;
+    const cartaoAtivo = !!$('#oneFormaPagamento').value;
+    $('#oneFormaPagamento').disabled = poupancaAtiva;
+    $('#onePoupanca').disabled = cartaoAtivo;
+  }
   $('#onePoupanca').addEventListener('change', () => {
     if ($('#onePoupanca').value) $('#oneFormaPagamento').value = '';
     $('#onePoupancaErro').hidden = true;
+    syncPoupancaCartaoExclusividade();
   });
   $('#oneFormaPagamento').addEventListener('change', () => {
     if ($('#oneFormaPagamento').value) $('#onePoupanca').value = '';
+    syncPoupancaCartaoExclusividade();
   });
 
   function openOneModal(prefillDate, editItem){
@@ -4008,6 +4265,7 @@
       populatePoupancaSelect('#onePoupanca', '');
       updateOnePoupancaVisibility('saida');
     }
+    syncPoupancaCartaoExclusividade();
     aplicarPisoData('#oneData', '#oneDataHint');
     openOverlay('#overlayOne');
     $('#oneDesc').focus();
@@ -4128,6 +4386,54 @@
     aplicarPisoData('#parceladoInicio', '#parceladoInicioHint');
     openOverlay('#overlayParcelado');
     $('#parceladoDesc').focus();
+  }
+
+  function updateDividaResumo(){
+    const valor = parseFloat($('#dividaValor').value);
+    const qtd = parseInt($('#dividaQtd').value, 10);
+    const freqVal = $('#dividaFreq').value;
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval(freqVal, $('#dividaIntervaloDias').value);
+    const inicio = $('#dividaInicio').value;
+    const el = $('#dividaResumo');
+    const freqValida = freqType === 'meses' || (intervalDias && intervalDias >= 1);
+    if (!isNaN(valor) && !isNaN(qtd) && qtd>0 && inicio && freqValida){
+      const fim = freqType === 'dias' ? addDays(inicio, (qtd-1)*intervalDias) : addMonthsISO(inicio, (qtd-1)*intervalMeses);
+      const cardId = $('#dividaFormaPagamento').value;
+      const card = cardId ? getCardById(cardId) : null;
+      const ondePaga = card ? ` · cobrado no cartão ${card.nome}` : '';
+      const fimTxt = freqType === 'dias' ? fmtDateFull(fim) : fmtMonthYear(fim);
+      el.textContent = `${qtd} parcelas ${parcelaFreqLabel({freqType, intervalMeses, intervalDias})} de ${fmtBRL(valor)} = total de ${fmtBRL(valor*qtd)} · última parcela em ${fimTxt}${ondePaga}`;
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  function openDividaModal(editItem){
+    $('#dividaForm').reset();
+    $('#dividaEditId').value = '';
+    if (editItem){
+      $('#dividaModalTitle').textContent = 'Editar dívida';
+      $('#dividaDesc').value = editItem.desc;
+      $('#dividaValorTotalInicial').value = editItem.valorTotalInicial;
+      $('#dividaValor').value = editItem.valor;
+      $('#dividaQtd').value = editItem.numParcelas;
+      $('#dividaFreq').value = freqToSelectValue(editItem);
+      $('#dividaIntervaloDias').value = editItem.freqType === 'dias' ? editItem.intervalDias : '';
+      $('#dividaInicio').value = editItem.dataInicio;
+      $('#dividaEditId').value = editItem.id;
+      populateFormaPagamentoSelect('#dividaFormaPagamento', editItem.formaPagamento);
+    } else {
+      $('#dividaModalTitle').textContent = 'Nova dívida';
+      $('#dividaFreq').value = '1';
+      $('#dividaIntervaloDias').value = '';
+      $('#dividaInicio').value = todayISO;
+      populateFormaPagamentoSelect('#dividaFormaPagamento', '');
+    }
+    updateDividaFreqFieldsVisibility();
+    updateDividaResumo();
+    aplicarPisoData('#dividaInicio', '#dividaInicioHint');
+    openOverlay('#overlayDivida');
+    $('#dividaDesc').focus();
   }
 
   function updateNaoMensalFreqFieldsVisibility(){
@@ -4412,7 +4718,7 @@
             const interval = r.intervalMeses || 1;
             parcelaAtual = Math.min(r.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
           }
-          meta = `parcela ${parcelaAtual} de ${r.numParcelas}`;
+          meta = r.isDivida ? `dívida · parcela ${parcelaAtual} de ${r.numParcelas}` : `parcela ${parcelaAtual} de ${r.numParcelas}`;
         } else if (r.kind === 'assinatura'){
           meta = 'assinatura';
         } else {
@@ -4642,16 +4948,19 @@
   $('#addReceitaFixaBtn').addEventListener('click', ()=> openRecurModal(null, 'entrada'));
   $('#addAssinaturaBtn').addEventListener('click', ()=> openAssinModal(null));
   $('#addParceladoBtn').addEventListener('click', ()=> openParceladoModal(null));
+  $('#addDividaBtn').addEventListener('click', ()=> openDividaModal(null));
   $('#addCartaoBtn').addEventListener('click', ()=> openCartaoModal(null));
   $('#openDashboardBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openContasBtn').addEventListener('click', ()=> setViewMode('contasfixas'));
   $('#openReceitasBtn').addEventListener('click', ()=> setViewMode('receitasfixas'));
   $('#openAssinBtn').addEventListener('click', ()=> setViewMode('assinaturas'));
   $('#openParceladosBtn').addEventListener('click', ()=> setViewMode('parcelados'));
+  $('#openDividasBtn').addEventListener('click', ()=> setViewMode('dividas'));
   $('#contasFixasBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#receitasFixasBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#assinBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#parceladosBackBtn').addEventListener('click', ()=> setViewMode('month'));
+  $('#dividasBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openCartoesBtn').addEventListener('click', ()=> setViewMode('cartoes'));
   $('#cartoesBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openPoupancaBtn').addEventListener('click', ()=> setViewMode('poupanca'));
@@ -4664,6 +4973,12 @@
   $('#parceladoFormaPagamento').addEventListener('change', updateParceladoResumo);
   $('#parceladoInicio').addEventListener('input', updateParceladoResumo);
   $('#parceladoIntervaloDias').addEventListener('input', updateParceladoResumo);
+  $('#dividaValor').addEventListener('input', updateDividaResumo);
+  $('#dividaQtd').addEventListener('input', updateDividaResumo);
+  $('#dividaFreq').addEventListener('change', () => { updateDividaFreqFieldsVisibility(); updateDividaResumo(); });
+  $('#dividaFormaPagamento').addEventListener('change', updateDividaResumo);
+  $('#dividaInicio').addEventListener('input', updateDividaResumo);
+  $('#dividaIntervaloDias').addEventListener('input', updateDividaResumo);
   $('#btnEntradasMes').addEventListener('click', ()=> openMesDetalheModal('entrada'));
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
   $('#oneForm').addEventListener('submit', e=>{
@@ -4861,6 +5176,34 @@
       state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso' });
     }
     closeOverlay('#overlayParcelado');
+    renderAll();
+  });
+
+  $('#dividaForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const desc = $('#dividaDesc').value.trim();
+    const valorTotalInicial = parseFloat($('#dividaValorTotalInicial').value);
+    const valor = parseFloat($('#dividaValor').value);
+    const numParcelas = Math.max(1, parseInt($('#dividaQtd').value, 10));
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#dividaFreq').value, $('#dividaIntervaloDias').value);
+    const dataInicio = $('#dividaInicio').value;
+    const formaPagamento = $('#dividaFormaPagamento').value || null;
+    const editId = $('#dividaEditId').value;
+    if (!desc || isNaN(valorTotalInicial) || isNaN(valor) || isNaN(numParcelas) || !dataInicio) return;
+    if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
+    const dia = freqType === 'dias' ? null : Number(dataInicio.split('-')[2]);
+    const dataFim = freqType === 'dias' ? addDays(dataInicio, (numParcelas-1)*intervalDias) : addMonthsISO(dataInicio, (numParcelas-1)*intervalMeses);
+    if (editId){
+      const r = state.recorrentes.find(x=>x.id===editId);
+      if (r){
+        const cartaoAntigo = r.formaPagamento;
+        r.desc=desc; r.valorTotalInicial=valorTotalInicial; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        reconcileFaturaPagamentos(cartaoAntigo);
+      }
+    } else {
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso' });
+    }
+    closeOverlay('#overlayDivida');
     renderAll();
   });
 

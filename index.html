@@ -832,6 +832,9 @@
     border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
   }
   .mini-checklist .item.done{ text-decoration:line-through; opacity:0.75; }
+  /* "E mais: ..." — só um lembrete de que tem mais coisa no menu além da checklist, não é um item
+     marcável (sem bolinha, sem checagem, nunca fica riscado) */
+  .mini-checklist .item-more{ font-size:12.5px; color:var(--accent-strong); opacity:0.75; font-style:italic; max-width:320px; }
 
   /* ---------- menu lateral (drawer) ---------- */
   .drawer-overlay{ justify-content:flex-start; padding:0; }
@@ -1018,6 +1021,9 @@
       <div class="item" data-check="contas"><span class="circ"></span> Contas fixas</div>
       <div class="item" data-check="assinaturas"><span class="circ"></span> Assinaturas</div>
       <div class="item" data-check="cartoes"><span class="circ"></span> Cartão de crédito</div>
+      <div class="item" data-check="parcelados"><span class="circ"></span> Parcelados</div>
+      <div class="item" data-check="dividas"><span class="circ"></span> Dívidas</div>
+      <div class="item-more">E mais: poupança e outras opções, todas ali no mesmo menu.</div>
     </div>
   </div>
 
@@ -2015,11 +2021,11 @@
 <div class="overlay" id="overlayQuickSetup" hidden>
   <div class="modal" style="max-width:380px;">
     <div class="step-progress" id="qsProgress">
-      <div class="dot" data-step="1"></div><div class="dot" data-step="2"></div>
+      <div class="dot" data-step="1"></div><div class="dot" data-step="2"></div><div class="dot" data-step="3"></div>
     </div>
 
     <div class="qs-step" id="qsStep1">
-      <div class="step-kicker">Passo 1 de 2</div>
+      <div class="step-kicker">Passo 1 de 3</div>
       <h3 class="step-q">Quando e quanto você vai receber?</h3>
       <p class="step-hint">Pode ser salário, freela, o que for — o próximo dinheiro que vai cair na conta.</p>
       <div class="field">
@@ -2037,7 +2043,7 @@
     </div>
 
     <div class="qs-step" id="qsStep2" hidden>
-      <div class="step-kicker">Passo 2 de 2</div>
+      <div class="step-kicker">Passo 2 de 3</div>
       <h3 class="step-q" id="qsStep2Question">O que ainda precisa ser pago até lá?</h3>
       <p class="step-hint">Adicione os principais — dá pra completar o resto depois.</p>
       <div id="qsBillsList"></div>
@@ -2063,7 +2069,35 @@
       </div>
     </div>
 
-    <!-- passos 3 e 4: não coletam dado nenhum, só explicam de cara pra que serve o calendário do
+    <!-- passo 3: cartão de crédito — puramente pra pessoa já ficar sabendo que essa opção existe;
+         totalmente pulável, sem nenhum campo obrigatório (ver required ausente nos inputs abaixo).
+         Só cria o cartão de verdade no #qsFinishBtn, se nome+fechamento+pagamento tiverem sido
+         preenchidos; senão, segue em frente sem criar nada, sem erro nenhum. -->
+    <div class="qs-step" id="qsStepCartao" hidden>
+      <div class="step-kicker">Passo 3 de 3</div>
+      <h3 class="step-q">Você usa cartão de crédito?</h3>
+      <p class="step-hint">Se quiser, já cadastre um agora — assim o Maré calcula a fatura sozinho. Se não quiser, pode pular e fazer isso depois, no menu.</p>
+      <div class="field">
+        <label for="qsCartaoNome">Nome do cartão</label>
+        <input type="text" id="qsCartaoNome" placeholder="Ex.: Nubank, Inter, Itaú...">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="qsCartaoFechamento">Dia do fechamento</label>
+          <input type="number" min="1" max="31" id="qsCartaoFechamento" class="mono" placeholder="1-31">
+        </div>
+        <div class="field">
+          <label for="qsCartaoPagamento">Dia do pagamento</label>
+          <input type="number" min="1" max="31" id="qsCartaoPagamento" class="mono" placeholder="1-31">
+        </div>
+      </div>
+      <div class="step-actions">
+        <button type="button" class="btn primary block" id="qsStepCartaoNext">Continuar</button>
+        <span class="skip-link" id="qsStepCartaoSkip">Ainda não tenho / pular</span>
+      </div>
+    </div>
+
+    <!-- passos 4 e 5 (qsStep3/qsStep4 no DOM): não coletam dado nenhum, só explicam de cara pra que serve o calendário do
          Maré (verde = tem dinheiro, laranja = a partir dali falta) antes da pessoa ver o resultado
          de verdade — por isso não têm "Passo X de 2"/bolinhas, é um intervalo à parte -->
     <div class="qs-step" id="qsStep3" hidden>
@@ -2839,9 +2873,12 @@
   }
 
   // liga/desliga e atualiza o banner "projeção incompleta" (só existe pra quem entrou pela
-  // Configuração rápida) — as 4 categorias vêm dos mesmos filtros usados nas páginas de
-  // Receitas fixas / Contas fixas / Assinaturas / Cartões. Quando as 4 têm pelo menos 1 item,
-  // o banner some pra sempre (desliga configRapida também, então nem recalcula mais depois).
+  // Configuração rápida) — as 4 categorias "obrigatórias" (receitas, contas, assinaturas, cartão)
+  // vêm dos mesmos filtros usados nas páginas de Receitas fixas / Contas fixas / Assinaturas /
+  // Cartões. Quando essas 4 têm pelo menos 1 item, o banner some pra sempre (desliga configRapida
+  // também, então nem recalcula mais depois). Parcelados e Dívidas aparecem na checklist só pra
+  // avisar que existem (marcam certinho quando a pessoa usa), mas NÃO entram na conta de "completo"
+  // — nem todo mundo tem parcela ou dívida, não faria sentido travar o banner nisso.
   function renderOnboardingBanner(){
     const banner = $('#onboardingBanner');
     if (!state.configRapida){ banner.hidden = true; return; }
@@ -2850,6 +2887,8 @@
       contas: state.recorrentes.some(r => r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='saida'),
       assinaturas: state.recorrentes.some(r => r.kind==='assinatura'),
       cartoes: state.cartoes.length > 0,
+      parcelados: state.recorrentes.some(r => r.kind==='parcelado' && !r.isDivida),
+      dividas: state.recorrentes.some(r => r.kind==='parcelado' && r.isDivida),
     };
     if (checks.receitas && checks.contas && checks.assinaturas && checks.cartoes){
       banner.hidden = true;
@@ -4543,6 +4582,9 @@
     $('#qsBillForm').hidden = true;
     $('#qsBillNome').value = '';
     $('#qsBillValor').value = '';
+    $('#qsCartaoNome').value = '';
+    $('#qsCartaoFechamento').value = '';
+    $('#qsCartaoPagamento').value = '';
     renderQsBills();
     showQsStep(1);
     openOverlay('#overlayQuickSetup');
@@ -4551,17 +4593,20 @@
 
   // "done" no indicador de passos marca o passo já alcançado (inclusive o atual), não só os
   // concluídos — é assim que o protótipo aprovado mostra (passo 1 já vem com a 1ª bolinha cheia)
-  // passos 1-2 coletam dado (recebimento, contas) e têm as bolinhas de progresso; 3 e 4 só
-  // explicam o verde/laranja do calendário (sem bolinha, sem coletar nada); 5 é o "clique pra ver o
-  // resultado" — closeOverlay+dashboard só acontece de verdade no clique do #qsFinishBtn (passo 5).
-  // Não pergunta mais saldo inicial (começa em R$0 e o app recalcula sozinho — recomputeDataBase).
+  // passos 1-3 coletam dado (recebimento, contas, cartão) e têm as bolinhas de progresso; os passos
+  // seguintes (DOM #qsStep3/#qsStep4, aqui n=4/5) só explicam o verde/laranja do calendário (sem
+  // bolinha, sem coletar nada); n=6 (DOM #qsStep5) é o "clique pra ver o resultado" —
+  // closeOverlay+dashboard só acontece de verdade no clique do #qsFinishBtn. Não pergunta mais saldo
+  // inicial (começa em R$0 e o app recalcula sozinho — recomputeDataBase). O passo do cartão (n=3)
+  // é totalmente opcional/pulável — ver #qsStepCartaoNext/#qsStepCartaoSkip.
   function showQsStep(n){
     $('#qsStep1').hidden = n !== 1;
     $('#qsStep2').hidden = n !== 2;
-    $('#qsStep3').hidden = n !== 3;
-    $('#qsStep4').hidden = n !== 4;
-    $('#qsStep5').hidden = n !== 5;
-    $('#qsProgress').hidden = n > 2;
+    $('#qsStepCartao').hidden = n !== 3;
+    $('#qsStep3').hidden = n !== 4;
+    $('#qsStep4').hidden = n !== 5;
+    $('#qsStep5').hidden = n !== 6;
+    $('#qsProgress').hidden = n > 3;
     document.querySelectorAll('#qsProgress .dot').forEach(dot => {
       dot.classList.toggle('done', Number(dot.dataset.step) <= n);
     });
@@ -4628,11 +4673,22 @@
     renderQsBills();
   });
 
-  // continua do passo 2 (contas) pros passos 3 e 4 (explicação do verde/laranja do calendário) e
-  // a virada pro passo 5 ("veja o resultado") — nenhum dos três mexe em dado nenhum, só navega
+  // continua do passo 2 (contas) pro passo 3 (cartão, opcional/pulável)
   $('#qsStep2Next').addEventListener('click', () => showQsStep(3));
-  $('#qsStep3Next').addEventListener('click', () => showQsStep(4));
-  $('#qsStep4Next').addEventListener('click', () => showQsStep(5));
+  // "continuar" e "pular" do passo do cartão dão no mesmo lugar (passo 4) — os campos só viram um
+  // cartão de verdade lá no #qsFinishBtn, se tiverem sido preenchidos; "pular" só limpa os campos
+  // antes, pra não deixar meio preenchido por engano
+  $('#qsStepCartaoNext').addEventListener('click', () => showQsStep(4));
+  $('#qsStepCartaoSkip').addEventListener('click', () => {
+    $('#qsCartaoNome').value = '';
+    $('#qsCartaoFechamento').value = '';
+    $('#qsCartaoPagamento').value = '';
+    showQsStep(4);
+  });
+  // passos 4 e 5 (explicação do verde/laranja do calendário) e a virada pro passo 6 ("veja o
+  // resultado") — nenhum dos três mexe em dado nenhum, só navega
+  $('#qsStep3Next').addEventListener('click', () => showQsStep(5));
+  $('#qsStep4Next').addEventListener('click', () => showQsStep(6));
 
   // finaliza a configuração rápida: lança o próximo recebimento e cada conta do passo 2 como
   // lançamentos avulsos (não recorrentes — a pessoa pode depois torná-los fixos/assinaturas quando
@@ -4653,6 +4709,19 @@
     }
     for (const b of qsBills){
       state.oneTime.push({ id: nextId(), tipo:'saida', desc: b.nome, valor: b.valor, data: recebData || todayISO, formaPagamento: null });
+    }
+    // cartão do passo 3: só cria de verdade se nome+fechamento+pagamento foram preenchidos — se a
+    // pessoa pulou (ou preencheu só uma parte), não cria nada, sem erro nenhum
+    const qsCartaoNome = $('#qsCartaoNome').value.trim();
+    const qsCartaoFechamento = parseInt($('#qsCartaoFechamento').value, 10);
+    const qsCartaoPagamento = parseInt($('#qsCartaoPagamento').value, 10);
+    if (qsCartaoNome && !isNaN(qsCartaoFechamento) && !isNaN(qsCartaoPagamento)){
+      state.cartoes.push({
+        id: nextId(),
+        nome: qsCartaoNome,
+        diaFechamento: Math.min(31, Math.max(1, qsCartaoFechamento)),
+        diaPagamento: Math.min(31, Math.max(1, qsCartaoPagamento)),
+      });
     }
 
     closeOverlay('#overlayQuickSetup');

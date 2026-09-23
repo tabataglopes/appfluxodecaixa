@@ -1846,6 +1846,10 @@
         <label for="dividaValorTotalInicial">Valor total inicial da dívida (R$)</label>
         <input type="number" step="0.01" min="0" id="dividaValorTotalInicial" class="mono" placeholder="0,00" required>
       </div>
+      <div class="field">
+        <label for="dividaJuros">Juros (opcional — só pra você anotar, o app não usa isso em nenhuma conta)</label>
+        <input type="text" id="dividaJuros" placeholder="Ex.: 2% ao mês, ou R$ 50 de juros por parcela...">
+      </div>
       <div class="row2">
         <div class="field">
           <label for="dividaValor">Valor da parcela (R$)</label>
@@ -3534,6 +3538,20 @@
     nome.className = 'nm-nome';
     nome.textContent = r.desc;
     nameBlock.appendChild(nome);
+    // valor total inicial da dívida e (se anotado) os juros ficam sempre visíveis aqui embaixo do
+    // nome — é só informação pra pessoa lembrar, não entra em nenhuma conta do app
+    if (r.valorTotalInicial != null && !isNaN(r.valorTotalInicial)){
+      const totalLine = document.createElement('div');
+      totalLine.className = 'pc-cartao-line';
+      totalLine.textContent = `Valor total inicial: ${fmtBRL(r.valorTotalInicial)}`;
+      nameBlock.appendChild(totalLine);
+    }
+    if (r.juros){
+      const jurosLine = document.createElement('div');
+      jurosLine.className = 'pc-cartao-line';
+      jurosLine.textContent = `Juros: ${r.juros}`;
+      nameBlock.appendChild(jurosLine);
+    }
     if (cardNome){
       const cardLine = document.createElement('div');
       cardLine.className = 'pc-cartao-line';
@@ -4415,6 +4433,7 @@
       $('#dividaModalTitle').textContent = 'Editar dívida';
       $('#dividaDesc').value = editItem.desc;
       $('#dividaValorTotalInicial').value = editItem.valorTotalInicial;
+      $('#dividaJuros').value = editItem.juros || '';
       $('#dividaValor').value = editItem.valor;
       $('#dividaQtd').value = editItem.numParcelas;
       $('#dividaFreq').value = freqToSelectValue(editItem);
@@ -5183,6 +5202,7 @@
     e.preventDefault();
     const desc = $('#dividaDesc').value.trim();
     const valorTotalInicial = parseFloat($('#dividaValorTotalInicial').value);
+    const juros = $('#dividaJuros').value.trim() || null;
     const valor = parseFloat($('#dividaValor').value);
     const numParcelas = Math.max(1, parseInt($('#dividaQtd').value, 10));
     const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#dividaFreq').value, $('#dividaIntervaloDias').value);
@@ -5197,11 +5217,11 @@
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
         const cartaoAntigo = r.formaPagamento;
-        r.desc=desc; r.valorTotalInicial=valorTotalInicial; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        r.desc=desc; r.valorTotalInicial=valorTotalInicial; r.juros=juros; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso' });
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, juros, tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso' });
     }
     closeOverlay('#overlayDivida');
     renderAll();

@@ -1279,7 +1279,7 @@
     <nav class="drawer-nav">
       <button class="btn drawer-item" id="openDashboardBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg>Dashboard</button>
       <div class="base-chip drawer-item" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
-        <span class="lbl">Saldo em conta inicial <span id="baseDateLbl" class="mono"></span>:</span>
+        <span class="lbl">Saldo em conta inicial<span id="baseDateLbl" class="mono"></span></span>
         <span class="val mono" id="baseValLbl"></span>
         <span class="edit-icon" aria-hidden="true">&#9998;</span>
       </div>
@@ -1715,12 +1715,26 @@
         <div class="field">
           <label for="naoMensalFreq">Frequência com que ela chega</label>
           <select id="naoMensalFreq">
-            <option value="12">Anual</option>
-            <option value="6">Semestral</option>
-            <option value="4">Quadrimestral</option>
-            <option value="3">Trimestral</option>
-            <option value="2">Bimestral</option>
+            <optgroup label="Por mês">
+              <option value="1">Mensal</option>
+              <option value="2">Bimestral (a cada 2 meses)</option>
+              <option value="3">Trimestral (a cada 3 meses)</option>
+              <option value="4">Quadrimestral (a cada 4 meses)</option>
+              <option value="6">Semestral (a cada 6 meses)</option>
+              <option value="12">Anual</option>
+            </optgroup>
+            <optgroup label="Por dias corridos">
+              <option value="semanal">Semanal (a cada 7 dias)</option>
+              <option value="quinzenal">Quinzenal (a cada 15 dias)</option>
+              <option value="personalizado">Personalizado (a cada X dias)</option>
+            </optgroup>
           </select>
+        </div>
+      </div>
+      <div class="row2" id="naoMensalIntervaloDiasRow" hidden>
+        <div class="field">
+          <label for="naoMensalIntervaloDias">A cada quantos dias</label>
+          <input type="number" min="1" id="naoMensalIntervaloDias" class="mono" placeholder="Ex.: 10">
         </div>
       </div>
       <p id="naoMensalResumo" style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;"></p>
@@ -1947,6 +1961,13 @@
 
   const now = new Date();
   const todayISO = toISO(now.getFullYear(), now.getMonth(), now.getDate());
+  // "âncora" usada quando a pessoa deixa o saldo em conta inicial em R$0 (não digitou um valor
+  // real): precisa ficar antes de qualquer lançamento que ela vá cadastrar, pra o cálculo só
+  // começar a somar de verdade a partir do que ela realmente lançar — em vez de nascer com uma
+  // data "hoje" que faz o app subtrair pra trás lançamentos recorrentes de datas passadas
+  // (foi isso que deixou o calendário "todo vermelho" pra quem lançou salário e despesas
+  // recorrentes com saldo inicial em R$0)
+  const SALDO_ZERO_ANCHOR = '2000-01-01';
 
   /* ---------------- state ---------------- */
   const state = {
@@ -1977,10 +1998,29 @@
     ],
   };
 
-  // rótulos em português pra cada opção de frequência das contas não mensais
-  const NM_FREQ_LABELS = { 12:'Anual', 6:'Semestral', 4:'Quadrimestral', 3:'Trimestral', 2:'Bimestral' };
-  // quanto guardar por mês pra essa conta: valor total dividido pela frequência com que ela chega
-  const guardarPorMes = item => item.valorTotal / item.freqMeses;
+  // rótulos em português pra cada opção de frequência (por mês) das contas não mensais
+  const NM_FREQ_LABELS = { 1:'Mensal', 12:'Anual', 6:'Semestral', 4:'Quadrimestral', 3:'Trimestral', 2:'Bimestral' };
+  // itens antigos (de antes desta mudança) só têm "freqMeses" — estas três funções leem o item
+  // de um jeito que funciona tanto pros antigos quanto pros novos (freqType/intervalMeses/intervalDias)
+  function nmFreqType(item){ return item.freqType || 'meses'; }
+  function nmIntervalMeses(item){ return item.intervalMeses != null ? item.intervalMeses : (item.freqMeses || 1); }
+  function nmIntervalDias(item){ return item.intervalDias || 30; }
+  // rótulo de frequência pronto pra mostrar na tela, cobrindo tanto "por mês" quanto "por dias corridos"
+  function nmFreqLabel(item){
+    if (nmFreqType(item) === 'dias'){
+      const d = nmIntervalDias(item);
+      if (d === 7) return 'Semanal';
+      if (d === 15) return 'Quinzenal';
+      return `A cada ${d} dias`;
+    }
+    const m = nmIntervalMeses(item);
+    return NM_FREQ_LABELS[m] || `A cada ${m} meses`;
+  }
+  // quanto guardar por mês pra essa conta: valor total dividido pela frequência com que ela chega —
+  // pras frequências "por dias corridos" converte pra um equivalente mensal (base de 30 dias)
+  const guardarPorMes = item => nmFreqType(item) === 'dias'
+    ? item.valorTotal / nmIntervalDias(item) * 30
+    : item.valorTotal / nmIntervalMeses(item);
 
   /* ---------------- occurrence engine ---------------- */
   function monthsBetween(loISO, hiISO){
@@ -2502,7 +2542,10 @@
   const $ = sel => document.querySelector(sel);
 
   function renderBaseChip(){
-    $('#baseDateLbl').textContent = fmtDateShort(state.dataBase);
+    // enquanto o saldo inicial ficar na âncora "antes de tudo" (pessoa deixou em R$0 no primeiro
+    // uso), não mostra uma data lá do passado — não existe uma "data de referência" de verdade
+    // ainda, então o chip só mostra "Saldo em conta inicial" sem data nenhuma
+    $('#baseDateLbl').textContent = state.dataBase === SALDO_ZERO_ANCHOR ? '' : ` ${fmtDateShort(state.dataBase)}:`;
     $('#baseValLbl').textContent = fmtBRL(state.saldoInicial);
   }
 
@@ -2752,7 +2795,10 @@
     for (let day=1; day<=dim; day++){
       const iso = toISO(year, month, day);
       const cell = document.createElement('div');
-      const isPast = iso < state.dataBase;
+      // "passado" é sempre relativo a hoje (nunca à data de referência do saldo) — a data de
+      // referência pode ficar lá atrás de propósito (ver SALDO_ZERO_ANCHOR) sem isso apagar o
+      // cinza de "dia passado" do calendário
+      const isPast = iso < todayISO;
       const bal = balanceAt(iso);
       cell.className = 'cal-cell ' + (isPast ? 'past' : (bal < 0 ? 'negative' : 'ok'));
       if (iso === todayISO) cell.classList.add('today');
@@ -3227,7 +3273,7 @@
     colConta.appendChild(nomeLine);
     const valorInline = document.createElement('div');
     valorInline.className = 'nm-valor-inline nm-mobile-only';
-    valorInline.textContent = `Valor total: ${fmtBRL(item.valorTotal)} · ${NM_FREQ_LABELS[item.freqMeses] || ''}`;
+    valorInline.textContent = `Valor total: ${fmtBRL(item.valorTotal)} · ${nmFreqLabel(item)}`;
     colConta.appendChild(valorInline);
     row.appendChild(colConta);
 
@@ -3242,7 +3288,7 @@
     colFreq.className = 'nm-desktop-only';
     const freqTag = document.createElement('span');
     freqTag.className = 'nm-freq-tag';
-    freqTag.textContent = NM_FREQ_LABELS[item.freqMeses] || '';
+    freqTag.textContent = nmFreqLabel(item);
     colFreq.appendChild(freqTag);
     row.appendChild(colFreq);
 
@@ -3260,7 +3306,9 @@
     guardarVal.textContent = fmtBRL(guardarPorMes(item));
     const guardarSub = document.createElement('span');
     guardarSub.className = 'nm-guardar-sub';
-    guardarSub.textContent = `${item.valorTotal.toLocaleString('pt-BR')} ÷ ${item.freqMeses} meses`;
+    guardarSub.textContent = nmFreqType(item) === 'dias'
+      ? `${item.valorTotal.toLocaleString('pt-BR')} a cada ${nmIntervalDias(item)} dias`
+      : `${item.valorTotal.toLocaleString('pt-BR')} ÷ ${nmIntervalMeses(item)} ${nmIntervalMeses(item)===1 ? 'mês' : 'meses'}`;
     guardarRight.appendChild(guardarVal);
     guardarRight.appendChild(guardarSub);
     colGuardar.appendChild(guardarRight);
@@ -3387,7 +3435,7 @@
       const dim = daysInMonth(year, m);
       for (let day=1; day<=dim; day++){
         const iso = toISO(year, m, day);
-        const isPast = iso < state.dataBase;
+        const isPast = iso < todayISO;
         const bal = balanceAt(iso);
         const cell = document.createElement('div');
         cell.className = 'mini-cell ' + (isPast ? 'past' : (bal < 0 ? 'negative' : 'ok'));
@@ -3808,15 +3856,23 @@
     $('#parceladoDesc').focus();
   }
 
+  function updateNaoMensalFreqFieldsVisibility(){
+    $('#naoMensalIntervaloDiasRow').hidden = $('#naoMensalFreq').value !== 'personalizado';
+  }
+
   function updateNaoMensalResumo(){
     const valor = parseFloat($('#naoMensalValor').value);
-    const freq = parseInt($('#naoMensalFreq').value, 10);
     const resumo = $('#naoMensalResumo');
-    if (isNaN(valor) || valor <= 0 || !freq){
+    if (isNaN(valor) || valor <= 0){
       resumo.textContent = '';
       return;
     }
-    resumo.textContent = `Guardar ${fmtBRL(valor / freq)} por mês (${valor.toLocaleString('pt-BR')} ÷ ${freq} meses)`;
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#naoMensalFreq').value, $('#naoMensalIntervaloDias').value);
+    if (freqType === 'dias'){
+      resumo.textContent = `Guardar ${fmtBRL(valor / intervalDias * 30)} por mês (${valor.toLocaleString('pt-BR')} a cada ${intervalDias} dias)`;
+    } else {
+      resumo.textContent = `Guardar ${fmtBRL(valor / intervalMeses)} por mês (${valor.toLocaleString('pt-BR')} ÷ ${intervalMeses} ${intervalMeses===1 ? 'mês' : 'meses'})`;
+    }
   }
 
   function openNaoMensalModal(editItem){
@@ -3826,23 +3882,32 @@
       $('#naoMensalModalTitle').textContent = 'Editar conta não mensal';
       $('#naoMensalNome').value = editItem.nome;
       $('#naoMensalValor').value = editItem.valorTotal;
-      $('#naoMensalFreq').value = String(editItem.freqMeses);
+      $('#naoMensalFreq').value = freqToSelectValue({ freqType: nmFreqType(editItem), intervalMeses: nmIntervalMeses(editItem), intervalDias: nmIntervalDias(editItem) });
+      $('#naoMensalIntervaloDias').value = nmFreqType(editItem) === 'dias' ? nmIntervalDias(editItem) : '';
       $('#naoMensalNotas').value = editItem.notas || '';
       $('#naoMensalEditId').value = editItem.id;
     } else {
       $('#naoMensalModalTitle').textContent = 'Nova conta não mensal';
       $('#naoMensalFreq').value = '12';
+      $('#naoMensalIntervaloDias').value = '';
     }
+    updateNaoMensalFreqFieldsVisibility();
     updateNaoMensalResumo();
     openOverlay('#overlayNaoMensal');
     $('#naoMensalNome').focus();
   }
 
+  // true enquanto o modal aberto é o obrigatório do primeiro uso (não o "Ajustar saldo" opcional) —
+  // usado no submit do #baseForm pra saber se um valor de R$0 deve virar a âncora "antes de tudo"
+  let baseModalIsMandatory = false;
   function openBaseModal(mandatory){
-    // no primeiro uso, já vem preenchido com um ponto de partida neutro (saldo 0 no dia 1 do mês
-    // atual) — a pessoa só ajusta se quiser um valor/data diferente, em vez de ter que digitar tudo
+    baseModalIsMandatory = !!mandatory;
+    // no primeiro uso, a data já vem preenchida com hoje (a pessoa sabe muito mais fácil quanto
+    // tem na conta HOJE do que quanto tinha no dia 1 do mês) — se ela deixar o valor em R$0 (o
+    // padrão), o submit ignora essa data e usa a âncora SALDO_ZERO_ANCHOR por baixo dos panos, pra
+    // o cálculo só começar a valer de verdade a partir do primeiro lançamento real dela
     $('#baseValor').value = mandatory ? '0.00' : state.saldoInicial.toFixed(2);
-    $('#baseData').value = mandatory ? toISO(now.getFullYear(), now.getMonth(), 1) : state.dataBase;
+    $('#baseData').value = (mandatory || state.dataBase === SALDO_ZERO_ANCHOR) ? todayISO : state.dataBase;
     $('#baseModalTitle').textContent = mandatory ? 'Saldo em conta inicial' : 'Ajustar saldo em conta inicial';
     $('#baseModalIntro').hidden = !mandatory;
     $('#baseModalClose').style.display = mandatory ? 'none' : '';
@@ -3982,8 +4047,10 @@
   // configRapida (pro banner de checklist aparecer) e cai direto no calendário real.
   $('#qsFinishBtn').addEventListener('click', () => {
     const saldo = parseFloat($('#qsSaldo').value);
-    state.saldoInicial = isNaN(saldo) ? 0 : saldo;
-    state.dataBase = todayISO;
+    const saldoFinal = isNaN(saldo) ? 0 : saldo;
+    state.saldoInicial = saldoFinal;
+    // mesma lógica do #baseForm: saldo em R$0 usa a âncora "antes de tudo", em vez de "hoje"
+    state.dataBase = saldoFinal === 0 ? SALDO_ZERO_ANCHOR : todayISO;
     state.saldoDefinido = true;
     state.configRapida = true;
 
@@ -4425,23 +4492,28 @@
   });
 
   $('#naoMensalValor').addEventListener('input', updateNaoMensalResumo);
-  $('#naoMensalFreq').addEventListener('change', updateNaoMensalResumo);
+  $('#naoMensalFreq').addEventListener('change', () => { updateNaoMensalFreqFieldsVisibility(); updateNaoMensalResumo(); });
+  $('#naoMensalIntervaloDias').addEventListener('input', updateNaoMensalResumo);
   $('#naoMensalForm').addEventListener('submit', e=>{
     e.preventDefault();
     const nome = $('#naoMensalNome').value.trim();
     const valorTotal = parseFloat($('#naoMensalValor').value);
-    const freqMeses = parseInt($('#naoMensalFreq').value, 10);
+    const freqVal = $('#naoMensalFreq').value;
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval(freqVal, $('#naoMensalIntervaloDias').value);
     const notas = $('#naoMensalNotas').value.trim();
     const editId = $('#naoMensalEditId').value;
-    if (!nome || isNaN(valorTotal) || valorTotal <= 0 || !freqMeses) return;
+    if (!nome || isNaN(valorTotal) || valorTotal <= 0) return;
+    if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
     if (editId){
       const item = state.contasNaoMensais.find(x=>x.id===editId);
       if (item){
-        item.nome = nome; item.valorTotal = valorTotal; item.freqMeses = freqMeses; item.notas = notas;
+        item.nome = nome; item.valorTotal = valorTotal; item.freqType = freqType; item.intervalMeses = intervalMeses; item.intervalDias = intervalDias;
+        delete item.freqMeses; // formato antigo — migra pro novo assim que a pessoa edita
+        item.notas = notas;
         item.exemplo = false; // editar um exemplo transforma ele numa conta real da pessoa
       }
     } else {
-      state.contasNaoMensais.push({ id: nextId(), nome, valorTotal, freqMeses, notas, exemplo:false });
+      state.contasNaoMensais.push({ id: nextId(), nome, valorTotal, freqType, intervalMeses, intervalDias, notas, exemplo:false });
     }
     closeOverlay('#overlayNaoMensal');
     renderAll();
@@ -4457,7 +4529,10 @@
     const d = $('#baseData').value;
     if (isNaN(v) || !d) return;
     state.saldoInicial = v;
-    state.dataBase = d;
+    // primeiro uso + saldo deixado em R$0: não usa a data escolhida como referência — usa a
+    // âncora "antes de tudo", pra o app só começar a somar de verdade quando a pessoa lançar algo
+    // real (em vez de já nascer descontando lançamentos recorrentes de datas passadas)
+    state.dataBase = (baseModalIsMandatory && v === 0) ? SALDO_ZERO_ANCHOR : d;
     state.saldoDefinido = true;
     closeOverlay('#overlayBase');
     renderAll();

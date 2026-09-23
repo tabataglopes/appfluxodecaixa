@@ -1789,31 +1789,19 @@
   </div>
 </div>
 
-<!-- Modal: configuração rápida (onboarding progressivo) — 3 passos: saldo atual, próximo
-     recebimento (opcional/pulável) e contas até lá. Obrigatório enquanto aberto (ver podeFechar).
+<!-- Modal: configuração rápida (onboarding progressivo) — 2 passos: próximo recebimento
+     (opcional/pulável) e contas até lá. Não pergunta mais saldo inicial (começa em R$0 e o app
+     recalcula sozinho — ver recomputeDataBase). Obrigatório enquanto aberto (ver podeFechar).
      Ao terminar, fecha e cai direto no calendário real, com o banner #onboardingBanner mostrando
      o checklist do que falta cadastrar pra projeção ficar completa. -->
 <div class="overlay" id="overlayQuickSetup" hidden>
   <div class="modal" style="max-width:380px;">
     <div class="step-progress" id="qsProgress">
-      <div class="dot" data-step="1"></div><div class="dot" data-step="2"></div><div class="dot" data-step="3"></div>
+      <div class="dot" data-step="1"></div><div class="dot" data-step="2"></div>
     </div>
 
     <div class="qs-step" id="qsStep1">
-      <div class="step-kicker">Passo 1 de 3</div>
-      <h3 class="step-q">Quanto você tem na conta hoje?</h3>
-      <p class="step-hint">É só um ponto de partida — o resto do app soma e subtrai a partir daqui.</p>
-      <div class="field">
-        <label for="qsSaldo">Saldo atual (R$)</label>
-        <input type="number" step="0.01" id="qsSaldo" class="mono" required>
-      </div>
-      <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep1Next">Continuar</button>
-      </div>
-    </div>
-
-    <div class="qs-step" id="qsStep2" hidden>
-      <div class="step-kicker">Passo 2 de 3</div>
+      <div class="step-kicker">Passo 1 de 2</div>
       <h3 class="step-q">Quando e quanto você vai receber?</h3>
       <p class="step-hint">Pode ser salário, freela, o que for — o próximo dinheiro que vai cair na conta.</p>
       <div class="field">
@@ -1825,14 +1813,14 @@
         <input type="number" step="0.01" id="qsRecebValor" class="mono">
       </div>
       <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep2Next">Continuar</button>
-        <span class="skip-link" id="qsStep2Skip">Ainda não sei / pular</span>
+        <button type="button" class="btn primary block" id="qsStep1Next">Continuar</button>
+        <span class="skip-link" id="qsStep1Skip">Ainda não sei / pular</span>
       </div>
     </div>
 
-    <div class="qs-step" id="qsStep3" hidden>
-      <div class="step-kicker">Passo 3 de 3</div>
-      <h3 class="step-q" id="qsStep3Question">O que ainda precisa ser pago até lá?</h3>
+    <div class="qs-step" id="qsStep2" hidden>
+      <div class="step-kicker">Passo 2 de 2</div>
+      <h3 class="step-q" id="qsStep2Question">O que ainda precisa ser pago até lá?</h3>
       <p class="step-hint">Adicione os principais — dá pra completar o resto depois.</p>
       <div id="qsBillsList"></div>
       <div class="qs-bill-form" id="qsBillForm" hidden>
@@ -1853,14 +1841,14 @@
       </div>
       <button type="button" class="add-bill-btn" id="qsAddBillBtn">+ Adicionar outro pagamento</button>
       <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep3Next">Continuar</button>
+        <button type="button" class="btn primary block" id="qsStep2Next">Continuar</button>
       </div>
     </div>
 
-    <!-- passos 4 e 5: não coletam dado nenhum, só explicam de cara pra que serve o calendário do
+    <!-- passos 3 e 4: não coletam dado nenhum, só explicam de cara pra que serve o calendário do
          Maré (verde = tem dinheiro, laranja = a partir dali falta) antes da pessoa ver o resultado
-         de verdade — por isso não têm "Passo X de 3"/bolinhas, é um intervalo à parte -->
-    <div class="qs-step" id="qsStep4" hidden>
+         de verdade — por isso não têm "Passo X de 2"/bolinhas, é um intervalo à parte -->
+    <div class="qs-step" id="qsStep3" hidden>
       <h3 class="step-q">Como funciona o calendário</h3>
       <p class="step-hint">O calendário vai te mostrar quando você vai ficar sem dinheiro, se for o caso. Calendário verde = tem dinheiro naquele dia.</p>
       <div class="qs-explain-cal">
@@ -1869,11 +1857,11 @@
         <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
       </div>
       <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep4Next">Continuar</button>
+        <button type="button" class="btn primary block" id="qsStep3Next">Continuar</button>
       </div>
     </div>
 
-    <div class="qs-step" id="qsStep5" hidden>
+    <div class="qs-step" id="qsStep4" hidden>
       <h3 class="step-q">E quando o dinheiro acaba?</h3>
       <p class="step-hint">Calendário laranja = a partir daquele dia vai faltar dinheiro. Assim que vir o laranja, já dá pra saber que precisa se planejar antes daquela data.</p>
       <div class="qs-explain-cal">
@@ -1882,11 +1870,11 @@
         <div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div>
       </div>
       <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep5Next">Continuar</button>
+        <button type="button" class="btn primary block" id="qsStep4Next">Continuar</button>
       </div>
     </div>
 
-    <div class="qs-step" id="qsStep6" hidden>
+    <div class="qs-step" id="qsStep5" hidden>
       <h3 class="step-q">Sua primeira projeção está pronta</h3>
       <p class="step-hint">Veja seu resultado de acordo com os dados fornecidos até agora.</p>
       <div class="step-actions">
@@ -3913,16 +3901,13 @@
     $('#naoMensalNome').focus();
   }
 
-  function openBaseModal(mandatory){
-    // não pede mais uma data — state.dataBase é sempre recalculado sozinho (ver recomputeDataBase),
-    // como a data do lançamento mais antigo cadastrado. Aqui só se pede o valor: quanto a pessoa
-    // tinha ANTES desse lançamento mais antigo (ou antes de qualquer lançamento, se ainda não tem
-    // nenhum) — é a partir desse número que o app soma/subtrai tudo que ela cadastrar.
-    $('#baseValor').value = mandatory ? '0.00' : state.saldoInicial.toFixed(2);
-    $('#baseModalTitle').textContent = mandatory ? 'Saldo em conta inicial' : 'Ajustar saldo em conta inicial';
-    $('#baseModalIntro').hidden = !mandatory;
-    $('#baseModalClose').style.display = mandatory ? 'none' : '';
-    $('#baseModalCancel').style.display = mandatory ? 'none' : '';
+  // não é mais perguntado no onboarding — só existe como ajuste opcional pelo menu lateral
+  // (#baseChip). Não pede mais uma data — state.dataBase é sempre recalculado sozinho (ver
+  // recomputeDataBase), como a data do lançamento mais antigo cadastrado. Aqui só se pede o valor:
+  // quanto a pessoa tinha ANTES desse lançamento mais antigo (ou antes de qualquer lançamento, se
+  // ainda não tem nenhum) — é a partir desse número que o app soma/subtrai tudo que ela cadastrar.
+  function openBaseModal(){
+    $('#baseValor').value = state.saldoInicial.toFixed(2);
     openOverlay('#overlayBase');
     $('#baseValor').focus();
   }
@@ -3936,20 +3921,24 @@
 
   $('#choiceFullBtn').addEventListener('click', () => {
     closeOverlay('#overlayOnboardingChoice');
-    openBaseModal(true);
+    // não pergunta mais saldo inicial aqui — começa em R$0 e o app recalcula tudo sozinho conforme
+    // a pessoa for cadastrando contas fixas, assinaturas etc. pelo menu lateral (ver
+    // recomputeDataBase). Quem quiser informar um saldo pode fazer isso depois, a qualquer
+    // momento, pelo chip "Saldo em conta inicial" no menu.
+    state.saldoDefinido = true;
+    renderAll();
   });
   $('#choiceQuickBtn').addEventListener('click', () => {
     closeOverlay('#overlayOnboardingChoice');
     openQuickSetup();
   });
 
-  // estado local do assistente de 3 passos — só existe enquanto o pop-up está aberto, some junto
+  // estado local do assistente de 2 passos — só existe enquanto o pop-up está aberto, some junto
   // com ele (não faz parte de state porque nada aqui é definitivo até "Ver minha projeção")
   let qsBills = [];
 
   function openQuickSetup(){
     qsBills = [];
-    $('#qsSaldo').value = '';
     $('#qsRecebData').value = '';
     $('#qsRecebValor').value = '';
     $('#qsBillForm').hidden = true;
@@ -3958,46 +3947,40 @@
     renderQsBills();
     showQsStep(1);
     openOverlay('#overlayQuickSetup');
-    $('#qsSaldo').focus();
+    $('#qsRecebData').focus();
   }
 
   // "done" no indicador de passos marca o passo já alcançado (inclusive o atual), não só os
   // concluídos — é assim que o protótipo aprovado mostra (passo 1 já vem com a 1ª bolinha cheia)
-  // passos 1-3 coletam dado (saldo, recebimento, contas) e têm as bolinhas de progresso; 4 e 5 só
-  // explicam o verde/laranja do calendário (sem bolinha, sem coletar nada); 6 é o "clique pra ver o
-  // resultado" — closeOverlay+dashboard só acontece de verdade no clique do #qsFinishBtn (passo 6)
+  // passos 1-2 coletam dado (recebimento, contas) e têm as bolinhas de progresso; 3 e 4 só
+  // explicam o verde/laranja do calendário (sem bolinha, sem coletar nada); 5 é o "clique pra ver o
+  // resultado" — closeOverlay+dashboard só acontece de verdade no clique do #qsFinishBtn (passo 5).
+  // Não pergunta mais saldo inicial (começa em R$0 e o app recalcula sozinho — recomputeDataBase).
   function showQsStep(n){
     $('#qsStep1').hidden = n !== 1;
     $('#qsStep2').hidden = n !== 2;
     $('#qsStep3').hidden = n !== 3;
     $('#qsStep4').hidden = n !== 4;
     $('#qsStep5').hidden = n !== 5;
-    $('#qsStep6').hidden = n !== 6;
-    $('#qsProgress').hidden = n > 3;
+    $('#qsProgress').hidden = n > 2;
     document.querySelectorAll('#qsProgress .dot').forEach(dot => {
       dot.classList.toggle('done', Number(dot.dataset.step) <= n);
     });
-    if (n === 3){
+    if (n === 2){
       const dataLimite = $('#qsRecebData').value;
-      $('#qsStep3Question').textContent = dataLimite
+      $('#qsStep2Question').textContent = dataLimite
         ? `O que ainda precisa ser pago até ${fmtDateFull(dataLimite)}?`
         : 'O que ainda precisa ser pago nos próximos dias?';
     }
   }
 
-  $('#qsStep1Next').addEventListener('click', () => {
-    const v = parseFloat($('#qsSaldo').value);
-    if (isNaN(v)){ $('#qsSaldo').focus(); return; }
-    showQsStep(2);
-    $('#qsRecebData').focus();
-  });
-  $('#qsStep2Next').addEventListener('click', () => showQsStep(3));
+  $('#qsStep1Next').addEventListener('click', () => showQsStep(2));
   // "pular": mesmo efeito de deixar os campos em branco e seguir — só um atalho mais claro pra
   // quem realmente não sabe ainda quando/quanto vai receber
-  $('#qsStep2Skip').addEventListener('click', () => {
+  $('#qsStep1Skip').addEventListener('click', () => {
     $('#qsRecebData').value = '';
     $('#qsRecebValor').value = '';
-    showQsStep(3);
+    showQsStep(2);
   });
 
   function renderQsBills(){
@@ -4046,22 +4029,21 @@
     renderQsBills();
   });
 
-  // passos 4 e 5 (explicação do verde/laranja do calendário) e a virada pro passo 6 ("veja o
-  // resultado") — nenhum dos três mexe em dado nenhum, só navega
+  // continua do passo 2 (contas) pros passos 3 e 4 (explicação do verde/laranja do calendário) e
+  // a virada pro passo 5 ("veja o resultado") — nenhum dos três mexe em dado nenhum, só navega
+  $('#qsStep2Next').addEventListener('click', () => showQsStep(3));
   $('#qsStep3Next').addEventListener('click', () => showQsStep(4));
   $('#qsStep4Next').addEventListener('click', () => showQsStep(5));
-  $('#qsStep5Next').addEventListener('click', () => showQsStep(6));
 
-  // finaliza a configuração rápida: define o saldo inicial (igual ao #baseForm), lança o próximo
-  // recebimento e cada conta do passo 3 como lançamentos avulsos (não recorrentes — a pessoa pode
-  // depois torná-los fixos/assinaturas quando completar a configuração pelo banner), liga
-  // configRapida (pro banner de checklist aparecer) e cai direto no calendário real.
+  // finaliza a configuração rápida: lança o próximo recebimento e cada conta do passo 2 como
+  // lançamentos avulsos (não recorrentes — a pessoa pode depois torná-los fixos/assinaturas quando
+  // completar a configuração pelo banner), liga configRapida (pro banner de checklist aparecer) e
+  // cai direto no calendário real. Não define mais saldo inicial (fica em R$0 — ver
+  // recomputeDataBase).
   $('#qsFinishBtn').addEventListener('click', () => {
-    const saldo = parseFloat($('#qsSaldo').value);
-    const saldoFinal = isNaN(saldo) ? 0 : saldo;
-    state.saldoInicial = saldoFinal;
-    // state.dataBase não é setado aqui — o renderAll() no fim desse handler chama
-    // recomputeDataBase(), que recalcula sozinho a partir dos lançamentos abaixo
+    // saldoInicial fica no padrão R$0 — não pergunta mais isso aqui. state.dataBase também não é
+    // setado: o renderAll() no fim desse handler chama recomputeDataBase(), que recalcula sozinho
+    // a partir dos lançamentos abaixo
     state.saldoDefinido = true;
     state.configRapida = true;
 
@@ -4533,7 +4515,7 @@
   $('#nmBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#addNaoMensalBtn').addEventListener('click', ()=> openNaoMensalModal(null));
 
-  $('#baseChip').addEventListener('click', ()=> openBaseModal(false));
+  $('#baseChip').addEventListener('click', ()=> openBaseModal());
   $('#baseForm').addEventListener('submit', e=>{
     e.preventDefault();
     const v = parseFloat($('#baseValor').value);

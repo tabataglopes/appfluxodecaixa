@@ -1278,7 +1278,7 @@
     <h3>Menu</h3>
     <nav class="drawer-nav">
       <button class="btn drawer-item" id="openDashboardBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9.5 21v-6h5v6"></path></svg>Dashboard</button>
-      <div class="base-chip drawer-item" id="baseChip" title="Este é o ponto de partida: seu saldo real numa data conhecida. Todo o resto do app soma/subtrai a partir daqui. Clique para editar.">
+      <div class="base-chip drawer-item" id="baseChip" title="Quanto você tinha antes do seu lançamento mais antigo cadastrado. A partir daí, o Maré soma e subtrai tudo que você lançar — mesmo lançamentos com data passada, adicionados depois. Clique para editar.">
         <span class="lbl">Saldo em conta inicial<span id="baseDateLbl" class="mono"></span></span>
         <span class="val mono" id="baseValLbl"></span>
         <span class="edit-icon" aria-hidden="true">&#9998;</span>
@@ -1775,15 +1775,11 @@
   <div class="modal" style="max-width:360px;">
     <button class="modal-close" data-close="overlayBase" id="baseModalClose" aria-label="Fechar">&times;</button>
     <h3 id="baseModalTitle">Ajustar saldo em conta inicial</h3>
-    <p id="baseModalIntro" hidden style="font-size:13.5px; color:var(--ink-muted); margin:0 0 14px;">Para começar, escreva o saldo em conta disponível hoje. É a partir desse valor que o Maré calcula todo resto.</p>
+    <p id="baseModalIntro" hidden style="font-size:13.5px; color:var(--ink-muted); margin:0 0 14px;">Para começar, escreva quanto você tem na conta hoje. É a partir desse valor que o Maré soma e subtrai tudo que você for cadastrando — mesmo lançamentos com data passada que você adicionar depois.</p>
     <form id="baseForm">
       <div class="field">
         <label for="baseValor">Saldo em conta (R$)</label>
         <input type="number" step="0.01" id="baseValor" class="mono" required>
-      </div>
-      <div class="field">
-        <label for="baseData">Nessa data</label>
-        <input type="date" id="baseData" required>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn" id="baseModalCancel" data-close="overlayBase">Cancelar</button>
@@ -2486,6 +2482,24 @@
     const subTxt = hiAno ? `no ano · de jan até ${fmtDateShort(hiAno)}` : `no ano · ainda sem dados`;
     $('#tileAnoInSub').textContent = subTxt;
     $('#tileAnoOutSub').textContent = subTxt;
+  }
+
+  // state.dataBase não é mais uma data que a pessoa escolhe — é sempre recalculada aqui como a
+  // data mais antiga entre todos os lançamentos já cadastrados (avulsos e recorrentes/parcelados,
+  // pelo "Começa em" de cada um). Isso garante que balanceAt() sempre soma TUDO que a pessoa
+  // lançou, mesmo lançamentos com data lá no passado adicionados depois (ex.: uma comissão de
+  // meses atrás que ela lançou só agora) — antes, qualquer lançamento datado antes de dataBase
+  // ficava de fora da soma "pra frente" e sumia da projeção, mesmo a pessoa tendo cadastrado ele.
+  // Sem nenhum lançamento ainda, cai na âncora bem no passado (ver SALDO_ZERO_ANCHOR).
+  function recomputeDataBase(){
+    let earliest = null;
+    for (const t of state.oneTime){
+      if (earliest === null || t.data < earliest) earliest = t.data;
+    }
+    for (const r of state.recorrentes){
+      if (r.dataInicio && (earliest === null || r.dataInicio < earliest)) earliest = r.dataInicio;
+    }
+    state.dataBase = earliest !== null ? earliest : SALDO_ZERO_ANCHOR;
   }
 
   function balanceAt(dateISO){
@@ -3497,6 +3511,7 @@
   }
 
   function renderAll(){
+    recomputeDataBase();
     renderBaseChip();
     renderOnboardingBanner();
     renderTiles();
@@ -3897,17 +3912,12 @@
     $('#naoMensalNome').focus();
   }
 
-  // true enquanto o modal aberto é o obrigatório do primeiro uso (não o "Ajustar saldo" opcional) —
-  // usado no submit do #baseForm pra saber se um valor de R$0 deve virar a âncora "antes de tudo"
-  let baseModalIsMandatory = false;
   function openBaseModal(mandatory){
-    baseModalIsMandatory = !!mandatory;
-    // no primeiro uso, a data já vem preenchida com hoje (a pessoa sabe muito mais fácil quanto
-    // tem na conta HOJE do que quanto tinha no dia 1 do mês) — se ela deixar o valor em R$0 (o
-    // padrão), o submit ignora essa data e usa a âncora SALDO_ZERO_ANCHOR por baixo dos panos, pra
-    // o cálculo só começar a valer de verdade a partir do primeiro lançamento real dela
+    // não pede mais uma data — state.dataBase é sempre recalculado sozinho (ver recomputeDataBase),
+    // como a data do lançamento mais antigo cadastrado. Aqui só se pede o valor: quanto a pessoa
+    // tinha ANTES desse lançamento mais antigo (ou antes de qualquer lançamento, se ainda não tem
+    // nenhum) — é a partir desse número que o app soma/subtrai tudo que ela cadastrar.
     $('#baseValor').value = mandatory ? '0.00' : state.saldoInicial.toFixed(2);
-    $('#baseData').value = (mandatory || state.dataBase === SALDO_ZERO_ANCHOR) ? todayISO : state.dataBase;
     $('#baseModalTitle').textContent = mandatory ? 'Saldo em conta inicial' : 'Ajustar saldo em conta inicial';
     $('#baseModalIntro').hidden = !mandatory;
     $('#baseModalClose').style.display = mandatory ? 'none' : '';
@@ -4049,8 +4059,8 @@
     const saldo = parseFloat($('#qsSaldo').value);
     const saldoFinal = isNaN(saldo) ? 0 : saldo;
     state.saldoInicial = saldoFinal;
-    // mesma lógica do #baseForm: saldo em R$0 usa a âncora "antes de tudo", em vez de "hoje"
-    state.dataBase = saldoFinal === 0 ? SALDO_ZERO_ANCHOR : todayISO;
+    // state.dataBase não é setado aqui — o renderAll() no fim desse handler chama
+    // recomputeDataBase(), que recalcula sozinho a partir dos lançamentos abaixo
     state.saldoDefinido = true;
     state.configRapida = true;
 
@@ -4526,13 +4536,10 @@
   $('#baseForm').addEventListener('submit', e=>{
     e.preventDefault();
     const v = parseFloat($('#baseValor').value);
-    const d = $('#baseData').value;
-    if (isNaN(v) || !d) return;
+    if (isNaN(v)) return;
     state.saldoInicial = v;
-    // primeiro uso + saldo deixado em R$0: não usa a data escolhida como referência — usa a
-    // âncora "antes de tudo", pra o app só começar a somar de verdade quando a pessoa lançar algo
-    // real (em vez de já nascer descontando lançamentos recorrentes de datas passadas)
-    state.dataBase = (baseModalIsMandatory && v === 0) ? SALDO_ZERO_ANCHOR : d;
+    // state.dataBase não é setado aqui — o renderAll() logo abaixo já chama recomputeDataBase(),
+    // que recalcula sozinho como a data do lançamento mais antigo cadastrado
     state.saldoDefinido = true;
     closeOverlay('#overlayBase');
     renderAll();

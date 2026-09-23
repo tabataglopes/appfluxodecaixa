@@ -730,6 +730,7 @@
     background:var(--bg); color:var(--ink); font-family:inherit;
   }
   .field input.mono{ font-family:"JetBrains Mono", monospace; }
+  .piso-data-hint{ font-size:11.5px; color:var(--ink-muted); margin:2px 0 0; line-height:1.3; }
   .seg{ display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
   .seg button{
     flex:1; padding:9px 8px; background:var(--surface); border:none; cursor:pointer; font-size:13px; font-weight:600;
@@ -1357,6 +1358,7 @@
         <div class="field">
           <label for="oneData">Data</label>
           <input type="date" id="oneData" required>
+          <p class="piso-data-hint" id="oneDataHint" hidden></p>
         </div>
       </div>
       <input type="hidden" id="oneEditId">
@@ -1532,6 +1534,7 @@
         <div class="field">
           <label for="recurInicio">Começa em</label>
           <input type="date" id="recurInicio" required>
+          <p class="piso-data-hint" id="recurInicioHint" hidden></p>
         </div>
       </div>
       <div class="row2" id="recurIntervaloDiasRow" hidden>
@@ -1606,6 +1609,7 @@
         <div class="field">
           <label for="assinInicio">Cobra a partir de</label>
           <input type="date" id="assinInicio" required>
+          <p class="piso-data-hint" id="assinInicioHint" hidden></p>
         </div>
       </div>
       <div class="row2" id="assinIntervaloDiasRow" hidden>
@@ -1675,6 +1679,7 @@
         <div class="field">
           <label for="parceladoInicio">Pagamento a partir de</label>
           <input type="date" id="parceladoInicio" required>
+          <p class="piso-data-hint" id="parceladoInicioHint" hidden></p>
         </div>
       </div>
       <div class="row2" id="parceladoIntervaloDiasRow" hidden>
@@ -1774,12 +1779,19 @@
 <div class="overlay" id="overlayBase" hidden>
   <div class="modal" style="max-width:360px;">
     <button class="modal-close" data-close="overlayBase" id="baseModalClose" aria-label="Fechar">&times;</button>
-    <h3 id="baseModalTitle">Ajustar saldo em conta inicial</h3>
+    <h3 id="baseModalTitle">Quanto você tem hoje (ou em outra data)</h3>
     <p id="baseModalIntro" hidden style="font-size:13.5px; color:var(--ink-muted); margin:0 0 14px;">Para começar, escreva quanto você tem na conta hoje. É a partir desse valor que o Maré soma e subtrai tudo que você for cadastrando — mesmo lançamentos com data passada que você adicionar depois.</p>
+    <p style="font-size:13.5px; color:var(--ink-muted); margin:0 0 14px;">Escolha uma data e diga quanto tinha na conta nela. Não será possível registrar lançamentos com data anterior a ela — o que veio antes já está incluído nesse valor.</p>
     <form id="baseForm">
-      <div class="field">
-        <label for="baseValor">Saldo em conta (R$)</label>
-        <input type="number" step="0.01" id="baseValor" class="mono" required>
+      <div class="row2">
+        <div class="field">
+          <label for="baseValor">Saldo em conta (R$)</label>
+          <input type="number" step="0.01" id="baseValor" class="mono" required>
+        </div>
+        <div class="field">
+          <label for="baseData">Nessa data</label>
+          <input type="date" id="baseData" required>
+        </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn" id="baseModalCancel" data-close="overlayBase">Cancelar</button>
@@ -1957,6 +1969,12 @@
   const state = {
     saldoInicial: 0.00,
     saldoDefinido: false,
+    // preenchido só quando a pessoa usa "Ajustar saldo" (menu lateral) pra dizer quanto tinha na
+    // conta numa data específica — vira um piso: nenhum lançamento (avulso, recorrente ou parcela)
+    // pode ter data anterior a essa, porque o que aconteceu antes já está embutido nesse valor.
+    // null = pessoa nunca usou esse ajuste; o app continua ancorando sozinho pelo lançamento mais
+    // antigo cadastrado (ver recomputeDataBase), sem nenhum bloqueio de data.
+    saldoRefData: null,
     // true quando a pessoa entrou pela "Configuração rápida" (onboarding progressivo) — liga o
     // banner de "projeção incompleta" até ela cadastrar receitas fixas, contas fixas, assinaturas
     // e cartão; some sozinho (e volta pra false) assim que as 4 categorias tiverem algo
@@ -2480,6 +2498,15 @@
   // ficava de fora da soma "pra frente" e sumia da projeção, mesmo a pessoa tendo cadastrado ele.
   // Sem nenhum lançamento ainda, cai na âncora bem no passado (ver SALDO_ZERO_ANCHOR).
   function recomputeDataBase(){
+    // se a pessoa definiu um "saldo numa data" (ver openBaseModal/#baseForm), a referência do
+    // cálculo é sempre essa data mesma — não o lançamento mais antigo cadastrado. O valor que ela
+    // informou já é válido exatamente nessa data, e os próprios campos de data (ver
+    // aplicarPisoData) impedem cadastrar qualquer coisa antes dela, então não tem lançamento mais
+    // antigo pra procurar.
+    if (state.saldoRefData){
+      state.dataBase = state.saldoRefData;
+      return;
+    }
     let earliest = null;
     for (const t of state.oneTime){
       if (earliest === null || t.data < earliest) earliest = t.data;
@@ -2488,6 +2515,25 @@
       if (r.dataInicio && (earliest === null || r.dataInicio < earliest)) earliest = r.dataInicio;
     }
     state.dataBase = earliest !== null ? earliest : SALDO_ZERO_ANCHOR;
+  }
+
+  // usada nos campos de data de lançamento avulso, "começa em" de recorrentes/assinaturas e
+  // "pagamento a partir de" de compras parceladas: impede escolher uma data anterior ao "saldo
+  // numa data" que a pessoa definiu (se ela tiver definido um), e mostra uma frasezinha explicando
+  // o motivo. Sem esse ajuste definido, os campos ficam livres, sem nenhum piso.
+  function aplicarPisoData(inputSel, hintSel){
+    const input = $(inputSel);
+    const hint = hintSel ? $(hintSel) : null;
+    if (state.saldoRefData){
+      input.min = state.saldoRefData;
+      if (hint){
+        hint.textContent = `Só é possível a partir de ${fmtDateShort(state.saldoRefData)} (data do saldo que você definiu).`;
+        hint.hidden = false;
+      }
+    } else {
+      input.removeAttribute('min');
+      if (hint){ hint.hidden = true; hint.textContent = ''; }
+    }
   }
 
   function balanceAt(dateISO){
@@ -3742,6 +3788,7 @@
       populateFormaPagamentoSelect('#oneFormaPagamento', '');
       updateOneFormaPagamentoVisibility('saida');
     }
+    aplicarPisoData('#oneData', '#oneDataHint');
     openOverlay('#overlayOne');
     $('#oneDesc').focus();
   }
@@ -3779,6 +3826,7 @@
       updateRecurFormaPagamentoVisibility(tipo);
     }
     updateRecurFreqFieldsVisibility();
+    aplicarPisoData('#recurInicio', '#recurInicioHint');
     openOverlay('#overlayRecur');
     $('#recurDesc').focus();
   }
@@ -3810,6 +3858,7 @@
       populateFormaPagamentoSelect('#assinFormaPagamento', '');
     }
     updateAssinFreqFieldsVisibility();
+    aplicarPisoData('#assinInicio', '#assinInicioHint');
     openOverlay('#overlayAssin');
     $('#assinDesc').focus();
   }
@@ -3856,6 +3905,7 @@
     }
     updateParceladoFreqFieldsVisibility();
     updateParceladoResumo();
+    aplicarPisoData('#parceladoInicio', '#parceladoInicioHint');
     openOverlay('#overlayParcelado');
     $('#parceladoDesc').focus();
   }
@@ -3908,6 +3958,7 @@
   // ainda não tem nenhum) — é a partir desse número que o app soma/subtrai tudo que ela cadastrar.
   function openBaseModal(){
     $('#baseValor').value = state.saldoInicial.toFixed(2);
+    $('#baseData').value = state.saldoRefData || todayISO;
     openOverlay('#overlayBase');
     $('#baseValor').focus();
   }
@@ -4519,10 +4570,13 @@
   $('#baseForm').addEventListener('submit', e=>{
     e.preventDefault();
     const v = parseFloat($('#baseValor').value);
-    if (isNaN(v)) return;
+    const d = $('#baseData').value;
+    if (isNaN(v) || !d) return;
     state.saldoInicial = v;
-    // state.dataBase não é setado aqui — o renderAll() logo abaixo já chama recomputeDataBase(),
-    // que recalcula sozinho como a data do lançamento mais antigo cadastrado
+    // essa data vira o piso: nenhum lançamento poderá ter data anterior a ela (ver
+    // aplicarPisoData/recomputeDataBase) — é o que evita contar duas vezes algo que já estava
+    // embutido nesse saldo
+    state.saldoRefData = d;
     state.saldoDefinido = true;
     closeOverlay('#overlayBase');
     renderAll();
@@ -4626,6 +4680,7 @@
     return {
       saldoInicial: state.saldoInicial,
       saldoDefinido: state.saldoDefinido,
+      saldoRefData: state.saldoRefData,
       dataBase: state.dataBase,
       oneTime: state.oneTime,
       recorrentes: state.recorrentes,

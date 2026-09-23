@@ -80,6 +80,7 @@
       --atual-text-color:#000000;
       --proj-val-pos:#000000;
       --proj-val-neg:#a90909;
+      --bc-bar-neg:#f70909;
       --atual-val-neg:#c20a0a;
       --atual-val-pos:#41961d;
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
@@ -109,6 +110,7 @@
     --atual-text-color:#000000;
     --proj-val-pos:#000000;
     --proj-val-neg:#a90909;
+    --bc-bar-neg:#f70909;
     --atual-val-neg:#c20a0a;
     --atual-val-pos:#41961d;
     --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
@@ -297,7 +299,7 @@
   .bc-bar-slot.right{ margin-left:2px; justify-content:flex-start; }
   .bc-bar{ width:20px; border-radius:4px 4px 0 0; position:relative; z-index:1; transition:height .15s ease; }
   .bc-bar.pos{ background:var(--cal-dot-in, var(--income)); }
-  .bc-bar.neg{ background:var(--cal-dot-out, var(--expense)); }
+  .bc-bar.neg{ background:var(--bc-bar-neg, var(--expense)); }
   @media (max-width:480px){
     .bc-mid{ width:52px; }
     .bc-bar-slot{ width:16px; }

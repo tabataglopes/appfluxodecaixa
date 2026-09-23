@@ -640,6 +640,9 @@
   .rl-cartao-tag{ font-size:12.5px; color:var(--ink-muted); }
   .rl-cartao-tag.empty{ color:var(--ink-muted); opacity:.6; }
   .pc-cartao-line{ font-size:12px; color:var(--ink-muted); margin-top:2px; }
+  /* valor total inicial / juros da dívida — maiores e mais legíveis que a linha "no cartão X" acima,
+     porque são informações que a pessoa quer bater o olho e ler rápido, não só um detalhe secundário */
+  .pc-divida-info-line{ font-size:14px; color:var(--ink); margin-top:3px; font-weight:600; }
   .pc-data1{ font-size:13px; }
   .pc-qtd{ font-size:13px; color:var(--ink-muted); }
   /* mobile: linha de valor + (parcelas em cima, datas embaixo) lado a lado */
@@ -1848,7 +1851,7 @@
       </div>
       <div class="field">
         <label for="dividaJuros">Juros (opcional — só pra você anotar, o app não usa isso em nenhuma conta)</label>
-        <input type="text" id="dividaJuros" placeholder="Ex.: 2% ao mês, ou R$ 50 de juros por parcela...">
+        <input type="text" id="dividaJuros" placeholder="Ex.: 5 (vira 5% sozinho), ao mês, ou R$ 50 de juros por parcela...">
       </div>
       <div class="row2">
         <div class="field">
@@ -3542,13 +3545,13 @@
     // nome — é só informação pra pessoa lembrar, não entra em nenhuma conta do app
     if (r.valorTotalInicial != null && !isNaN(r.valorTotalInicial)){
       const totalLine = document.createElement('div');
-      totalLine.className = 'pc-cartao-line';
+      totalLine.className = 'pc-divida-info-line';
       totalLine.textContent = `Valor total inicial: ${fmtBRL(r.valorTotalInicial)}`;
       nameBlock.appendChild(totalLine);
     }
     if (r.juros){
       const jurosLine = document.createElement('div');
-      jurosLine.className = 'pc-cartao-line';
+      jurosLine.className = 'pc-divida-info-line';
       jurosLine.textContent = `Juros: ${r.juros}`;
       nameBlock.appendChild(jurosLine);
     }
@@ -5202,7 +5205,11 @@
     e.preventDefault();
     const desc = $('#dividaDesc').value.trim();
     const valorTotalInicial = parseFloat($('#dividaValorTotalInicial').value);
-    const juros = $('#dividaJuros').value.trim() || null;
+    // se a pessoa só digitou um número (ex.: "5"), assume que é uma taxa e completa com "%"
+    // sozinho — sem isso ficava sem contexto nenhum ("Juros: 5"); se ela escreveu algo com letras
+    // (ex.: "R$ 50 por parcela"), deixa exatamente do jeito que ela quis
+    let juros = $('#dividaJuros').value.trim() || null;
+    if (juros && /^\d+([.,]\d+)?$/.test(juros)) juros = juros + '%';
     const valor = parseFloat($('#dividaValor').value);
     const numParcelas = Math.max(1, parseInt($('#dividaQtd').value, 10));
     const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#dividaFreq').value, $('#dividaIntervaloDias').value);

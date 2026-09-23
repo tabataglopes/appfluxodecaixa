@@ -1379,6 +1379,11 @@
         <label for="oneFormaPagamento">Forma de pagamento</label>
         <select id="oneFormaPagamento"></select>
       </div>
+      <div class="field" id="onePoupancaField">
+        <label for="onePoupanca" id="onePoupancaLabel">Mandar para poupança</label>
+        <select id="onePoupanca"></select>
+        <p class="piso-data-hint" id="onePoupancaErro" hidden style="color:var(--expense); font-weight:600;"></p>
+      </div>
       <div class="row2">
         <div class="field">
           <label for="oneValor">Valor (R$)</label>
@@ -3554,14 +3559,44 @@
 
   // saldo atual de uma poupança: o que a pessoa já tinha guardado ali (saldoInicial) mais tudo que
   // ela mandou pra lá (lançamentos "saida" com poupancaId apontando pra essa conta) menos tudo que
-  // ela já retirou de volta (lançamentos "entrada" com o mesmo poupancaId)
-  function poupancaSaldoAtual(p){
+  // ela já retirou de volta (lançamentos "entrada" com o mesmo poupancaId). excludeId ignora um
+  // lançamento específico da soma — usado ao EDITAR um lançamento de poupança já existente, pra
+  // calcular "quanto tinha antes desse lançamento" sem contar ele duas vezes
+  function poupancaSaldoAtual(p, excludeId){
     let total = p.saldoInicial || 0;
     for (const t of state.oneTime){
       if (t.poupancaId !== p.id) continue;
+      if (excludeId && t.id === excludeId) continue;
       total += t.tipo === 'saida' ? t.valor : -t.valor;
     }
     return total;
+  }
+
+  // select "Mandar para poupança" (saída) / "Vindo da poupança" (entrada), dentro do popup de
+  // lançamento avulso comum — mesma ideia do select de forma de pagamento, só que apontando pra uma
+  // conta de poupança em vez de um cartão. "Não" (valor vazio) = lançamento normal, sem poupança.
+  function populatePoupancaSelect(selector, selectedValue){
+    const sel = $(selector);
+    sel.innerHTML = '';
+    const optNone = document.createElement('option');
+    optNone.value = '';
+    optNone.textContent = 'Não';
+    sel.appendChild(optNone);
+    for (const p of state.poupancas){
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.nome;
+      sel.appendChild(opt);
+    }
+    sel.value = selectedValue || '';
+  }
+
+  // some inteiro se a pessoa ainda não tem nenhuma poupança criada (não faz sentido oferecer a
+  // opção antes de existir alguma conta pra escolher) — e troca o texto do rótulo conforme o tipo
+  function updateOnePoupancaVisibility(tipo){
+    $('#onePoupancaField').style.display = state.poupancas.length > 0 ? '' : 'none';
+    $('#onePoupancaLabel').textContent = tipo === 'entrada' ? 'Vindo da poupança' : 'Mandar para poupança';
+    $('#onePoupancaErro').hidden = true;
   }
 
   function buildPoupancaPageRow(p){
@@ -3937,7 +3972,16 @@
     if (e.target.tagName==='BUTTON'){
       setSeg($('#oneSeg'), e.target.dataset.tipo);
       updateOneFormaPagamentoVisibility(e.target.dataset.tipo);
+      updateOnePoupancaVisibility(e.target.dataset.tipo);
     }
+  });
+  // poupança e cartão são mutuamente exclusivos num mesmo lançamento — escolher um zera o outro
+  $('#onePoupanca').addEventListener('change', () => {
+    if ($('#onePoupanca').value) $('#oneFormaPagamento').value = '';
+    $('#onePoupancaErro').hidden = true;
+  });
+  $('#oneFormaPagamento').addEventListener('change', () => {
+    if ($('#oneFormaPagamento').value) $('#onePoupanca').value = '';
   });
 
   function openOneModal(prefillDate, editItem){
@@ -3952,6 +3996,8 @@
       $('#oneEditId').value = editItem.id;
       populateFormaPagamentoSelect('#oneFormaPagamento', editItem.formaPagamento);
       updateOneFormaPagamentoVisibility(editItem.tipo);
+      populatePoupancaSelect('#onePoupanca', editItem.poupancaId);
+      updateOnePoupancaVisibility(editItem.tipo);
     } else {
       $('#oneModalTitle').textContent = 'Novo lançamento';
       // a maioria dos lançamentos avulsos do dia a dia é despesa, não receita — então abre já em "Saída"
@@ -3959,6 +4005,8 @@
       $('#oneData').value = prefillDate || state.selectedDate;
       populateFormaPagamentoSelect('#oneFormaPagamento', '');
       updateOneFormaPagamentoVisibility('saida');
+      populatePoupancaSelect('#onePoupanca', '');
+      updateOnePoupancaVisibility('saida');
     }
     aplicarPisoData('#oneData', '#oneDataHint');
     openOverlay('#overlayOne');
@@ -4625,17 +4673,34 @@
     const valor = parseFloat($('#oneValor').value);
     const data = $('#oneData').value;
     const editId = $('#oneEditId').value;
-    const formaPagamento = (tipo === 'saida') ? ($('#oneFormaPagamento').value || null) : null;
+    const poupancaId = $('#onePoupanca').value || null;
+    // poupança e cartão nunca andam juntos no mesmo lançamento (ver listener de mudança acima) —
+    // aqui é só a garantia final, no submit, de que um lançamento pra poupança nunca sai marcado
+    // como compra no cartão também
+    const formaPagamento = (tipo === 'saida' && !poupancaId) ? ($('#oneFormaPagamento').value || null) : null;
     if (!desc || isNaN(valor) || !data) return;
+    // retirada da poupança (entrada com poupancaId): não deixa passar do que a poupança realmente
+    // tem guardado — mesma trava do fluxo dedicado (ver #poupancaMovForm)
+    if (poupancaId && tipo === 'entrada'){
+      const p = state.poupancas.find(x=>x.id===poupancaId);
+      if (p){
+        const saldoBase = poupancaSaldoAtual(p, editId || null);
+        if (valor > saldoBase + 0.005){
+          $('#onePoupancaErro').textContent = `Essa poupança só tem ${fmtBRL(saldoBase)} guardado.`;
+          $('#onePoupancaErro').hidden = false;
+          return;
+        }
+      }
+    }
     if (editId){
       const t = state.oneTime.find(x=>x.id===editId);
       if (t){
         const cartaoAntigo = t.formaPagamento;
-        t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.formaPagamento=formaPagamento;
+        t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.formaPagamento=formaPagamento; t.poupancaId=poupancaId;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.oneTime.push({ id: nextId(), tipo, desc, valor, data, formaPagamento });
+      state.oneTime.push({ id: nextId(), tipo, desc, valor, data, formaPagamento, poupancaId });
       state.selectedDate = data;
     }
     closeOverlay('#overlayOne');

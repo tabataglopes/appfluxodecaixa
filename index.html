@@ -1086,6 +1086,10 @@
             <span class="sub">do mês · toque para ver</span>
           </button>
         </div>
+        <button type="button" class="btn block" id="btnGuardadoMes" style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+          <span>🐷 Guardado no mês</span>
+          <span class="mono" id="tileGuardadoMes">R$ 0,00</span>
+        </button>
       </div>
 
       <div class="card" id="cardCartoesCard">
@@ -1269,6 +1273,30 @@
     <button class="btn primary nm-add-btn" id="addCartaoBtn" type="button">+ Novo cartão</button>
   </div>
 
+  <!-- Poupança: dinheiro "guardado" fora do saldo principal — sai da conta como se fosse uma saída,
+       mas não conta como gasto (só como economia); pode voltar pro saldo principal a qualquer
+       momento (retirada). Cada poupança pode ter várias contas (ex.: "Viagem", "Reserva"). -->
+  <div class="nm-view" id="poupancaView" hidden>
+    <div class="nm-page-head">
+      <button class="nm-back-btn" id="poupancaBackBtn" aria-label="Voltar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <h2>Poupança</h2>
+    </div>
+    <div class="nm-intro">
+      <span class="icon">🐷</span>
+      <span>Guarde o que sobrar num mês numa conta separada. Esse valor sai do seu saldo principal (pra você não achar que ainda tem esse dinheiro disponível), mas não conta como gasto — só como economia.</span>
+    </div>
+    <div class="nm-card">
+      <div id="poupancaPageList"></div>
+    </div>
+    <div class="nm-total-bar">
+      <span class="lbl">Total guardado</span>
+      <span class="val mono" id="poupancaTotalVal">R$ 0,00</span>
+    </div>
+    <button class="btn primary nm-add-btn" id="addPoupancaBtn" type="button">+ Nova poupança</button>
+  </div>
+
 </div>
 
 <!-- Menu lateral: tudo que não é usado no dia a dia (saldo inicial, contas fixas, receitas fixas,
@@ -1290,6 +1318,7 @@
       <button class="btn drawer-item" id="openParceladosBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Parcelados</button>
       <button class="btn drawer-item" id="openNaoMensaisBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 15h.01M12 15h.01M16 15h.01"></path></svg>Espaço de Anotações</button>
       <button class="btn drawer-item" id="openCartoesBtn">🚩 Cartão de crédito</button>
+      <button class="btn drawer-item" id="openPoupancaBtn">🐷 Poupança</button>
 
       <!-- login/conta: fica bem embaixo do menu lateral, separado do resto por uma linha, já que
            não é algo que a pessoa mexe no dia a dia (mesmos elementos de antes, só que agora aqui
@@ -1403,6 +1432,58 @@
       <input type="hidden" id="cartaoEditId">
       <div class="modal-actions">
         <button type="button" class="btn" data-close="overlayCartao">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: nova poupança / editar poupança -->
+<div class="overlay" id="overlayPoupanca" hidden>
+  <div class="modal">
+    <button class="modal-close" data-close="overlayPoupanca" aria-label="Fechar">&times;</button>
+    <h3 id="poupancaModalTitle">Nova poupança</h3>
+    <form id="poupancaForm">
+      <div class="field">
+        <label for="poupancaNome">Nome</label>
+        <input type="text" id="poupancaNome" placeholder="Ex.: Viagem, Reserva de emergência..." required>
+      </div>
+      <div class="field">
+        <label for="poupancaSaldoInicial">Já tem guardado aí hoje (R$)</label>
+        <input type="number" step="0.01" min="0" id="poupancaSaldoInicial" class="mono" placeholder="0,00">
+      </div>
+      <input type="hidden" id="poupancaEditId">
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="overlayPoupanca">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: guardar dinheiro numa poupança / retirar de volta pro saldo principal -->
+<div class="overlay" id="overlayPoupancaMov" hidden>
+  <div class="modal" style="max-width:360px;">
+    <button class="modal-close" data-close="overlayPoupancaMov" aria-label="Fechar">&times;</button>
+    <h3 id="poupancaMovModalTitle">Guardar dinheiro</h3>
+    <p id="poupancaMovIntro" style="font-size:13px; color:var(--ink-muted); margin:0 0 14px; line-height:1.4;"></p>
+    <form id="poupancaMovForm">
+      <div class="row2">
+        <div class="field">
+          <label for="poupancaMovValor">Valor (R$)</label>
+          <input type="number" step="0.01" min="0.01" id="poupancaMovValor" class="mono" placeholder="0,00" required>
+        </div>
+        <div class="field">
+          <label for="poupancaMovData">Data</label>
+          <input type="date" id="poupancaMovData" required>
+          <p class="piso-data-hint" id="poupancaMovDataHint" hidden></p>
+        </div>
+      </div>
+      <p class="piso-data-hint" id="poupancaMovErro" hidden style="color:var(--expense); font-weight:600; font-size:12.5px;"></p>
+      <input type="hidden" id="poupancaMovPoupancaId">
+      <input type="hidden" id="poupancaMovTipo">
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="overlayPoupancaMov">Cancelar</button>
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
@@ -1983,6 +2064,10 @@
     oneTime: [],
     recorrentes: [],
     cartoes: [],
+    // contas de poupança: dinheiro "guardado" fora do saldo principal (ver poupancaSaldoAtual) —
+    // cada uma tem nome + o que a pessoa já tinha guardado ali antes de usar o app (saldoInicial);
+    // o resto do saldo de cada uma vem dos lançamentos com poupancaId apontando pra ela
+    poupancas: [],
     faturaPagamentos: [],
     faturaPromptSeen: {},
     nomeExibicao: '',
@@ -2427,8 +2512,10 @@
     const hi = toISO(year, month0, daysInMonth(year, month0));
     const list = [];
     // compras no cartão (avulsas ou parcelas de compra parcelada) não entram aqui diretamente: só
-    // contam quando a fatura delas cai neste mês
-    for (const t of state.oneTime) if (!t.formaPagamento && t.data >= lo && t.data <= hi) list.push(Object.assign({recorrente:false}, t));
+    // contam quando a fatura delas cai neste mês. Transferências de/pra poupança (t.poupancaId)
+    // também ficam de fora — saem/entram no saldo normalmente, mas não são "gasto" nem "renda" de
+    // verdade, então não contam nesse total (ver renderTiles/tileGuardadoMes, que soma elas à parte)
+    for (const t of state.oneTime) if (!t.formaPagamento && !t.poupancaId && t.data >= lo && t.data <= hi) list.push(Object.assign({recorrente:false}, t));
     for (const r of state.recorrentes) list.push(...occurrencesForRecInRange(r, lo, hi).filter(o=>!o.formaPagamento));
     for (const card of state.cartoes){
       const inv = invoiceForCardInMonth(card, year, month0);
@@ -2457,7 +2544,7 @@
   // quando a fatura delas vence dentro do intervalo, nunca no dia da compra em si
   function occurrencesInRange(loISO, hiISO){
     const list = [];
-    for (const t of state.oneTime) if (!t.formaPagamento && t.data >= loISO && t.data <= hiISO) list.push(Object.assign({recorrente:false}, t));
+    for (const t of state.oneTime) if (!t.formaPagamento && !t.poupancaId && t.data >= loISO && t.data <= hiISO) list.push(Object.assign({recorrente:false}, t));
     for (const r of state.recorrentes) list.push(...occurrencesForRecInRange(r, loISO, hiISO).filter(o=>!o.formaPagamento));
     for (const inv of allCardInvoicesForMonths(loISO, hiISO)){
       if (inv.data < loISO || inv.data > hiISO) continue;
@@ -2656,6 +2743,18 @@
     for (const o of occ){ if(o.tipo==='entrada') totalIn += o.valor; else totalOut += o.valor; }
     $('#tileIn').textContent = fmtBRL(totalIn);
     $('#tileOut').textContent = fmtBRL(totalOut);
+
+    // "guardado no mês": transferências pra poupança (saída) menos retiradas (entrada) datadas
+    // dentro do mês em exibição — fica de fora de totalIn/totalOut de propósito (ver
+    // occurrencesInMonth), então é somado à parte aqui
+    const loMes = toISO(state.view.year, state.view.month, 1);
+    const hiMes = toISO(state.view.year, state.view.month, daysInMonth(state.view.year, state.view.month));
+    let guardadoMes = 0;
+    for (const t of state.oneTime){
+      if (!t.poupancaId || t.data < loMes || t.data > hiMes) continue;
+      guardadoMes += t.tipo === 'saida' ? t.valor : -t.valor;
+    }
+    $('#tileGuardadoMes').textContent = fmtBRL(guardadoMes);
 
     const atualBal = saldoRealAt(todayISO);
     const tileAtualEl = $('#tileAtual');
@@ -3453,6 +3552,66 @@
     }
   }
 
+  // saldo atual de uma poupança: o que a pessoa já tinha guardado ali (saldoInicial) mais tudo que
+  // ela mandou pra lá (lançamentos "saida" com poupancaId apontando pra essa conta) menos tudo que
+  // ela já retirou de volta (lançamentos "entrada" com o mesmo poupancaId)
+  function poupancaSaldoAtual(p){
+    let total = p.saldoInicial || 0;
+    for (const t of state.oneTime){
+      if (t.poupancaId !== p.id) continue;
+      total += t.tipo === 'saida' ? t.valor : -t.valor;
+    }
+    return total;
+  }
+
+  function buildPoupancaPageRow(p){
+    const row = document.createElement('div');
+    row.className = 'nm-row';
+
+    const topLine = document.createElement('div');
+    topLine.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:10px;';
+    const nome = document.createElement('div');
+    nome.className = 'nm-nome';
+    nome.textContent = p.nome;
+    const saldo = document.createElement('div');
+    saldo.className = 'mono';
+    saldo.style.cssText = 'font-weight:700; font-size:15px; color:var(--accent-strong);';
+    saldo.textContent = fmtBRL(poupancaSaldoAtual(p));
+    topLine.appendChild(nome); topLine.appendChild(saldo);
+    row.appendChild(topLine);
+
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap; align-items:center;';
+    const guardarBtn = document.createElement('button');
+    guardarBtn.type = 'button'; guardarBtn.className = 'btn small'; guardarBtn.textContent = '+ Guardar';
+    guardarBtn.addEventListener('click', () => openPoupancaMovModal(p, 'guardar'));
+    const retirarBtn = document.createElement('button');
+    retirarBtn.type = 'button'; retirarBtn.className = 'btn small'; retirarBtn.textContent = 'Retirar';
+    retirarBtn.addEventListener('click', () => openPoupancaMovModal(p, 'retirar'));
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button'; editBtn.className = 'icon-btn'; editBtn.setAttribute('aria-label','Editar'); editBtn.textContent = '✎';
+    editBtn.addEventListener('click', () => openPoupancaModal(p));
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.setAttribute('aria-label','Remover'); delBtn.textContent = '✕';
+    delBtn.addEventListener('click', () => removePoupanca(p.id, p.nome));
+    actions.appendChild(guardarBtn); actions.appendChild(retirarBtn); actions.appendChild(editBtn); actions.appendChild(delBtn);
+    row.appendChild(actions);
+
+    return row;
+  }
+
+  function renderPoupancaPage(){
+    const wrap = $('#poupancaPageList');
+    wrap.innerHTML = '';
+    if (state.poupancas.length === 0){
+      wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma poupança criada ainda.</div>';
+    } else {
+      for (const p of state.poupancas) wrap.appendChild(buildPoupancaPageRow(p));
+    }
+    const total = state.poupancas.reduce((sum, p) => sum + poupancaSaldoAtual(p), 0);
+    $('#poupancaTotalVal').textContent = fmtBRL(total);
+  }
+
   const MINI_WEEKDAYS = ['D','S','T','Q','Q','S','S'];
 
   function renderYearGrid(){
@@ -3517,6 +3676,7 @@
     assinaturas: { viewId:'#assinView', render:renderAssinPage },
     parcelados: { viewId:'#parceladosView', render:renderParceladosPage },
     cartoes: { viewId:'#cartoesView', render:renderCartoesPage },
+    poupanca: { viewId:'#poupancaView', render:renderPoupancaPage },
   };
 
   function setViewMode(mode){
@@ -3647,6 +3807,18 @@
     state.cartoes.splice(idx,1);
     renderAll();
     showToast(`Cartão "${nome}" removido. Os gastos lançados nele passam a contar como dinheiro/pix/débito.`);
+  }
+
+  function removePoupanca(id, nome){
+    const idx = state.poupancas.findIndex(p=>p.id===id);
+    if (idx===-1) return;
+    // os lançamentos que já foram feitos pra essa poupança continuam no histórico (o dinheiro já
+    // saiu/voltou de verdade da conta principal) — só perdem a marcação de poupança e passam a
+    // contar como um lançamento avulso comum dali em diante
+    for (const t of state.oneTime) if (t.poupancaId === id) t.poupancaId = null;
+    state.poupancas.splice(idx,1);
+    renderAll();
+    showToast(`Poupança "${nome}" removida.`);
   }
 
   function removeRecurrente(id, desc, fromDayList){
@@ -4131,6 +4303,43 @@
     $('#cartaoNome').focus();
   }
 
+  function openPoupancaModal(editItem){
+    $('#poupancaForm').reset();
+    $('#poupancaEditId').value = '';
+    if (editItem){
+      $('#poupancaModalTitle').textContent = 'Editar poupança';
+      $('#poupancaNome').value = editItem.nome;
+      $('#poupancaSaldoInicial').value = editItem.saldoInicial || 0;
+      $('#poupancaEditId').value = editItem.id;
+    } else {
+      $('#poupancaModalTitle').textContent = 'Nova poupança';
+      $('#poupancaSaldoInicial').value = '';
+    }
+    openOverlay('#overlayPoupanca');
+    $('#poupancaNome').focus();
+  }
+
+  // abre o modal de "guardar" (transfere da conta principal pra essa poupança) ou "retirar"
+  // (o caminho inverso, volta pro saldo principal) — o texto e a validação mudam conforme a ação
+  function openPoupancaMovModal(p, acao){
+    $('#poupancaMovForm').reset();
+    $('#poupancaMovPoupancaId').value = p.id;
+    $('#poupancaMovTipo').value = acao;
+    $('#poupancaMovErro').hidden = true;
+    const saldoAtual = poupancaSaldoAtual(p);
+    if (acao === 'guardar'){
+      $('#poupancaMovModalTitle').textContent = `Guardar em "${p.nome}"`;
+      $('#poupancaMovIntro').textContent = `Esse valor sai do seu saldo principal e vai para "${p.nome}" — não conta como gasto, só como economia.`;
+    } else {
+      $('#poupancaMovModalTitle').textContent = `Retirar de "${p.nome}"`;
+      $('#poupancaMovIntro').textContent = `Esse valor volta de "${p.nome}" (hoje: ${fmtBRL(saldoAtual)}) pro seu saldo principal.`;
+    }
+    $('#poupancaMovData').value = todayISO;
+    aplicarPisoData('#poupancaMovData', '#poupancaMovDataHint');
+    openOverlay('#overlayPoupancaMov');
+    $('#poupancaMovValor').focus();
+  }
+
   // lista, com descrição e data, cada compra (avulsa ou recorrente) lançada nesse cartão dentro do
   // período do ciclo — é o que dá pra pessoa ver exatamente o que compõe o total da fatura
   function faturaPurchaseItems(card, cycleStart, cycleEnd){
@@ -4397,6 +4606,10 @@
   $('#parceladosBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openCartoesBtn').addEventListener('click', ()=> setViewMode('cartoes'));
   $('#cartoesBackBtn').addEventListener('click', ()=> setViewMode('month'));
+  $('#openPoupancaBtn').addEventListener('click', ()=> setViewMode('poupanca'));
+  $('#poupancaBackBtn').addEventListener('click', ()=> setViewMode('month'));
+  $('#btnGuardadoMes').addEventListener('click', ()=> setViewMode('poupanca'));
+  $('#addPoupancaBtn').addEventListener('click', ()=> openPoupancaModal(null));
   $('#parceladoValor').addEventListener('input', updateParceladoResumo);
   $('#parceladoQtd').addEventListener('input', updateParceladoResumo);
   $('#parceladoFreq').addEventListener('change', () => { updateParceladoFreqFieldsVisibility(); updateParceladoResumo(); });
@@ -4444,6 +4657,57 @@
     }
     closeOverlay('#overlayCartao');
     renderAll();
+  });
+
+  $('#poupancaForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const nome = $('#poupancaNome').value.trim();
+    const saldoInicialRaw = $('#poupancaSaldoInicial').value;
+    const saldoInicial = saldoInicialRaw === '' ? 0 : parseFloat(saldoInicialRaw);
+    const editId = $('#poupancaEditId').value;
+    if (!nome || isNaN(saldoInicial)) return;
+    if (editId){
+      const p = state.poupancas.find(x=>x.id===editId);
+      if (p){ p.nome = nome; p.saldoInicial = saldoInicial; }
+    } else {
+      state.poupancas.push({ id: nextId(), nome, saldoInicial });
+    }
+    closeOverlay('#overlayPoupanca');
+    renderAll();
+  });
+
+  $('#poupancaMovForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const valor = parseFloat($('#poupancaMovValor').value);
+    const data = $('#poupancaMovData').value;
+    const poupancaId = $('#poupancaMovPoupancaId').value;
+    const acao = $('#poupancaMovTipo').value;
+    if (isNaN(valor) || valor <= 0 || !data || !poupancaId) return;
+    const p = state.poupancas.find(x=>x.id===poupancaId);
+    if (!p) return;
+    if (acao === 'retirar'){
+      const saldoAtual = poupancaSaldoAtual(p);
+      if (valor > saldoAtual + 0.005){
+        $('#poupancaMovErro').textContent = `Você só tem ${fmtBRL(saldoAtual)} guardado aí.`;
+        $('#poupancaMovErro').hidden = false;
+        return;
+      }
+    }
+    state.oneTime.push({
+      id: nextId(),
+      tipo: acao === 'guardar' ? 'saida' : 'entrada',
+      desc: acao === 'guardar' ? `Poupança: ${p.nome}` : `Retirada: ${p.nome}`,
+      valor, data,
+      formaPagamento: null,
+      poupancaId: p.id,
+    });
+    closeOverlay('#overlayPoupancaMov');
+    renderAll();
+    // essa ação foi uma criação, não uma remoção — zera lastDeleted antes de mostrar o toast pra
+    // não deixar o botão "Desfazer" (pensado pra restaurar algo apagado) acabar restaurando por
+    // engano um lançamento removido antes, dentro da mesma janela de alguns segundos
+    lastDeleted = null;
+    showToast(acao === 'guardar' ? `${fmtBRL(valor)} guardado em "${p.nome}".` : `${fmtBRL(valor)} retirado de "${p.nome}".`);
   });
 
   $('#recurForm').addEventListener('submit', e=>{
@@ -4685,6 +4949,7 @@
       oneTime: state.oneTime,
       recorrentes: state.recorrentes,
       cartoes: state.cartoes,
+      poupancas: state.poupancas,
       faturaPagamentos: state.faturaPagamentos,
       faturaPromptSeen: state.faturaPromptSeen,
       nomeExibicao: state.nomeExibicao || '',

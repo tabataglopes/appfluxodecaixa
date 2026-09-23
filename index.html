@@ -2809,10 +2809,11 @@
     for (let day=1; day<=dim; day++){
       const iso = toISO(year, month, day);
       const cell = document.createElement('div');
-      // "passado" é sempre relativo a hoje (nunca à data de referência do saldo) — a data de
-      // referência pode ficar lá atrás de propósito (ver SALDO_ZERO_ANCHOR) sem isso apagar o
-      // cinza de "dia passado" do calendário
-      const isPast = iso < todayISO;
+      // "passado" (cinza) é tudo antes da data de referência do saldo — que agora é sempre a data
+      // do lançamento mais antigo cadastrado (ver recomputeDataBase). Assim, dias entre o primeiro
+      // lançamento e hoje também mostram o saldo calculado colorido (verde/vermelho), em vez de
+      // aparecerem cinza só por já terem passado — só fica cinza o que é anterior a QUALQUER dado.
+      const isPast = iso < state.dataBase;
       const bal = balanceAt(iso);
       cell.className = 'cal-cell ' + (isPast ? 'past' : (bal < 0 ? 'negative' : 'ok'));
       if (iso === todayISO) cell.classList.add('today');
@@ -3449,7 +3450,7 @@
       const dim = daysInMonth(year, m);
       for (let day=1; day<=dim; day++){
         const iso = toISO(year, m, day);
-        const isPast = iso < todayISO;
+        const isPast = iso < state.dataBase;
         const bal = balanceAt(iso);
         const cell = document.createElement('div');
         cell.className = 'mini-cell ' + (isPast ? 'past' : (bal < 0 ? 'negative' : 'ok'));

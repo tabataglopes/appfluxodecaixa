@@ -2832,6 +2832,20 @@
     }
   }
 
+  // mesmo saldoRealAt, mas descontando de volta o efeito de UM lançamento avulso específico — usada
+  // pra validar "mandar pra poupança" quando a pessoa está EDITANDO esse mesmo lançamento (senão o
+  // valor antigo dele contaria contra o próprio valor novo, travando uma edição que não devia)
+  function saldoRealAtExcluding(dateISO, excludeId){
+    const base = saldoRealAt(dateISO);
+    if (!excludeId) return base;
+    const t = state.oneTime.find(x => x.id === excludeId);
+    if (!t || t.formaPagamento) return base;
+    const dentroDoIntervalo = dateISO >= state.dataBase
+      ? (t.data >= state.dataBase && t.data <= dateISO)
+      : (t.data > dateISO && t.data <= state.dataBase);
+    return dentroDoIntervalo ? base - signed(t) : base;
+  }
+
   /* ---------------- rendering ---------------- */
   const $ = sel => document.querySelector(sel);
 
@@ -5098,6 +5112,17 @@
         }
       }
     }
+    // mandar pra poupança (saída com poupancaId): não deixa guardar mais do que tem de saldo em
+    // conta nessa data — se o saldo estiver zerado (ou negativo), fica travado igual, já que
+    // qualquer valor positivo passa a ser maior que ele
+    if (poupancaId && tipo === 'saida'){
+      const saldoDisponivel = saldoRealAtExcluding(data, editId || null);
+      if (valor > saldoDisponivel + 0.005){
+        $('#onePoupancaErro').textContent = `Seu saldo em conta nessa data é ${fmtBRL(saldoDisponivel)} — não dá pra guardar mais que isso.`;
+        $('#onePoupancaErro').hidden = false;
+        return;
+      }
+    }
     if (editId){
       const t = state.oneTime.find(x=>x.id===editId);
       if (t){
@@ -5160,6 +5185,16 @@
       const saldoAtual = poupancaSaldoAtual(p);
       if (valor > saldoAtual + 0.005){
         $('#poupancaMovErro').textContent = `Você só tem ${fmtBRL(saldoAtual)} guardado aí.`;
+        $('#poupancaMovErro').hidden = false;
+        return;
+      }
+    }
+    // guardar: não deixa mandar mais do que tem de saldo em conta nessa data — se estiver zerado
+    // (ou negativo), qualquer valor positivo já é maior, então fica travado igual
+    if (acao === 'guardar'){
+      const saldoDisponivel = saldoRealAt(data);
+      if (valor > saldoDisponivel + 0.005){
+        $('#poupancaMovErro').textContent = `Seu saldo em conta nessa data é ${fmtBRL(saldoDisponivel)} — não dá pra guardar mais que isso.`;
         $('#poupancaMovErro').hidden = false;
         return;
       }

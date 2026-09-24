@@ -1509,6 +1509,11 @@
         <label for="poupancaSaldoInicial">Já tem guardado aí hoje (R$)</label>
         <input type="number" step="0.01" min="0" id="poupancaSaldoInicial" class="mono" placeholder="0,00">
       </div>
+      <div class="field" id="poupancaDescontarRow">
+        <label class="checkrow"><input type="checkbox" id="poupancaDescontarSaldo"> Tirar esse valor do meu saldo em conta agora</label>
+        <p style="font-size:12px; color:var(--ink-muted); margin:6px 0 0;" id="poupancaDescontarHint">Deixe desmarcado se esse dinheiro já estava guardado antes de você usar essa poupança aqui no Maré (não mexe no seu saldo em conta). Marque se esse valor está saindo da sua conta agora — aí ele desconta do saldo, do mesmo jeito que o botão "Guardar".</p>
+        <p class="piso-data-hint" id="poupancaDescontarErro" hidden style="color:var(--expense); font-weight:600;"></p>
+      </div>
       <input type="hidden" id="poupancaEditId">
       <div class="modal-actions">
         <button type="button" class="btn" data-close="overlayPoupanca">Cancelar</button>
@@ -4765,14 +4770,19 @@
   function openPoupancaModal(editItem){
     $('#poupancaForm').reset();
     $('#poupancaEditId').value = '';
+    $('#poupancaDescontarErro').hidden = true;
     if (editItem){
       $('#poupancaModalTitle').textContent = 'Editar poupança';
       $('#poupancaNome').value = editItem.nome;
       $('#poupancaSaldoInicial').value = editItem.saldoInicial || 0;
       $('#poupancaEditId').value = editItem.id;
+      // "tirar do saldo agora" só faz sentido na criação (é o momento da transferência acontecer
+      // de verdade) — editar um valor já declarado não deveria criar uma transação retroativa
+      $('#poupancaDescontarRow').hidden = true;
     } else {
       $('#poupancaModalTitle').textContent = 'Nova poupança';
       $('#poupancaSaldoInicial').value = '';
+      $('#poupancaDescontarRow').hidden = false;
     }
     openOverlay('#overlayPoupanca');
     $('#poupancaNome').focus();
@@ -5161,10 +5171,35 @@
     const saldoInicialRaw = $('#poupancaSaldoInicial').value;
     const saldoInicial = saldoInicialRaw === '' ? 0 : parseFloat(saldoInicialRaw);
     const editId = $('#poupancaEditId').value;
+    // só existe (e só é visível) na criação — ver openPoupancaModal
+    const descontarSaldo = !editId && $('#poupancaDescontarSaldo').checked;
     if (!nome || isNaN(saldoInicial)) return;
+    // "tirar do saldo agora": trata o valor inicial como se fosse um "Guardar" de hoje — mesma
+    // trava de saldo insuficiente do resto do app, e o valor vira uma transação de verdade (some do
+    // saldo em conta, aparece no dia, some das saídas do mês) em vez de só um número declarado
+    if (descontarSaldo && saldoInicial > 0){
+      const saldoDisponivel = saldoRealAt(todayISO);
+      if (saldoInicial > saldoDisponivel + 0.005){
+        $('#poupancaDescontarErro').textContent = `Seu saldo em conta hoje é ${fmtBRL(saldoDisponivel)} — não dá pra tirar mais que isso.`;
+        $('#poupancaDescontarErro').hidden = false;
+        return;
+      }
+    }
     if (editId){
       const p = state.poupancas.find(x=>x.id===editId);
       if (p){ p.nome = nome; p.saldoInicial = saldoInicial; }
+    } else if (descontarSaldo && saldoInicial > 0){
+      const novoId = nextId();
+      state.poupancas.push({ id: novoId, nome, saldoInicial: 0 });
+      state.oneTime.push({
+        id: nextId(),
+        tipo: 'saida',
+        desc: `Poupança: ${nome}`,
+        valor: saldoInicial,
+        data: todayISO,
+        formaPagamento: null,
+        poupancaId: novoId,
+      });
     } else {
       state.poupancas.push({ id: nextId(), nome, saldoInicial });
     }

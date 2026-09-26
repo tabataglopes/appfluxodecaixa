@@ -4129,6 +4129,24 @@
     const idx = state.oneTime.findIndex(t=>t.id===id);
     if (idx===-1) return;
     const item = state.oneTime[idx];
+    // se esse lançamento está vinculado a uma poupança, apagar ele não pode deixar o total guardado
+    // negativo — isso pode acontecer se a pessoa já tiver retirado esse mesmo valor de volta por
+    // outro lançamento antes de vir apagar este aqui (a retirada "gastou" um dinheiro que só existia
+    // por causa deste lançamento que está sendo removido agora)
+    if (item.poupancaId){
+      const p = state.poupancas.find(x => x.id === item.poupancaId);
+      if (p){
+        const saldoSemEsse = poupancaSaldoAtual(p, item.id);
+        if (saldoSemEsse < -0.005){
+          // esse toast é só um aviso de bloqueio, não uma remoção — não pode deixar o botão
+          // "Desfazer" (pensado pra restaurar uma remoção de verdade) ativo restaurando por engano
+          // alguma outra coisa apagada antes, dentro da mesma janela de alguns segundos
+          lastDeleted = null;
+          showToast(`Não dá pra apagar "${desc}": isso deixaria "${p.nome}" com saldo negativo (${fmtBRL(saldoSemEsse)}). Verifique se você já não retirou esse valor de volta por outro lançamento.`);
+          return;
+        }
+      }
+    }
     lastDeleted = { type:'oneTime', item };
     state.oneTime.splice(idx,1);
     reconcileFaturaPagamentos(item.formaPagamento);

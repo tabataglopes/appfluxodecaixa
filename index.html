@@ -1555,6 +1555,39 @@
   </div>
 </div>
 
+<!-- Modal: atalho "Guardar na poupança" direto do dashboard (botão "Guardado no mês") — não navega
+     pra página de poupança, abre aqui mesmo mostrando o saldo disponível hoje, deixando escolher a
+     poupança de destino e o valor -->
+<div class="overlay" id="overlayGuardarRapido" hidden>
+  <div class="modal" style="max-width:360px;">
+    <button class="modal-close" data-close="overlayGuardarRapido" aria-label="Fechar">&times;</button>
+    <h3>Guardar na poupança</h3>
+    <p id="guardarRapidoSaldo" style="font-size:13px; color:var(--ink-muted); margin:0 0 14px; line-height:1.4;"></p>
+    <div id="guardarRapidoVazio" hidden>
+      <p style="font-size:13px; color:var(--ink-muted); margin:0 0 14px; line-height:1.4;">Você ainda não tem nenhuma poupança criada.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="overlayGuardarRapido">Cancelar</button>
+        <button type="button" class="btn primary" id="guardarRapidoCriarBtn">+ Criar poupança</button>
+      </div>
+    </div>
+    <form id="guardarRapidoForm">
+      <div class="field">
+        <label for="guardarRapidoPoupanca">Em qual conta poupança você quer mandar o dinheiro</label>
+        <select id="guardarRapidoPoupanca"></select>
+      </div>
+      <div class="field">
+        <label for="guardarRapidoValor">Valor (R$)</label>
+        <input type="number" step="0.01" min="0.01" id="guardarRapidoValor" class="mono" placeholder="0,00" required>
+      </div>
+      <p class="piso-data-hint" id="guardarRapidoErro" hidden style="color:var(--expense); font-weight:600; font-size:12.5px;"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="overlayGuardarRapido">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Modal: detalhe da fatura (cada compra que compõe o total) -->
 <!-- Modal: fatura do cartão — um único pop-up pra tudo: registrar se pagou (ou não) e, embaixo,
      consultar a lista de compras que compõem essa fatura -->
@@ -4828,6 +4861,32 @@
     $('#poupancaMovValor').focus();
   }
 
+  // atalho "Guardar na poupança" direto do dashboard (botão #btnGuardadoMes) — diferente do
+  // openPoupancaMovModal acima (que é chamado de dentro da página de poupança, já sabendo qual
+  // poupança), aqui a pessoa ainda não escolheu a poupança de destino, então o popup pergunta
+  // também isso; não navega pra nenhuma página, abre ali mesmo em cima do dashboard
+  function openGuardarRapidoModal(){
+    $('#guardarRapidoForm').reset();
+    $('#guardarRapidoErro').hidden = true;
+    const saldoDisponivel = saldoRealAt(todayISO);
+    $('#guardarRapidoSaldo').textContent = `Saldo atual disponível: ${fmtBRL(saldoDisponivel)}`;
+    const temPoupanca = state.poupancas.length > 0;
+    $('#guardarRapidoVazio').hidden = temPoupanca;
+    $('#guardarRapidoForm').hidden = !temPoupanca;
+    if (temPoupanca){
+      const sel = $('#guardarRapidoPoupanca');
+      sel.innerHTML = '';
+      for (const p of state.poupancas){
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.nome;
+        sel.appendChild(opt);
+      }
+    }
+    openOverlay('#overlayGuardarRapido');
+    if (temPoupanca) $('#guardarRapidoValor').focus();
+  }
+
   // lista, com descrição e data, cada compra (avulsa ou recorrente) lançada nesse cartão dentro do
   // período do ciclo — é o que dá pra pessoa ver exatamente o que compõe o total da fatura
   function faturaPurchaseItems(card, cycleStart, cycleEnd){
@@ -5099,7 +5158,7 @@
   $('#cartoesBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openPoupancaBtn').addEventListener('click', ()=> setViewMode('poupanca'));
   $('#poupancaBackBtn').addEventListener('click', ()=> setViewMode('month'));
-  $('#btnGuardadoMes').addEventListener('click', ()=> setViewMode('poupanca'));
+  $('#btnGuardadoMes').addEventListener('click', openGuardarRapidoModal);
   $('#addPoupancaBtn').addEventListener('click', ()=> openPoupancaModal(null));
   $('#parceladoValor').addEventListener('input', updateParceladoResumo);
   $('#parceladoQtd').addEventListener('input', updateParceladoResumo);
@@ -5272,6 +5331,44 @@
     // engano um lançamento removido antes, dentro da mesma janela de alguns segundos
     lastDeleted = null;
     showToast(acao === 'guardar' ? `${fmtBRL(valor)} guardado em "${p.nome}".` : `${fmtBRL(valor)} retirado de "${p.nome}".`);
+  });
+
+  // atalho do dashboard: sem nenhuma poupança criada ainda, o popup oferece ir direto pro modal de
+  // criação em vez de mostrar o formulário de valor (não teria pra onde mandar o dinheiro)
+  $('#guardarRapidoCriarBtn').addEventListener('click', () => {
+    closeOverlay('#overlayGuardarRapido');
+    openPoupancaModal(null);
+  });
+
+  $('#guardarRapidoForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const valor = parseFloat($('#guardarRapidoValor').value);
+    const poupancaId = $('#guardarRapidoPoupanca').value;
+    if (isNaN(valor) || valor <= 0 || !poupancaId) return;
+    const p = state.poupancas.find(x=>x.id===poupancaId);
+    if (!p) return;
+    // mesma trava do resto do app: não deixa mandar mais do que tem de saldo em conta hoje (ver
+    // saldoRealAt) — esse atalho sempre lança a transação com a data de hoje
+    const saldoDisponivel = saldoRealAt(todayISO);
+    if (valor > saldoDisponivel + 0.005){
+      $('#guardarRapidoErro').textContent = `Seu saldo em conta hoje é ${fmtBRL(saldoDisponivel)} — não dá pra guardar mais que isso.`;
+      $('#guardarRapidoErro').hidden = false;
+      return;
+    }
+    state.oneTime.push({
+      id: nextId(),
+      tipo: 'saida',
+      desc: `Poupança: ${p.nome}`,
+      valor, data: todayISO,
+      formaPagamento: null,
+      poupancaId: p.id,
+    });
+    closeOverlay('#overlayGuardarRapido');
+    renderAll();
+    // essa ação foi uma criação, não uma remoção — zera lastDeleted antes de mostrar o toast pra
+    // não deixar o botão "Desfazer" acabar restaurando por engano um lançamento removido antes
+    lastDeleted = null;
+    showToast(`${fmtBRL(valor)} guardado em "${p.nome}".`);
   });
 
   $('#recurForm').addEventListener('submit', e=>{

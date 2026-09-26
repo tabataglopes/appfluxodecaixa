@@ -5,15 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 </head>
 <body>
-<!-- tema claro/escuro: aplica o que a pessoa escolheu (ou nada, se for "Automático") o quanto
-     antes, antes do resto da página desenhar — sem isso apareceria um "flash" rápido no tema
-     errado (ex.: claro por uma fração de segundo, antes de trocar pro escuro escolhido) -->
+<!-- tema claro/escuro: aplica o que a pessoa escolheu o quanto antes, antes do resto da página
+     desenhar — sem isso apareceria um "flash" rápido no tema errado (ex.: claro por uma fração de
+     segundo, antes de trocar pro escuro escolhido). Não existe mais opção "Automático" (a pessoa
+     pediu pra tirar) — só Claro ou Escuro, e o padrão pra quem nunca escolheu é Claro. -->
 <script>
   (function(){
     try{
       var t = localStorage.getItem('mareTema');
-      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-    } catch(e){}
+      document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+    } catch(e){
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
   })();
 </script>
 <title>Maré</title>
@@ -990,11 +993,11 @@
       </span>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <!-- seletor de tema: Automático (segue o sistema), Claro, Escuro — a escolha fica só nesse
-           aparelho (localStorage), não é dado financeiro nem precisa sincronizar entre aparelhos,
-           por isso não passa pelo mesmo caminho de salvamento na nuvem do resto do Maré -->
+      <!-- seletor de tema: Claro ou Escuro — a escolha fica só nesse aparelho (localStorage), não
+           é dado financeiro nem precisa sincronizar entre aparelhos, por isso não passa pelo mesmo
+           caminho de salvamento na nuvem do resto do Maré. Sem opção "Automático": não segue mais
+           o tema do sistema, o padrão pra quem nunca escolheu é Claro. -->
       <div class="theme-seg" id="themeSeg" role="group" aria-label="Tema do aplicativo">
-        <button type="button" class="theme-seg-btn" data-theme-opt="auto" title="Automático (segue o sistema)" aria-label="Tema automático"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></button>
         <button type="button" class="theme-seg-btn" data-theme-opt="light" title="Claro" aria-label="Tema claro"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="1.5" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22.5"></line><line x1="4.2" y1="4.2" x2="6" y2="6"></line><line x1="18" y1="18" x2="19.8" y2="19.8"></line><line x1="1.5" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22.5" y2="12"></line><line x1="4.2" y1="19.8" x2="6" y2="18"></line><line x1="18" y1="6" x2="19.8" y2="4.2"></line></svg></button>
         <button type="button" class="theme-seg-btn" data-theme-opt="dark" title="Escuro" aria-label="Tema escuro"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path></svg></button>
       </div>
@@ -4790,20 +4793,36 @@
 
   // abre o modal de "guardar" (transfere da conta principal pra essa poupança) ou "retirar"
   // (o caminho inverso, volta pro saldo principal) — o texto e a validação mudam conforme a ação
+  // guarda quem/qual ação está aberta no momento, só pra recalcular o texto do saldo disponível
+  // quando a pessoa muda a data (ver updatePoupancaMovIntro/listener do #poupancaMovData) — some
+  // junto com o modal, não faz parte de state porque é só um detalhe de exibição
+  let poupancaMovCtx = null;
+
+  // texto de cima do modal: em "guardar" mostra quanto tem de saldo em conta NESSA data (é o teto
+  // que a validação do #poupancaMovForm usa — ver saldoRealAt) pra pessoa já ver de cara quanto dá
+  // pra colocar, sem precisar tentar e receber erro; em "retirar" mostra quanto tem guardado ali
+  function updatePoupancaMovIntro(){
+    if (!poupancaMovCtx) return;
+    const { p, acao } = poupancaMovCtx;
+    if (acao === 'guardar'){
+      const data = $('#poupancaMovData').value || todayISO;
+      const saldoDisponivel = saldoRealAt(data);
+      $('#poupancaMovIntro').textContent = `Esse valor sai do seu saldo principal (disponível nessa data: ${fmtBRL(saldoDisponivel)}) e vai para "${p.nome}" — não conta como gasto, só como economia.`;
+    } else {
+      const saldoAtual = poupancaSaldoAtual(p);
+      $('#poupancaMovIntro').textContent = `Esse valor volta de "${p.nome}" (hoje: ${fmtBRL(saldoAtual)}) pro seu saldo principal.`;
+    }
+  }
+
   function openPoupancaMovModal(p, acao){
     $('#poupancaMovForm').reset();
     $('#poupancaMovPoupancaId').value = p.id;
     $('#poupancaMovTipo').value = acao;
     $('#poupancaMovErro').hidden = true;
-    const saldoAtual = poupancaSaldoAtual(p);
-    if (acao === 'guardar'){
-      $('#poupancaMovModalTitle').textContent = `Guardar em "${p.nome}"`;
-      $('#poupancaMovIntro').textContent = `Esse valor sai do seu saldo principal e vai para "${p.nome}" — não conta como gasto, só como economia.`;
-    } else {
-      $('#poupancaMovModalTitle').textContent = `Retirar de "${p.nome}"`;
-      $('#poupancaMovIntro').textContent = `Esse valor volta de "${p.nome}" (hoje: ${fmtBRL(saldoAtual)}) pro seu saldo principal.`;
-    }
+    poupancaMovCtx = { p, acao };
+    $('#poupancaMovModalTitle').textContent = acao === 'guardar' ? `Guardar em "${p.nome}"` : `Retirar de "${p.nome}"`;
     $('#poupancaMovData').value = todayISO;
+    updatePoupancaMovIntro();
     aplicarPisoData('#poupancaMovData', '#poupancaMovDataHint');
     openOverlay('#overlayPoupancaMov');
     $('#poupancaMovValor').focus();
@@ -5207,6 +5226,10 @@
     renderAll();
   });
 
+  // muda a data no modal de guardar/retirar -> recalcula o saldo mostrado no texto de cima (ver
+  // updatePoupancaMovIntro) — assim a pessoa sempre vê o teto certo pra data que escolheu
+  $('#poupancaMovData').addEventListener('input', updatePoupancaMovIntro);
+
   $('#poupancaMovForm').addEventListener('submit', e=>{
     e.preventDefault();
     const valor = parseFloat($('#poupancaMovValor').value);
@@ -5439,30 +5462,25 @@
     setViewMode(state.viewMode === 'year' ? 'month' : 'year');
   });
 
-  /* ---------------- tema claro/escuro (Automático / Claro / Escuro) ----------------
+  /* ---------------- tema claro/escuro (Claro / Escuro) ----------------
      fica salvo só nesse aparelho (localStorage) — é preferência de tela, não dado financeiro,
      então não precisa sincronizar entre aparelhos nem passar pelo salvamento na nuvem do resto
-     do Maré. "Automático" = sem atributo, o navegador decide sozinho pelo tema do sistema
-     (já é o comportamento padrão de sempre, de antes desse seletor existir). */
+     do Maré. Não existe mais opção "Automático" (a pessoa pediu pra tirar) — o padrão pra quem
+     nunca escolheu é Claro. */
   const THEME_KEY = 'mareTema';
   function getThemePref(){
     try{
-      const t = localStorage.getItem(THEME_KEY);
-      return (t === 'light' || t === 'dark') ? t : 'auto';
-    } catch(e){ return 'auto'; }
+      return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
+    } catch(e){ return 'light'; }
   }
   function applyTheme(pref){
-    if (pref === 'light' || pref === 'dark') document.documentElement.setAttribute('data-theme', pref);
-    else document.documentElement.removeAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', pref === 'dark' ? 'dark' : 'light');
     document.querySelectorAll('#themeSeg .theme-seg-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.themeOpt === pref);
     });
   }
   function setThemePref(pref){
-    try{
-      if (pref === 'auto') localStorage.removeItem(THEME_KEY);
-      else localStorage.setItem(THEME_KEY, pref);
-    } catch(e){}
+    try{ localStorage.setItem(THEME_KEY, pref); } catch(e){}
     applyTheme(pref);
   }
   applyTheme(getThemePref());

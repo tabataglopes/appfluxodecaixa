@@ -703,11 +703,11 @@
     .ct-row{ display:grid; grid-template-columns: 1.7fr 1fr 1fr 64px; gap:16px; align-items:center; }
 
     .pp-header-row{
-      display:grid; grid-template-columns: 1.3fr 1fr 1.6fr 64px; gap:16px;
+      display:grid; grid-template-columns: 1.3fr 1fr 64px; gap:16px;
       padding:0 20px 12px; margin-top:14px; border-bottom:1px solid var(--border);
       font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted); font-weight:600;
     }
-    .pp-row{ display:grid; grid-template-columns: 1.3fr 1fr 1.6fr 64px; gap:16px; align-items:center; }
+    .pp-row{ display:grid; grid-template-columns: 1.3fr 1fr 64px; gap:16px; align-items:center; }
   }
 
   /* ---------- detalhe da fatura (lista de compras que compõem o total) ---------- */
@@ -1338,9 +1338,13 @@
       <span class="icon">🐷</span>
       <span>Guarde o que sobrar num mês numa conta separada. Esse valor sai do seu saldo principal (pra você não achar que ainda tem esse dinheiro disponível), mas não conta como gasto — só como economia. Você também pode mandar esse dinheiro de volta pro saldo principal quando quiser — por exemplo, pra usar essa reserva pra pagar uma fatura do cartão.</span>
     </div>
+    <div class="row2" style="margin-bottom:14px;">
+      <button type="button" class="btn primary" id="poupancaGuardarBtn">Guardar na poupança</button>
+      <button type="button" class="btn" id="poupancaRetirarBtn">Retirar da poupança</button>
+    </div>
     <div class="nm-card">
       <div class="pp-header-row">
-        <span>Poupança</span><span>Valor total</span><span></span><span></span>
+        <span>Poupança</span><span>Valor total</span><span></span>
       </div>
       <div id="poupancaPageList"></div>
     </div>
@@ -1526,42 +1530,14 @@
   </div>
 </div>
 
-<!-- Modal: guardar dinheiro numa poupança / retirar de volta pro saldo principal -->
-<div class="overlay" id="overlayPoupancaMov" hidden>
-  <div class="modal" style="max-width:360px;">
-    <button class="modal-close" data-close="overlayPoupancaMov" aria-label="Fechar">&times;</button>
-    <h3 id="poupancaMovModalTitle">Guardar dinheiro</h3>
-    <p id="poupancaMovIntro" style="font-size:13px; color:var(--ink-muted); margin:0 0 14px; line-height:1.4;"></p>
-    <form id="poupancaMovForm">
-      <div class="row2">
-        <div class="field">
-          <label for="poupancaMovValor">Valor (R$)</label>
-          <input type="number" step="0.01" min="0.01" id="poupancaMovValor" class="mono" placeholder="0,00" required>
-        </div>
-        <div class="field">
-          <label for="poupancaMovData">Data</label>
-          <input type="date" id="poupancaMovData" required>
-          <p class="piso-data-hint" id="poupancaMovDataHint" hidden></p>
-        </div>
-      </div>
-      <p class="piso-data-hint" id="poupancaMovErro" hidden style="color:var(--expense); font-weight:600; font-size:12.5px;"></p>
-      <input type="hidden" id="poupancaMovPoupancaId">
-      <input type="hidden" id="poupancaMovTipo">
-      <div class="modal-actions">
-        <button type="button" class="btn" data-close="overlayPoupancaMov">Cancelar</button>
-        <button type="submit" class="btn primary">Salvar</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Modal: atalho "Guardar na poupança" direto do dashboard (botão "Guardado no mês") — não navega
-     pra página de poupança, abre aqui mesmo mostrando o saldo disponível hoje, deixando escolher a
-     poupança de destino e o valor -->
+<!-- Modal: "Guardar na poupança" / "Retirar da poupança" — único popup pros dois sentidos de
+     movimentação, usado tanto pelo atalho do dashboard ("Guardado no mês") quanto pelos dois botões
+     no topo da página de Poupança; o texto, o rótulo do seletor e a validação mudam conforme o modo
+     (ver openGuardarRapidoModal/guardarRapidoCtx) -->
 <div class="overlay" id="overlayGuardarRapido" hidden>
   <div class="modal" style="max-width:360px;">
     <button class="modal-close" data-close="overlayGuardarRapido" aria-label="Fechar">&times;</button>
-    <h3>Guardar na poupança</h3>
+    <h3 id="guardarRapidoTitle">Guardar na poupança</h3>
     <p id="guardarRapidoSaldo" style="font-size:13px; color:var(--ink-muted); margin:0 0 14px; line-height:1.4;"></p>
     <div id="guardarRapidoVazio" hidden>
       <p style="font-size:13px; color:var(--ink-muted); margin:0 0 14px; line-height:1.4;">Você ainda não tem nenhuma poupança criada.</p>
@@ -1572,7 +1548,7 @@
     </div>
     <form id="guardarRapidoForm">
       <div class="field">
-        <label for="guardarRapidoPoupanca">Em qual conta poupança você quer mandar o dinheiro</label>
+        <label for="guardarRapidoPoupanca" id="guardarRapidoPoupancaLabel">Escolher conta poupança</label>
         <select id="guardarRapidoPoupanca"></select>
       </div>
       <div class="field">
@@ -1582,7 +1558,7 @@
       <p class="piso-data-hint" id="guardarRapidoErro" hidden style="color:var(--expense); font-weight:600; font-size:12.5px;"></p>
       <div class="modal-actions">
         <button type="button" class="btn" data-close="overlayGuardarRapido">Cancelar</button>
-        <button type="submit" class="btn primary">Salvar</button>
+        <button type="submit" class="btn primary" id="guardarRapidoSubmitBtn">Guardar</button>
       </div>
     </form>
   </div>
@@ -3966,19 +3942,8 @@
     valorCol.textContent = fmtBRL(poupancaSaldoAtual(p));
     row.appendChild(valorCol);
 
-    // coluna 3: guardar / retirar
-    const movActions = document.createElement('div');
-    movActions.className = 'pp-mov-actions';
-    const guardarBtn = document.createElement('button');
-    guardarBtn.type = 'button'; guardarBtn.className = 'btn small'; guardarBtn.textContent = '+ Guardar';
-    guardarBtn.addEventListener('click', () => openPoupancaMovModal(p, 'guardar'));
-    const retirarBtn = document.createElement('button');
-    retirarBtn.type = 'button'; retirarBtn.className = 'btn small'; retirarBtn.textContent = 'Retirar';
-    retirarBtn.addEventListener('click', () => openPoupancaMovModal(p, 'retirar'));
-    movActions.appendChild(guardarBtn); movActions.appendChild(retirarBtn);
-    row.appendChild(movActions);
-
-    // coluna 4: editar/excluir a poupança em si
+    // coluna 3: editar/excluir a poupança em si (guardar/retirar não é mais por linha — ver os
+    // botões "Guardar na poupança"/"Retirar da poupança" no topo da página, e openGuardarRapidoModal)
     const actions = document.createElement('div');
     actions.className = 'rl-col-actions';
     const editBtn = document.createElement('button');
@@ -4824,52 +4789,39 @@
     $('#poupancaNome').focus();
   }
 
-  // abre o modal de "guardar" (transfere da conta principal pra essa poupança) ou "retirar"
-  // (o caminho inverso, volta pro saldo principal) — o texto e a validação mudam conforme a ação
-  // guarda quem/qual ação está aberta no momento, só pra recalcular o texto do saldo disponível
-  // quando a pessoa muda a data (ver updatePoupancaMovIntro/listener do #poupancaMovData) — some
-  // junto com o modal, não faz parte de state porque é só um detalhe de exibição
-  let poupancaMovCtx = null;
+  // popup único "Guardar na poupança" / "Retirar da poupança" — usado tanto pelo atalho do
+  // dashboard (#btnGuardadoMes) quanto pelos dois botões no topo da página de Poupança
+  // (#poupancaGuardarBtn/#poupancaRetirarBtn); guarda qual dos dois modos está aberto no momento,
+  // só pra recalcular o texto de saldo quando a pessoa troca a poupança escolhida (ver
+  // updateGuardarRapidoSaldo) — some junto com o modal, não faz parte de state
+  let guardarRapidoCtx = null;
 
-  // texto de cima do modal: em "guardar" mostra quanto tem de saldo em conta NESSA data (é o teto
-  // que a validação do #poupancaMovForm usa — ver saldoRealAt) pra pessoa já ver de cara quanto dá
-  // pra colocar, sem precisar tentar e receber erro; em "retirar" mostra quanto tem guardado ali
-  function updatePoupancaMovIntro(){
-    if (!poupancaMovCtx) return;
-    const { p, acao } = poupancaMovCtx;
-    if (acao === 'guardar'){
-      const data = $('#poupancaMovData').value || todayISO;
-      const saldoDisponivel = saldoRealAt(data);
-      $('#poupancaMovIntro').textContent = `Esse valor sai do seu saldo principal (disponível nessa data: ${fmtBRL(saldoDisponivel)}) e vai para "${p.nome}" — não conta como gasto, só como economia.`;
+  // texto de cima do modal: em "guardar" mostra o saldo em conta HOJE (é o teto que a validação do
+  // #guardarRapidoForm usa — ver saldoRealAt), sempre igual não importa qual poupança está
+  // selecionada; em "retirar" mostra quanto tem guardado NA POUPANÇA escolhida no seletor (o teto
+  // muda conforme a pessoa troca a opção)
+  function updateGuardarRapidoSaldo(){
+    if (!guardarRapidoCtx || state.poupancas.length === 0) return;
+    if (guardarRapidoCtx.acao === 'guardar'){
+      const saldoDisponivel = saldoRealAt(todayISO);
+      $('#guardarRapidoSaldo').textContent = `Saldo atual disponível: ${fmtBRL(saldoDisponivel)}`;
     } else {
-      const saldoAtual = poupancaSaldoAtual(p);
-      $('#poupancaMovIntro').textContent = `Esse valor volta de "${p.nome}" (hoje: ${fmtBRL(saldoAtual)}) pro seu saldo principal.`;
+      const p = state.poupancas.find(x => x.id === $('#guardarRapidoPoupanca').value);
+      const saldoAtual = p ? poupancaSaldoAtual(p) : 0;
+      $('#guardarRapidoSaldo').textContent = p ? `Você tem guardado em "${p.nome}": ${fmtBRL(saldoAtual)}` : '';
     }
   }
 
-  function openPoupancaMovModal(p, acao){
-    $('#poupancaMovForm').reset();
-    $('#poupancaMovPoupancaId').value = p.id;
-    $('#poupancaMovTipo').value = acao;
-    $('#poupancaMovErro').hidden = true;
-    poupancaMovCtx = { p, acao };
-    $('#poupancaMovModalTitle').textContent = acao === 'guardar' ? `Guardar em "${p.nome}"` : `Retirar de "${p.nome}"`;
-    $('#poupancaMovData').value = todayISO;
-    updatePoupancaMovIntro();
-    aplicarPisoData('#poupancaMovData', '#poupancaMovDataHint');
-    openOverlay('#overlayPoupancaMov');
-    $('#poupancaMovValor').focus();
-  }
-
-  // atalho "Guardar na poupança" direto do dashboard (botão #btnGuardadoMes) — diferente do
-  // openPoupancaMovModal acima (que é chamado de dentro da página de poupança, já sabendo qual
-  // poupança), aqui a pessoa ainda não escolheu a poupança de destino, então o popup pergunta
-  // também isso; não navega pra nenhuma página, abre ali mesmo em cima do dashboard
-  function openGuardarRapidoModal(){
+  // acao: 'guardar' (padrão) ou 'retirar' — abre sempre em cima da tela atual, sem navegar pra
+  // nenhuma página; a pessoa escolhe a poupança de destino/origem ali dentro, no seletor
+  function openGuardarRapidoModal(acao){
+    acao = acao === 'retirar' ? 'retirar' : 'guardar';
+    guardarRapidoCtx = { acao };
     $('#guardarRapidoForm').reset();
     $('#guardarRapidoErro').hidden = true;
-    const saldoDisponivel = saldoRealAt(todayISO);
-    $('#guardarRapidoSaldo').textContent = `Saldo atual disponível: ${fmtBRL(saldoDisponivel)}`;
+    $('#guardarRapidoTitle').textContent = acao === 'guardar' ? 'Guardar na poupança' : 'Retirar da poupança';
+    $('#guardarRapidoPoupancaLabel').textContent = acao === 'guardar' ? 'Escolher conta poupança' : 'De qual conta poupança você quer retirar';
+    $('#guardarRapidoSubmitBtn').textContent = acao === 'guardar' ? 'Guardar' : 'Retirar';
     const temPoupanca = state.poupancas.length > 0;
     $('#guardarRapidoVazio').hidden = temPoupanca;
     $('#guardarRapidoForm').hidden = !temPoupanca;
@@ -4883,6 +4835,7 @@
         sel.appendChild(opt);
       }
     }
+    updateGuardarRapidoSaldo();
     openOverlay('#overlayGuardarRapido');
     if (temPoupanca) $('#guardarRapidoValor').focus();
   }
@@ -5158,7 +5111,10 @@
   $('#cartoesBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openPoupancaBtn').addEventListener('click', ()=> setViewMode('poupanca'));
   $('#poupancaBackBtn').addEventListener('click', ()=> setViewMode('month'));
-  $('#btnGuardadoMes').addEventListener('click', openGuardarRapidoModal);
+  $('#btnGuardadoMes').addEventListener('click', () => openGuardarRapidoModal('guardar'));
+  $('#poupancaGuardarBtn').addEventListener('click', () => openGuardarRapidoModal('guardar'));
+  $('#poupancaRetirarBtn').addEventListener('click', () => openGuardarRapidoModal('retirar'));
+  $('#guardarRapidoPoupanca').addEventListener('change', updateGuardarRapidoSaldo);
   $('#addPoupancaBtn').addEventListener('click', ()=> openPoupancaModal(null));
   $('#parceladoValor').addEventListener('input', updateParceladoResumo);
   $('#parceladoQtd').addEventListener('input', updateParceladoResumo);
@@ -5188,7 +5144,7 @@
     const formaPagamento = (tipo === 'saida' && !poupancaId) ? ($('#oneFormaPagamento').value || null) : null;
     if (!desc || isNaN(valor) || !data) return;
     // retirada da poupança (entrada com poupancaId): não deixa passar do que a poupança realmente
-    // tem guardado — mesma trava do fluxo dedicado (ver #poupancaMovForm)
+    // tem guardado — mesma trava do fluxo dedicado (ver #guardarRapidoForm)
     if (poupancaId && tipo === 'entrada'){
       const p = state.poupancas.find(x=>x.id===poupancaId);
       if (p){
@@ -5285,56 +5241,9 @@
     renderAll();
   });
 
-  // muda a data no modal de guardar/retirar -> recalcula o saldo mostrado no texto de cima (ver
-  // updatePoupancaMovIntro) — assim a pessoa sempre vê o teto certo pra data que escolheu
-  $('#poupancaMovData').addEventListener('input', updatePoupancaMovIntro);
-
-  $('#poupancaMovForm').addEventListener('submit', e=>{
-    e.preventDefault();
-    const valor = parseFloat($('#poupancaMovValor').value);
-    const data = $('#poupancaMovData').value;
-    const poupancaId = $('#poupancaMovPoupancaId').value;
-    const acao = $('#poupancaMovTipo').value;
-    if (isNaN(valor) || valor <= 0 || !data || !poupancaId) return;
-    const p = state.poupancas.find(x=>x.id===poupancaId);
-    if (!p) return;
-    if (acao === 'retirar'){
-      const saldoAtual = poupancaSaldoAtual(p);
-      if (valor > saldoAtual + 0.005){
-        $('#poupancaMovErro').textContent = `Você só tem ${fmtBRL(saldoAtual)} guardado aí.`;
-        $('#poupancaMovErro').hidden = false;
-        return;
-      }
-    }
-    // guardar: não deixa mandar mais do que tem de saldo em conta nessa data — se estiver zerado
-    // (ou negativo), qualquer valor positivo já é maior, então fica travado igual
-    if (acao === 'guardar'){
-      const saldoDisponivel = saldoRealAt(data);
-      if (valor > saldoDisponivel + 0.005){
-        $('#poupancaMovErro').textContent = `Seu saldo em conta nessa data é ${fmtBRL(saldoDisponivel)} — não dá pra guardar mais que isso.`;
-        $('#poupancaMovErro').hidden = false;
-        return;
-      }
-    }
-    state.oneTime.push({
-      id: nextId(),
-      tipo: acao === 'guardar' ? 'saida' : 'entrada',
-      desc: acao === 'guardar' ? `Poupança: ${p.nome}` : `Retirada: ${p.nome}`,
-      valor, data,
-      formaPagamento: null,
-      poupancaId: p.id,
-    });
-    closeOverlay('#overlayPoupancaMov');
-    renderAll();
-    // essa ação foi uma criação, não uma remoção — zera lastDeleted antes de mostrar o toast pra
-    // não deixar o botão "Desfazer" (pensado pra restaurar algo apagado) acabar restaurando por
-    // engano um lançamento removido antes, dentro da mesma janela de alguns segundos
-    lastDeleted = null;
-    showToast(acao === 'guardar' ? `${fmtBRL(valor)} guardado em "${p.nome}".` : `${fmtBRL(valor)} retirado de "${p.nome}".`);
-  });
-
-  // atalho do dashboard: sem nenhuma poupança criada ainda, o popup oferece ir direto pro modal de
-  // criação em vez de mostrar o formulário de valor (não teria pra onde mandar o dinheiro)
+  // atalho pra qualquer um dos dois botões: sem nenhuma poupança criada ainda, o popup oferece ir
+  // direto pro modal de criação em vez de mostrar o formulário de valor (não teria pra onde
+  // mandar/de onde tirar o dinheiro)
   $('#guardarRapidoCriarBtn').addEventListener('click', () => {
     closeOverlay('#overlayGuardarRapido');
     openPoupancaModal(null);
@@ -5344,21 +5253,32 @@
     e.preventDefault();
     const valor = parseFloat($('#guardarRapidoValor').value);
     const poupancaId = $('#guardarRapidoPoupanca').value;
+    const acao = guardarRapidoCtx ? guardarRapidoCtx.acao : 'guardar';
     if (isNaN(valor) || valor <= 0 || !poupancaId) return;
     const p = state.poupancas.find(x=>x.id===poupancaId);
     if (!p) return;
-    // mesma trava do resto do app: não deixa mandar mais do que tem de saldo em conta hoje (ver
-    // saldoRealAt) — esse atalho sempre lança a transação com a data de hoje
-    const saldoDisponivel = saldoRealAt(todayISO);
-    if (valor > saldoDisponivel + 0.005){
-      $('#guardarRapidoErro').textContent = `Seu saldo em conta hoje é ${fmtBRL(saldoDisponivel)} — não dá pra guardar mais que isso.`;
-      $('#guardarRapidoErro').hidden = false;
-      return;
+    if (acao === 'retirar'){
+      const saldoAtual = poupancaSaldoAtual(p);
+      if (valor > saldoAtual + 0.005){
+        $('#guardarRapidoErro').textContent = `Você só tem ${fmtBRL(saldoAtual)} guardado aí.`;
+        $('#guardarRapidoErro').hidden = false;
+        return;
+      }
+    } else {
+      // guardar: não deixa mandar mais do que tem de saldo em conta hoje (essa ação sempre lança a
+      // transação com a data de hoje) — se estiver zerado (ou negativo), qualquer valor positivo já
+      // é maior, então fica travado igual
+      const saldoDisponivel = saldoRealAt(todayISO);
+      if (valor > saldoDisponivel + 0.005){
+        $('#guardarRapidoErro').textContent = `Seu saldo em conta hoje é ${fmtBRL(saldoDisponivel)} — não dá pra guardar mais que isso.`;
+        $('#guardarRapidoErro').hidden = false;
+        return;
+      }
     }
     state.oneTime.push({
       id: nextId(),
-      tipo: 'saida',
-      desc: `Poupança: ${p.nome}`,
+      tipo: acao === 'guardar' ? 'saida' : 'entrada',
+      desc: acao === 'guardar' ? `Poupança: ${p.nome}` : `Retirada: ${p.nome}`,
       valor, data: todayISO,
       formaPagamento: null,
       poupancaId: p.id,
@@ -5366,9 +5286,10 @@
     closeOverlay('#overlayGuardarRapido');
     renderAll();
     // essa ação foi uma criação, não uma remoção — zera lastDeleted antes de mostrar o toast pra
-    // não deixar o botão "Desfazer" acabar restaurando por engano um lançamento removido antes
+    // não deixar o botão "Desfazer" (pensado pra restaurar algo apagado) acabar restaurando por
+    // engano um lançamento removido antes, dentro da mesma janela de alguns segundos
     lastDeleted = null;
-    showToast(`${fmtBRL(valor)} guardado em "${p.nome}".`);
+    showToast(acao === 'guardar' ? `${fmtBRL(valor)} guardado em "${p.nome}".` : `${fmtBRL(valor)} retirado de "${p.nome}".`);
   });
 
   $('#recurForm').addEventListener('submit', e=>{

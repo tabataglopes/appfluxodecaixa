@@ -1640,6 +1640,21 @@
   </div>
 </div>
 
+<!-- Modal: confirma se a pessoa quer mesmo sair do Maré ao apertar o botão "voltar" do celular —
+     sem isso, o gesto de "voltar" (usado, por exemplo, pra sair de uma página interna como
+     Parcelados achando que só vai fechar aquela página) tira ela do site direto, sem aviso. Sem
+     botão de fechar (×) nem clique fora pra dispensar — só decide clicando numa das duas opções
+     (ver podeFechar e a "armadilha" de histórico logo no fim do script) -->
+<div class="overlay" id="overlaySairConfirm" hidden>
+  <div class="modal" style="max-width:340px; text-align:center;">
+    <h3 style="margin-bottom:18px;">Quer mesmo sair do Maré?</h3>
+    <div class="modal-actions" style="justify-content:center;">
+      <button type="button" class="btn" id="sairConfirmCancelBtn">Cancelar</button>
+      <button type="button" class="btn primary" id="sairConfirmSimBtn">Sim, sair</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: conta fixa -->
 <div class="overlay" id="overlayRecur" hidden>
   <div class="modal">
@@ -4233,6 +4248,9 @@
     if (id === 'overlayBase') return state.saldoDefinido;
     if (id === 'overlayOnboardingChoice') return false;
     if (id === 'overlayQuickSetup') return false;
+    // só fecha pelos dois botões dela mesma (Cancelar/Sim, sair) — não pelo × (nem existe aqui),
+    // clique fora ou Esc, pra nunca ficar destravado sem rearmar a "armadilha" de histórico
+    if (id === 'overlaySairConfirm') return false;
     return true;
   }
 
@@ -5925,6 +5943,37 @@
       schedulePersist();
     });
   }
+
+  // evita que a pessoa saia sem querer do site ao apertar o botão "voltar" do celular — é comum
+  // usar esse "voltar" do celular (em vez do botão de voltar de dentro do próprio Maré) pra sair de
+  // uma página interna, tipo Parcelados, achando que só vai fechar aquela página; mas como o Maré é
+  // um site de página única (sem rotas), isso tirava a pessoa do site direto, sem nenhum aviso.
+  //
+  // o truque: mantemos sempre uma entrada "extra" empilhada no histórico do navegador (via
+  // pushState) por cima da entrada real da página. Assim, o PRIMEIRO "voltar" só consome essa
+  // entrada extra — o que dispara o evento popstate aqui, sem sair do site de verdade — e a gente
+  // aproveita pra mostrar o popup de confirmação em vez de deixar navegar. Se a pessoa cancelar,
+  // empilhamos a entrada extra de novo, rearmando a "armadilha" pro próximo "voltar". Se ela
+  // confirmar que quer mesmo sair, aí sim deixamos o navegador voltar de verdade (history.back()),
+  // já sem nenhuma entrada extra no caminho.
+  function armarGuardaDeSaida(){
+    history.pushState({ mareGuardaSaida: true }, '', location.href);
+  }
+  armarGuardaDeSaida();
+  let sairDoMareConfirmado = false;
+  window.addEventListener('popstate', () => {
+    if (sairDoMareConfirmado) return; // decisão já tomada — deixa a navegação de verdade acontecer
+    openOverlay('#overlaySairConfirm');
+  });
+  $('#sairConfirmCancelBtn').addEventListener('click', () => {
+    closeOverlay('#overlaySairConfirm');
+    armarGuardaDeSaida();
+  });
+  $('#sairConfirmSimBtn').addEventListener('click', () => {
+    sairDoMareConfirmado = true;
+    closeOverlay('#overlaySairConfirm');
+    history.back();
+  });
 })();
 </script>
 

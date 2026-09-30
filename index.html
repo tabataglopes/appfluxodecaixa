@@ -764,6 +764,9 @@
     flex:1; padding:9px 8px; background:var(--surface); border:none; cursor:pointer; font-size:13px; font-weight:600;
     color:var(--ink-muted);
   }
+  /* qualquer seg genérico (ex.: "é uma compra parcelada?" Sim/Não) fica destacado quando ativo —
+     antes não tinha cor nenhuma e ficava impossível ver qual das duas opções estava escolhida */
+  .seg button.active{ background:var(--accent); color:#fff; }
   .seg button.active[data-tipo="entrada"]{ background:var(--income-soft); color:var(--income); }
   .seg button.active[data-tipo="saida"]{ background:var(--expense-soft); color:var(--expense); }
   .row2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
@@ -1475,8 +1478,7 @@
       <div class="field" id="oneCategoriaEntradaField" hidden>
         <label>Categoria</label>
         <div class="chips" id="oneCategoriaEntradaChips">
-          <button type="button" class="chip chip-entrada active" data-cat="salario">Salário</button>
-          <button type="button" class="chip chip-entrada" data-cat="bonus">Bônus</button>
+          <button type="button" class="chip chip-entrada active" data-cat="bonus">Bônus</button>
           <button type="button" class="chip chip-entrada" data-cat="rendaextra">Renda Extra</button>
           <button type="button" class="chip chip-entrada" data-cat="investimento">Investimento</button>
           <button type="button" class="chip chip-entrada" data-cat="outros">Outros</button>
@@ -1519,17 +1521,6 @@
         <div class="seg" id="oneComprasParceladaToggle">
           <button type="button" data-parc="nao" class="active">Não</button>
           <button type="button" data-parc="sim">Sim</button>
-        </div>
-      </div>
-
-      <!-- uma vez/recorrente — só existe pra Contas (dentro de Saída) e pra qualquer categoria de
-           Entrada; Compras nunca é recorrente, e Assinaturas/Parcelas/Dívidas já são recorrentes por
-           natureza, sem escolha (ver updateOneCategoriaVisibility) -->
-      <div class="field" id="oneRecorrenteToggleField" hidden>
-        <label id="oneRecorrenteToggleLabel">Essa conta é...</label>
-        <div class="seg" id="oneRecorrenteToggle">
-          <button type="button" data-rec="nao" class="active">Uma vez</button>
-          <button type="button" data-rec="sim">Recorrente</button>
         </div>
       </div>
 
@@ -4584,8 +4575,7 @@
   // já existiam pra essas páginas. Editar um lançamento avulso já existente continua no fluxo simples
   // de sempre (ver isEditing abaixo), sem categoria nenhuma — só lançamentos NOVOS passam por aqui.
   let oneCategoria = 'compras';
-  let oneCategoriaEntrada = 'salario';
-  let oneRecorrente = false;
+  let oneCategoriaEntrada = 'bonus';
   let oneComprasParcelada = false;
 
   const ONE_CATEGORIA_LABELS_SAIDA = { contas:'Contas', compras:'Gastos', assinaturas:'Assinaturas', parcelas:'Parcelas', dividas:'Dívidas' };
@@ -4649,7 +4639,6 @@
     if (isEditing){
       // editando um avulso já existente — sem categorias, sempre o fluxo simples de sempre
       $('#oneCategoriaEntradaField').style.display = 'none';
-      $('#oneRecorrenteToggleField').style.display = 'none';
       $('#oneRecFields').hidden = true;
       $('#oneParcFields').hidden = true;
       $('#oneDividaValorTotalInicialField').style.display = 'none';
@@ -4677,12 +4666,9 @@
 
     $('#oneCategoriaEntradaField').style.display = isEntrada ? '' : 'none';
 
-    const mostraToggleRecorrente = isContas || isEntrada;
-    const recorrenteAtiva = mostraToggleRecorrente && oneRecorrente;
-    $('#oneRecorrenteToggleField').style.display = mostraToggleRecorrente ? '' : 'none';
-    $('#oneRecorrenteToggleLabel').textContent = isEntrada ? 'Esse recebimento é...' : 'Essa conta é...';
-
-    const mostraRecFields = isAssinaturas || (mostraToggleRecorrente && recorrenteAtiva);
+    // "recorrente" foi tirado do + Lançamento (Entrada e Contas): aqui é sempre avulso — quem
+    // quiser algo recorrente usa o "+" dedicado no menu lateral
+    const mostraRecFields = isAssinaturas;
     const mostraParcFields = isParcelas || isDividas;
     const mostraDataAvulsa = !mostraRecFields && !mostraParcFields;
 
@@ -4752,15 +4738,13 @@
   $('#oneSeg').addEventListener('click', e=>{
     if (e.target.tagName==='BUTTON'){
       setSeg($('#oneSeg'), e.target.dataset.tipo);
-      // trocar de Entrada/Saída sempre volta pra categoria padrão e tira o "Recorrente" marcado, pra
-      // não herdar por engano uma combinação que não existe mais — Saída só tem "Gastos" (as outras
-      // opções foram tiradas daqui: quem quiser lançar conta/assinatura/parcelado/dívida recorrente
-      // usa o "+" dedicado na própria página deles no menu)
+      // trocar de Entrada/Saída sempre volta pra categoria padrão, pra não herdar por engano uma
+      // combinação que não existe mais — Saída só tem "Gastos" (as outras opções foram tiradas
+      // daqui: quem quiser lançar conta/assinatura/parcelado/dívida/receita recorrente usa o "+"
+      // dedicado na própria página deles no menu)
       oneCategoria = 'compras';
-      oneCategoriaEntrada = 'salario';
-      oneRecorrente = false;
-      $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='salario'));
-      $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
+      oneCategoriaEntrada = 'bonus';
+      $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='bonus'));
       updateOneCategoriaVisibility();
       aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
       aplicarPisoData('#oneParcInicio', '#oneParcInicioHint');
@@ -4772,14 +4756,6 @@
     oneCategoriaEntrada = btn.dataset.cat;
     $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
     updateOneCategoriaVisibility();
-  });
-  $('#oneRecorrenteToggle').addEventListener('click', e=>{
-    const btn = e.target.closest('button[data-rec]');
-    if (!btn) return;
-    oneRecorrente = btn.dataset.rec === 'sim';
-    $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
-    updateOneCategoriaVisibility();
-    aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
   });
   $('#oneComprasParceladaToggle').addEventListener('click', e=>{
     const btn = e.target.closest('button[data-parc]');
@@ -4825,11 +4801,9 @@
     $('#oneForm').reset();
     $('#oneEditId').value = '';
     oneCategoria = 'compras';
-    oneCategoriaEntrada = 'salario';
-    oneRecorrente = false;
+    oneCategoriaEntrada = 'bonus';
     oneComprasParcelada = false;
-    $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='salario'));
-    $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
+    $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='bonus'));
     $('#oneComprasParceladaToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.parc==='nao'));
     $('#oneComprasQtdParcelas').value = '';
     $('#oneRecFreq').value = '1';
@@ -5695,10 +5669,10 @@
     const isAssinaturas = isSaida && cat === 'assinaturas';
     const isParcelas = isSaida && cat === 'parcelas';
     const isDividas = isSaida && cat === 'dividas';
-    const isContas = isSaida && cat === 'contas';
     const isCompras = isSaida && cat === 'compras';
-    const mostraToggleRecorrente = isContas || isEntrada;
-    const recorrenteAtiva = mostraToggleRecorrente && oneRecorrente;
+    // "recorrente" foi tirado do + Lançamento: aqui é sempre avulso, tanto em Saída quanto em
+    // Entrada — quem quiser algo recorrente usa o "+" dedicado no menu lateral
+    const recorrenteAtiva = false;
     const comprasParceladaAtiva = isCompras && !!$('#oneFormaPagamento').value && oneComprasParcelada;
 
     const categoriaSalva = isSaida ? cat : oneCategoriaEntrada;

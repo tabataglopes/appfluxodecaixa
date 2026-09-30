@@ -1,7 +1,8 @@
-<!-- tema claro/escuro: aplica o que a pessoa escolheu o quanto antes, antes do resto da página
-     desenhar — sem isso apareceria um "flash" rápido no tema errado (ex.: claro por uma fração de
-     segundo, antes de trocar pro escuro escolhido). Não existe mais opção "Automático" (a pessoa
-     pediu pra tirar) — só Claro ou Escuro, e o padrão pra quem nunca escolheu é Claro. -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <script>
   (function(){
     try{
@@ -991,6 +992,9 @@
   .user-menu-config{ padding-left:6px; margin:2px 0; border-left:2px solid var(--border); }
   .user-menu-config[hidden]{ display:none; }
 </style>
+</head>
+<body>
+
 <div class="auth-gate" id="authLoading" hidden>
   <p class="auth-loading-text">Carregando…</p>
 </div>
@@ -6571,3 +6575,6 @@
   });
 })();
 </script>
+
+</body>
+</html>

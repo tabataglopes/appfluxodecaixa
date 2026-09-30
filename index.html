@@ -761,6 +761,17 @@
   .row2[hidden]{ display:none; }
   @media (max-width:360px){ .row2{ grid-template-columns:minmax(0,1fr); } }
   .checkrow{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-muted); margin-bottom:12px; }
+  /* chips de categoria do "+ Lançamento" — sempre na cor do tipo (saída/entrada), o selecionado fica
+     num tom sólido mais escuro pra se destacar sem parecer o tipo errado (ver pedido da Tabata) */
+  .chips{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:2px; }
+  .chip{
+    border:1px solid transparent; border-radius:999px; padding:7px 13px; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:inherit;
+  }
+  .chip-saida{ background:var(--expense-soft); color:var(--expense); }
+  .chip-saida.active{ background:var(--expense); border-color:var(--expense); color:#fff; }
+  .chip-entrada{ background:var(--income-soft); color:var(--income); }
+  .chip-entrada.active{ background:var(--income); border-color:var(--income); color:#fff; }
   .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
   .modal-close{
     position:absolute; top:14px; right:14px; border:none; background:transparent; color:var(--ink-muted);
@@ -1430,10 +1441,47 @@
           <button type="button" data-tipo="saida" class="active">Saída</button>
         </div>
       </div>
-      <div class="field">
-        <label for="oneDesc">Descrição</label>
-        <input type="text" id="oneDesc" placeholder="Ex.: Freelance, conta de luz..." required>
+
+      <!-- categorias — só aparecem criando um lançamento novo (não ao editar um avulso existente),
+           pra guiar a pessoa pro fluxo certo em vez de ela ter que saber de antemão que "assinatura"
+           e "dívida" ficam em páginas separadas (ver openOneModal/updateOneCategoriaVisibility) -->
+      <div class="field" id="oneCategoriaSaidaField" hidden>
+        <label>Categoria</label>
+        <div class="chips" id="oneCategoriaSaidaChips">
+          <button type="button" class="chip chip-saida active" data-cat="contas">Contas</button>
+          <button type="button" class="chip chip-saida" data-cat="compras">Compras</button>
+          <button type="button" class="chip chip-saida" data-cat="assinaturas">Assinaturas</button>
+          <button type="button" class="chip chip-saida" data-cat="parcelas">Parcelas</button>
+          <button type="button" class="chip chip-saida" data-cat="dividas">Dívidas</button>
+        </div>
       </div>
+      <div class="field" id="oneCategoriaEntradaField" hidden>
+        <label>Categoria</label>
+        <div class="chips" id="oneCategoriaEntradaChips">
+          <button type="button" class="chip chip-entrada active" data-cat="salario">Salário</button>
+          <button type="button" class="chip chip-entrada" data-cat="bonus">Bônus</button>
+          <button type="button" class="chip chip-entrada" data-cat="rendaextra">Renda Extra</button>
+          <button type="button" class="chip chip-entrada" data-cat="investimento">Investimento</button>
+          <button type="button" class="chip chip-entrada" data-cat="outros">Outros</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="oneDesc" id="oneDescLabel">Descrição (opcional)</label>
+        <input type="text" id="oneDesc" placeholder="Ex.: Freelance, conta de luz...">
+      </div>
+
+      <!-- dívida tem dois campos extras logo no começo, antes do valor da parcela (mesma ordem do
+           modal dedicado #overlayDivida) -->
+      <div class="field" id="oneDividaValorTotalInicialField" hidden>
+        <label for="oneDividaValorTotalInicial">Valor total inicial da dívida (R$)</label>
+        <input type="number" step="0.01" min="0" id="oneDividaValorTotalInicial" class="mono" placeholder="0,00">
+      </div>
+      <div class="field" id="oneDividaJurosField" hidden>
+        <label for="oneDividaJuros">Juros (opcional — só pra anotar, o app não usa isso em nenhuma conta)</label>
+        <input type="text" id="oneDividaJuros" placeholder="Ex.: 5 (vira 5% sozinho), ao mês, ou R$ 50 por parcela...">
+      </div>
+
       <div class="field" id="oneFormaPagamentoField">
         <label for="oneFormaPagamento">Forma de pagamento</label>
         <select id="oneFormaPagamento"></select>
@@ -1443,17 +1491,131 @@
         <select id="onePoupanca"></select>
         <p class="piso-data-hint" id="onePoupancaErro" hidden style="color:var(--expense); font-weight:600;"></p>
       </div>
+
+      <!-- uma vez/recorrente — só existe pra Contas (dentro de Saída) e pra qualquer categoria de
+           Entrada; Compras nunca é recorrente, e Assinaturas/Parcelas/Dívidas já são recorrentes por
+           natureza, sem escolha (ver updateOneCategoriaVisibility) -->
+      <div class="field" id="oneRecorrenteToggleField" hidden>
+        <label id="oneRecorrenteToggleLabel">Essa conta é...</label>
+        <div class="seg" id="oneRecorrenteToggle">
+          <button type="button" data-rec="nao" class="active">Uma vez</button>
+          <button type="button" data-rec="sim">Recorrente</button>
+        </div>
+      </div>
+
       <div class="row2">
         <div class="field">
-          <label for="oneValor">Valor (R$)</label>
+          <label for="oneValor" id="oneValorLabel">Valor (R$)</label>
           <input type="number" step="0.01" min="0" id="oneValor" class="mono" placeholder="0,00" required>
         </div>
-        <div class="field">
+        <div class="field" id="oneDataField">
           <label for="oneData">Data</label>
           <input type="date" id="oneData" required>
           <p class="piso-data-hint" id="oneDataHint" hidden></p>
         </div>
       </div>
+
+      <!-- grupo "recorrência simples" (sem fim obrigatório) — usado por Contas recorrente, Entrada
+           recorrente e Assinaturas (essa sempre aberta, nunca escondida) -->
+      <div id="oneRecFields" hidden>
+        <div class="row2">
+          <div class="field" id="oneRecDiaField">
+            <label for="oneRecDia" id="oneRecDiaLabel">Dia da cobrança</label>
+            <input type="number" min="1" max="31" id="oneRecDia" class="mono" placeholder="1-31">
+          </div>
+          <div class="field">
+            <label for="oneRecFreq">Frequência</label>
+            <select id="oneRecFreq">
+              <optgroup label="Por mês">
+                <option value="1">Mensal</option>
+                <option value="2">A cada 2 meses</option>
+                <option value="3">A cada 3 meses</option>
+                <option value="4">A cada 4 meses</option>
+                <option value="6">A cada 6 meses</option>
+                <option value="12">Anual</option>
+              </optgroup>
+              <optgroup label="Por dias corridos">
+                <option value="semanal">Semanal (a cada 7 dias)</option>
+                <option value="quinzenal">A cada 15 dias</option>
+                <option value="personalizado">Personalizado (a cada X dias)</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div class="row2" id="oneRecIntervaloDiasRow" hidden>
+          <div class="field">
+            <label for="oneRecIntervaloDias">A cada quantos dias</label>
+            <input type="number" min="1" id="oneRecIntervaloDias" class="mono" placeholder="Ex.: 10">
+          </div>
+        </div>
+        <div class="field">
+          <label for="oneRecInicio" id="oneRecInicioLabel">Começa em</label>
+          <input type="date" id="oneRecInicio">
+          <p class="piso-data-hint" id="oneRecInicioHint" hidden></p>
+        </div>
+        <div class="field">
+          <label for="oneRecFim">Termina em</label>
+          <input type="date" id="oneRecFim">
+        </div>
+        <label class="checkrow"><input type="checkbox" id="oneRecSemFim" checked> Sem data de término (repete indefinidamente)</label>
+        <p style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;" id="oneRecSemFimHint">Ex.: cobra todo dia 2, mas se você ganhou 1 mês grátis, escolha "começa em" o dia 2 do mês que vem.</p>
+        <div class="field" id="oneRecOndeCaiField" hidden>
+          <label for="oneRecOndeCai">Em que conta cai (opcional)</label>
+          <input type="text" id="oneRecOndeCai" placeholder="Ex.: Conta corrente, poupança...">
+        </div>
+      </div>
+
+      <!-- grupo "parcelado" (fim sempre existe, calculado sozinho a partir de quantas parcelas) —
+           usado por Parcelas e Dívidas -->
+      <div id="oneParcFields" hidden>
+        <div class="row2">
+          <div class="field">
+            <label for="oneParcQtd">Em quantas parcelas</label>
+            <input type="number" min="1" max="60" id="oneParcQtd" class="mono" placeholder="Ex.: 10">
+          </div>
+          <div class="field">
+            <label for="oneParcFreq">Frequência</label>
+            <select id="oneParcFreq">
+              <optgroup label="Por mês">
+                <option value="1">Mensal</option>
+                <option value="2">A cada 2 meses</option>
+                <option value="3">A cada 3 meses</option>
+                <option value="4">A cada 4 meses</option>
+                <option value="6">A cada 6 meses</option>
+                <option value="12">Anual</option>
+              </optgroup>
+              <optgroup label="Por dias corridos">
+                <option value="semanal">Semanal (a cada 7 dias)</option>
+                <option value="quinzenal">A cada 15 dias</option>
+                <option value="personalizado">Personalizado (a cada X dias)</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div class="row2" id="oneParcIntervaloDiasRow" hidden>
+          <div class="field">
+            <label for="oneParcIntervaloDias">A cada quantos dias</label>
+            <input type="number" min="1" id="oneParcIntervaloDias" class="mono" placeholder="Ex.: 10">
+          </div>
+        </div>
+        <div class="field">
+          <label for="oneParcInicio">Pagamento a partir de</label>
+          <input type="date" id="oneParcInicio">
+          <p class="piso-data-hint" id="oneParcInicioHint" hidden></p>
+        </div>
+        <div class="field">
+          <label for="oneParcFim">Termina em</label>
+          <input type="date" id="oneParcFim">
+        </div>
+        <p style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;">O Maré calcula essa data sozinho a partir de quando começa e quantas parcelas tem — mas você pode alterar se quiser.</p>
+        <div class="field" id="oneParcEntradaField" hidden>
+          <label for="oneParcEntrada">Valor de entrada (opcional)</label>
+          <input type="number" step="0.01" min="0" id="oneParcEntrada" class="mono" placeholder="0,00">
+          <p class="piso-data-hint">Se você já pagou uma entrada, esse valor sai separado das parcelas, descontado do saldo na data de início.</p>
+        </div>
+        <p id="oneParcResumo" style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;"></p>
+      </div>
+
       <input type="hidden" id="oneEditId">
       <div class="modal-actions">
         <button type="button" class="btn" data-close="overlayOne">Cancelar</button>
@@ -4310,6 +4472,151 @@
   }
   $('#recurFreq').addEventListener('change', updateRecurFreqFieldsVisibility);
   $('#assinFreq').addEventListener('change', updateAssinFreqFieldsVisibility);
+
+  // ---- "+ Lançamento" com categorias: Contas/Compras/Assinaturas/Parcelas/Dívidas (saída) e
+  // Salário/Bônus/Renda Extra/Investimento/Outros (entrada) — a categoria escolhida decide se o
+  // lançamento vira um avulso normal (state.oneTime) ou uma recorrente (state.recorrentes, igual às
+  // que já existiam nas páginas de Contas fixas/Assinaturas/Parcelados/Dívidas), sem duplicar
+  // nenhuma lógica de cálculo de data — só reaproveita freqValueToInterval/addDays/addMonthsISO que
+  // já existiam pra essas páginas. Editar um lançamento avulso já existente continua no fluxo simples
+  // de sempre (ver isEditing abaixo), sem categoria nenhuma — só lançamentos NOVOS passam por aqui.
+  let oneCategoria = 'contas';
+  let oneCategoriaEntrada = 'salario';
+  let oneRecorrente = false;
+
+  const ONE_CATEGORIA_LABELS_SAIDA = { contas:'Contas', compras:'Compras', assinaturas:'Assinaturas', parcelas:'Parcelas', dividas:'Dívidas' };
+  const ONE_CATEGORIA_LABELS_ENTRADA = { salario:'Salário', bonus:'Bônus', rendaextra:'Renda Extra', investimento:'Investimento', outros:'Outros' };
+  const ONE_DESC_PLACEHOLDERS = {
+    saida: {
+      contas: 'Ex.: Internet, conta de luz...',
+      compras: 'Ex.: Supermercado',
+      assinaturas: 'Ex.: Netflix, ChatGPT, Spotify...',
+      parcelas: 'Ex.: Geladeira, celular, tênis...',
+      dividas: 'Ex.: Empréstimo banco X, empréstimo da geladeira...',
+    },
+    entrada: {
+      salario: 'Ex.: Salário',
+      bonus: 'Ex.: Bônus, 13º...',
+      rendaextra: 'Ex.: Freelance, venda...',
+      investimento: 'Ex.: Dividendos, resgate...',
+      outros: 'Ex.: Presente, reembolso...',
+    },
+  };
+
+  function updateOneRecFreqFieldsVisibility(){
+    const isDias = isFreqDiasValue($('#oneRecFreq').value);
+    $('#oneRecDiaField').style.display = isDias ? 'none' : '';
+    $('#oneRecDia').required = !$('#oneRecFields').hidden && !isDias;
+    $('#oneRecIntervaloDiasRow').hidden = $('#oneRecFreq').value !== 'personalizado';
+  }
+  function updateOneParcFreqFieldsVisibility(){
+    $('#oneParcIntervaloDiasRow').hidden = $('#oneParcFreq').value !== 'personalizado';
+  }
+  // recalcula sozinho a data da última parcela (e o resumo) toda vez que quantidade/frequência/início
+  // mudam — mas o campo continua um input de verdade, então a pessoa pode escrever outra data por
+  // cima se quiser (ver pedido: "deixa a possibilidade da pessoa alterar se quiser")
+  function updateOneParcResumoEFim(){
+    const valor = parseFloat($('#oneValor').value);
+    const qtd = parseInt($('#oneParcQtd').value, 10);
+    const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#oneParcFreq').value, $('#oneParcIntervaloDias').value);
+    const inicio = $('#oneParcInicio').value;
+    const freqValida = freqType === 'meses' || (intervalDias && intervalDias >= 1);
+    if (!isNaN(qtd) && qtd > 0 && inicio && freqValida){
+      $('#oneParcFim').value = freqType === 'dias' ? addDays(inicio, (qtd-1)*intervalDias) : addMonthsISO(inicio, (qtd-1)*intervalMeses);
+    }
+    const el = $('#oneParcResumo');
+    if (!isNaN(valor) && !isNaN(qtd) && qtd>0 && inicio && freqValida && $('#oneParcFim').value){
+      const cardId = $('#oneFormaPagamento').value;
+      const card = cardId ? getCardById(cardId) : null;
+      const ondePaga = card ? ` · cobrado no cartão ${card.nome}` : '';
+      const fimTxt = freqType === 'dias' ? fmtDateFull($('#oneParcFim').value) : fmtMonthYear($('#oneParcFim').value);
+      el.textContent = `${qtd} parcelas ${parcelaFreqLabel({freqType, intervalMeses, intervalDias})} de ${fmtBRL(valor)} = total de ${fmtBRL(valor*qtd)} · última parcela em ${fimTxt}${ondePaga}`;
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  function updateOneCategoriaVisibility(){
+    const isEditing = !!$('#oneEditId').value;
+    const tipo = $('#oneSeg').querySelector('.active').dataset.tipo;
+    const isSaida = tipo === 'saida';
+    const isEntrada = tipo === 'entrada';
+
+    if (isEditing){
+      // editando um avulso já existente — sem categorias, sempre o fluxo simples de sempre
+      $('#oneCategoriaSaidaField').hidden = true;
+      $('#oneCategoriaEntradaField').hidden = true;
+      $('#oneRecorrenteToggleField').hidden = true;
+      $('#oneRecFields').hidden = true;
+      $('#oneParcFields').hidden = true;
+      $('#oneDividaValorTotalInicialField').hidden = true;
+      $('#oneDividaJurosField').hidden = true;
+      $('#oneParcEntradaField').hidden = true;
+      $('#oneDataField').style.display = '';
+      $('#oneData').required = true;
+      $('#oneValorLabel').textContent = 'Valor (R$)';
+      $('#oneDescLabel').textContent = 'Descrição (opcional)';
+      $('#oneDesc').placeholder = 'Ex.: Freelance, conta de luz...';
+      updateOneFormaPagamentoVisibility(tipo);
+      updateOnePoupancaVisibility(tipo);
+      return;
+    }
+
+    const cat = oneCategoria;
+    const isContas = isSaida && cat === 'contas';
+    const isCompras = isSaida && cat === 'compras';
+    const isAssinaturas = isSaida && cat === 'assinaturas';
+    const isParcelas = isSaida && cat === 'parcelas';
+    const isDividas = isSaida && cat === 'dividas';
+
+    $('#oneCategoriaSaidaField').hidden = !isSaida;
+    $('#oneCategoriaEntradaField').hidden = !isEntrada;
+
+    const mostraToggleRecorrente = isContas || isEntrada;
+    const recorrenteAtiva = mostraToggleRecorrente && oneRecorrente;
+    $('#oneRecorrenteToggleField').hidden = !mostraToggleRecorrente;
+    $('#oneRecorrenteToggleLabel').textContent = isEntrada ? 'Esse recebimento é...' : 'Essa conta é...';
+
+    const mostraRecFields = isAssinaturas || (mostraToggleRecorrente && recorrenteAtiva);
+    const mostraParcFields = isParcelas || isDividas;
+    const mostraDataAvulsa = !mostraRecFields && !mostraParcFields;
+
+    $('#oneDataField').style.display = mostraDataAvulsa ? '' : 'none';
+    $('#oneData').required = mostraDataAvulsa;
+
+    $('#oneRecFields').hidden = !mostraRecFields;
+    $('#oneParcFields').hidden = !mostraParcFields;
+    $('#oneDividaValorTotalInicialField').hidden = !isDividas;
+    $('#oneDividaJurosField').hidden = !isDividas;
+    $('#oneParcEntradaField').hidden = !isParcelas;
+
+    $('#oneRecDiaLabel').textContent = isEntrada ? 'Dia do recebimento' : 'Dia da cobrança';
+    $('#oneRecInicioLabel').textContent = isEntrada ? 'Recebe a partir de' : (isAssinaturas ? 'Cobra a partir de' : 'Começa em');
+    $('#oneRecOndeCaiField').hidden = !isEntrada;
+
+    // sempre chama (mesmo com o grupo escondido) — é o que zera o "required" de #oneRecDia quando
+    // ele deixa de estar em uso; senão ficava um "required" grudado de uma categoria anterior (ex.:
+    // veio de Assinaturas com frequência mensal) bloqueando o submit em silêncio noutra categoria
+    // que nem mostra esse campo (ex.: Parcelas), sem erro nenhum no console pra avisar
+    updateOneRecFreqFieldsVisibility();
+    updateOneParcFreqFieldsVisibility();
+
+    updateOneFormaPagamentoVisibility(tipo);
+
+    // poupança só faz sentido em fluxo avulso (Compras sempre, Contas/Entrada quando "Uma vez") —
+    // nunca em recorrente/assinatura/parcelado/dívida
+    updateOnePoupancaVisibility(tipo);
+    if (!mostraDataAvulsa) $('#onePoupancaField').style.display = 'none';
+
+    $('#oneValorLabel').textContent = (isParcelas || isDividas) ? 'Valor da parcela (R$)' : 'Valor (R$)';
+
+    $('#oneDescLabel').textContent = 'Descrição (opcional)';
+    const placeholders = isSaida ? ONE_DESC_PLACEHOLDERS.saida : ONE_DESC_PLACEHOLDERS.entrada;
+    const catKey = isSaida ? cat : oneCategoriaEntrada;
+    $('#oneDesc').placeholder = (placeholders && placeholders[catKey]) || 'Ex.: Freelance, conta de luz...';
+
+    if (mostraParcFields) updateOneParcResumoEFim();
+  }
   function populateFormaPagamentoSelect(selector, selectedValue){
     const sel = $(selector);
     sel.innerHTML = '';
@@ -4328,10 +4635,54 @@
   $('#oneSeg').addEventListener('click', e=>{
     if (e.target.tagName==='BUTTON'){
       setSeg($('#oneSeg'), e.target.dataset.tipo);
-      updateOneFormaPagamentoVisibility(e.target.dataset.tipo);
-      updateOnePoupancaVisibility(e.target.dataset.tipo);
+      // trocar de Entrada/Saída sempre volta pra categoria padrão e tira o "Recorrente" marcado, pra
+      // não herdar por engano uma combinação que não existe mais (ex.: "Parcelas" numa Entrada)
+      oneCategoria = 'contas';
+      oneCategoriaEntrada = 'salario';
+      oneRecorrente = false;
+      $('#oneCategoriaSaidaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='contas'));
+      $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='salario'));
+      $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
+      updateOneCategoriaVisibility();
+      aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
+      aplicarPisoData('#oneParcInicio', '#oneParcInicioHint');
     }
   });
+  $('#oneCategoriaSaidaChips').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-cat]');
+    if (!btn) return;
+    oneCategoria = btn.dataset.cat;
+    $('#oneCategoriaSaidaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+    oneRecorrente = false;
+    $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
+    updateOneCategoriaVisibility();
+    aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
+    aplicarPisoData('#oneParcInicio', '#oneParcInicioHint');
+  });
+  $('#oneCategoriaEntradaChips').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-cat]');
+    if (!btn) return;
+    oneCategoriaEntrada = btn.dataset.cat;
+    $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+    updateOneCategoriaVisibility();
+  });
+  $('#oneRecorrenteToggle').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-rec]');
+    if (!btn) return;
+    oneRecorrente = btn.dataset.rec === 'sim';
+    $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+    updateOneCategoriaVisibility();
+    aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
+  });
+  $('#oneRecFreq').addEventListener('change', updateOneRecFreqFieldsVisibility);
+  $('#oneRecSemFim').addEventListener('change', e=>{
+    $('#oneRecFim').disabled = e.target.checked;
+    if (e.target.checked) $('#oneRecFim').value = '';
+  });
+  $('#oneParcQtd').addEventListener('input', updateOneParcResumoEFim);
+  $('#oneParcFreq').addEventListener('change', () => { updateOneParcFreqFieldsVisibility(); updateOneParcResumoEFim(); });
+  $('#oneParcIntervaloDias').addEventListener('input', updateOneParcResumoEFim);
+  $('#oneParcInicio').addEventListener('input', updateOneParcResumoEFim);
   // poupança e cartão são mutuamente exclusivos num mesmo lançamento: escolher um zera E BLOQUEIA
   // o outro (fica desabilitado/acinzentado), pra ficar impossível escolher os dois por engano em
   // vez de só zerar em silêncio depois que a pessoa já selecionou errado
@@ -4349,11 +4700,29 @@
   $('#oneFormaPagamento').addEventListener('change', () => {
     if ($('#oneFormaPagamento').value) $('#onePoupanca').value = '';
     syncPoupancaCartaoExclusividade();
+    if (!$('#oneParcFields').hidden) updateOneParcResumoEFim();
+  });
+  $('#oneValor').addEventListener('input', () => {
+    if (!$('#oneParcFields').hidden) updateOneParcResumoEFim();
   });
 
   function openOneModal(prefillDate, editItem){
     $('#oneForm').reset();
     $('#oneEditId').value = '';
+    oneCategoria = 'contas';
+    oneCategoriaEntrada = 'salario';
+    oneRecorrente = false;
+    $('#oneCategoriaSaidaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='contas'));
+    $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='salario'));
+    $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
+    $('#oneRecFreq').value = '1';
+    $('#oneRecIntervaloDias').value = '';
+    $('#oneRecSemFim').checked = true;
+    $('#oneRecFim').disabled = true;
+    $('#oneRecFim').value = '';
+    $('#oneParcFreq').value = '1';
+    $('#oneParcIntervaloDias').value = '';
+    $('#oneParcResumo').textContent = '';
     if (editItem){
       $('#oneModalTitle').textContent = 'Editar lançamento';
       setSeg($('#oneSeg'), editItem.tipo);
@@ -4362,21 +4731,23 @@
       $('#oneData').value = editItem.data;
       $('#oneEditId').value = editItem.id;
       populateFormaPagamentoSelect('#oneFormaPagamento', editItem.formaPagamento);
-      updateOneFormaPagamentoVisibility(editItem.tipo);
       populatePoupancaSelect('#onePoupanca', editItem.poupancaId);
-      updateOnePoupancaVisibility(editItem.tipo);
     } else {
       $('#oneModalTitle').textContent = 'Novo lançamento';
       // a maioria dos lançamentos avulsos do dia a dia é despesa, não receita — então abre já em "Saída"
       setSeg($('#oneSeg'), 'saida');
-      $('#oneData').value = prefillDate || state.selectedDate;
+      const dataBase = prefillDate || state.selectedDate;
+      $('#oneData').value = dataBase;
+      $('#oneRecInicio').value = dataBase;
+      $('#oneParcInicio').value = dataBase;
       populateFormaPagamentoSelect('#oneFormaPagamento', '');
-      updateOneFormaPagamentoVisibility('saida');
       populatePoupancaSelect('#onePoupanca', '');
-      updateOnePoupancaVisibility('saida');
     }
+    updateOneCategoriaVisibility();
     syncPoupancaCartaoExclusividade();
     aplicarPisoData('#oneData', '#oneDataHint');
+    aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
+    aplicarPisoData('#oneParcInicio', '#oneParcInicioHint');
     openOverlay('#overlayOne');
     $('#oneDesc').focus();
   }
@@ -5156,22 +5527,146 @@
   $('#oneForm').addEventListener('submit', e=>{
     e.preventDefault();
     const tipo = $('#oneSeg').querySelector('.active').dataset.tipo;
-    const desc = $('#oneDesc').value.trim();
+    const isSaida = tipo === 'saida';
+    const isEntrada = tipo === 'entrada';
+    const editId = $('#oneEditId').value;
+
+    // editando um avulso já existente — fluxo simples de sempre, sem categoria nenhuma (recorrentes
+    // continuam sendo editadas pelos modais dedicados: openRecurModal/openAssinModal/etc.)
+    if (editId){
+      const desc = $('#oneDesc').value.trim() || 'Lançamento';
+      const valor = parseFloat($('#oneValor').value);
+      const data = $('#oneData').value;
+      const poupancaId = $('#onePoupanca').value || null;
+      const formaPagamento = (isSaida && !poupancaId) ? ($('#oneFormaPagamento').value || null) : null;
+      if (isNaN(valor) || !data) return;
+      if (poupancaId && isEntrada){
+        const p = state.poupancas.find(x=>x.id===poupancaId);
+        if (p){
+          const saldoBase = poupancaSaldoAtual(p, editId);
+          if (valor > saldoBase + 0.005){
+            $('#onePoupancaErro').textContent = `Essa poupança só tem ${fmtBRL(saldoBase)} guardado.`;
+            $('#onePoupancaErro').hidden = false;
+            return;
+          }
+        }
+      }
+      if (poupancaId && isSaida){
+        const saldoDisponivel = saldoRealAtExcluding(data, editId);
+        if (valor > saldoDisponivel + 0.005){
+          $('#onePoupancaErro').textContent = `Seu saldo em conta nessa data é ${fmtBRL(saldoDisponivel)} — não dá pra guardar mais que isso.`;
+          $('#onePoupancaErro').hidden = false;
+          return;
+        }
+      }
+      const t = state.oneTime.find(x=>x.id===editId);
+      if (t){
+        const cartaoAntigo = t.formaPagamento;
+        t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.formaPagamento=formaPagamento; t.poupancaId=poupancaId;
+        reconcileFaturaPagamentos(cartaoAntigo);
+      }
+      closeOverlay('#overlayOne');
+      renderAll();
+      return;
+    }
+
+    // criando um lançamento novo — a categoria escolhida decide se vira um avulso (state.oneTime) ou
+    // uma recorrente (state.recorrentes), reaproveitando os mesmos campos/cálculos das páginas
+    // dedicadas de Contas fixas/Assinaturas/Parcelados/Dívidas
+    const cat = oneCategoria;
+    const isAssinaturas = isSaida && cat === 'assinaturas';
+    const isParcelas = isSaida && cat === 'parcelas';
+    const isDividas = isSaida && cat === 'dividas';
+    const isContas = isSaida && cat === 'contas';
+    const mostraToggleRecorrente = isContas || isEntrada;
+    const recorrenteAtiva = mostraToggleRecorrente && oneRecorrente;
+
+    const categoriaSalva = isSaida ? cat : oneCategoriaEntrada;
+    const catLabels = isSaida ? ONE_CATEGORIA_LABELS_SAIDA : ONE_CATEGORIA_LABELS_ENTRADA;
+    const desc = $('#oneDesc').value.trim() || catLabels[categoriaSalva] || 'Lançamento';
+
+    // ----- Assinatura: sempre recorrente, sem escolha -----
+    if (isAssinaturas){
+      const valor = parseFloat($('#oneValor').value);
+      const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#oneRecFreq').value, $('#oneRecIntervaloDias').value);
+      const dia = freqType === 'dias' ? null : Math.min(31, Math.max(1, parseInt($('#oneRecDia').value,10)));
+      const dataInicio = $('#oneRecInicio').value;
+      const semFim = $('#oneRecSemFim').checked;
+      const dataFim = semFim ? null : ($('#oneRecFim').value || null);
+      const formaPagamento = $('#oneFormaPagamento').value || null;
+      if (isNaN(valor) || !dataInicio) return;
+      if (freqType === 'meses' && isNaN(dia)) return;
+      if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
+      state.recorrentes.push({ id: nextId(), kind:'assinatura', tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, dataInicio, dataFim, formaPagamento, categoria: categoriaSalva });
+      closeOverlay('#overlayOne');
+      renderAll();
+      return;
+    }
+
+    // ----- Parcelas / Dívidas: sempre parceladas, sem escolha -----
+    if (isParcelas || isDividas){
+      const valor = parseFloat($('#oneValor').value);
+      const numParcelas = Math.max(1, parseInt($('#oneParcQtd').value, 10));
+      const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#oneParcFreq').value, $('#oneParcIntervaloDias').value);
+      const dataInicio = $('#oneParcInicio').value;
+      const formaPagamento = $('#oneFormaPagamento').value || null;
+      let valorTotalInicial = null, juros = null;
+      if (isDividas){
+        valorTotalInicial = parseFloat($('#oneDividaValorTotalInicial').value);
+        juros = $('#oneDividaJuros').value.trim() || null;
+        if (juros && /^\d+([.,]\d+)?$/.test(juros)) juros = juros + '%';
+        if (isNaN(valorTotalInicial)) return;
+      }
+      if (isNaN(valor) || isNaN(numParcelas) || !dataInicio) return;
+      if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
+      const dia = freqType === 'dias' ? null : Number(dataInicio.split('-')[2]);
+      const dataFimAuto = freqType === 'dias' ? addDays(dataInicio, (numParcelas-1)*intervalDias) : addMonthsISO(dataInicio, (numParcelas-1)*intervalMeses);
+      const dataFim = $('#oneParcFim').value || dataFimAuto;
+      const novoItem = { id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso', categoria: categoriaSalva };
+      if (isDividas){ novoItem.isDivida = true; novoItem.valorTotalInicial = valorTotalInicial; novoItem.juros = juros; }
+      state.recorrentes.push(novoItem);
+      // valor de entrada (só existe pra Parcelas) — sai do saldo separado, na data de início, sem
+      // entrar na conta das parcelas em si
+      if (isParcelas){
+        const valorEntrada = parseFloat($('#oneParcEntrada').value);
+        if (!isNaN(valorEntrada) && valorEntrada > 0){
+          state.oneTime.push({ id: nextId(), tipo:'saida', desc: `Entrada: ${desc}`, valor: valorEntrada, data: dataInicio, formaPagamento, poupancaId: null });
+        }
+      }
+      closeOverlay('#overlayOne');
+      renderAll();
+      return;
+    }
+
+    // ----- Contas ou qualquer categoria de Entrada, marcadas como "Recorrente" -----
+    if (recorrenteAtiva){
+      const valor = parseFloat($('#oneValor').value);
+      const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#oneRecFreq').value, $('#oneRecIntervaloDias').value);
+      const dia = freqType === 'dias' ? null : Math.min(31, Math.max(1, parseInt($('#oneRecDia').value,10)));
+      const dataInicio = $('#oneRecInicio').value;
+      const semFim = $('#oneRecSemFim').checked;
+      const dataFim = semFim ? null : ($('#oneRecFim').value || null);
+      const formaPagamento = isSaida ? ($('#oneFormaPagamento').value || null) : null;
+      const ondeCai = isEntrada ? ($('#oneRecOndeCai').value.trim() || null) : null;
+      if (isNaN(valor) || !dataInicio) return;
+      if (freqType === 'meses' && isNaN(dia)) return;
+      if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
+      state.recorrentes.push({ id: nextId(), kind:'fixa', tipo, desc, valor, dia, freqType, intervalMeses, intervalDias, dataInicio, dataFim, formaPagamento, ondeCai, categoria: categoriaSalva });
+      closeOverlay('#overlayOne');
+      renderAll();
+      return;
+    }
+
+    // ----- Compras, Contas avulsa, ou Entrada avulsa: lançamento único de sempre -----
     const valor = parseFloat($('#oneValor').value);
     const data = $('#oneData').value;
-    const editId = $('#oneEditId').value;
     const poupancaId = $('#onePoupanca').value || null;
-    // poupança e cartão nunca andam juntos no mesmo lançamento (ver listener de mudança acima) —
-    // aqui é só a garantia final, no submit, de que um lançamento pra poupança nunca sai marcado
-    // como compra no cartão também
-    const formaPagamento = (tipo === 'saida' && !poupancaId) ? ($('#oneFormaPagamento').value || null) : null;
-    if (!desc || isNaN(valor) || !data) return;
-    // retirada da poupança (entrada com poupancaId): não deixa passar do que a poupança realmente
-    // tem guardado — mesma trava do fluxo dedicado (ver #guardarRapidoForm)
-    if (poupancaId && tipo === 'entrada'){
+    const formaPagamento = (isSaida && !poupancaId) ? ($('#oneFormaPagamento').value || null) : null;
+    if (isNaN(valor) || !data) return;
+    if (poupancaId && isEntrada){
       const p = state.poupancas.find(x=>x.id===poupancaId);
       if (p){
-        const saldoBase = poupancaSaldoAtual(p, editId || null);
+        const saldoBase = poupancaSaldoAtual(p);
         if (valor > saldoBase + 0.005){
           $('#onePoupancaErro').textContent = `Essa poupança só tem ${fmtBRL(saldoBase)} guardado.`;
           $('#onePoupancaErro').hidden = false;
@@ -5179,28 +5674,16 @@
         }
       }
     }
-    // mandar pra poupança (saída com poupancaId): não deixa guardar mais do que tem de saldo em
-    // conta nessa data — se o saldo estiver zerado (ou negativo), fica travado igual, já que
-    // qualquer valor positivo passa a ser maior que ele
-    if (poupancaId && tipo === 'saida'){
-      const saldoDisponivel = saldoRealAtExcluding(data, editId || null);
+    if (poupancaId && isSaida){
+      const saldoDisponivel = saldoRealAtExcluding(data, null);
       if (valor > saldoDisponivel + 0.005){
         $('#onePoupancaErro').textContent = `Seu saldo em conta nessa data é ${fmtBRL(saldoDisponivel)} — não dá pra guardar mais que isso.`;
         $('#onePoupancaErro').hidden = false;
         return;
       }
     }
-    if (editId){
-      const t = state.oneTime.find(x=>x.id===editId);
-      if (t){
-        const cartaoAntigo = t.formaPagamento;
-        t.tipo=tipo; t.desc=desc; t.valor=valor; t.data=data; t.formaPagamento=formaPagamento; t.poupancaId=poupancaId;
-        reconcileFaturaPagamentos(cartaoAntigo);
-      }
-    } else {
-      state.oneTime.push({ id: nextId(), tipo, desc, valor, data, formaPagamento, poupancaId });
-      state.selectedDate = data;
-    }
+    state.oneTime.push({ id: nextId(), tipo, desc, valor, data, formaPagamento, poupancaId, categoria: categoriaSalva });
+    state.selectedDate = data;
     closeOverlay('#overlayOne');
     renderAll();
   });

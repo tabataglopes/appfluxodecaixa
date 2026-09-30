@@ -750,6 +750,15 @@
   }
   .field input.mono{ font-family:"JetBrains Mono", monospace; }
   .piso-data-hint{ font-size:11.5px; color:var(--ink-muted); margin:2px 0 0; line-height:1.3; }
+  /* campo com sufixo fixo ao lado (ex.: "Juros" + "%") — junta visualmente input e sufixo num
+     bloco só, em vez de deixar o símbolo solto ou escondido dentro de um texto de exemplo longo */
+  .field-suffix{ display:flex; align-items:stretch; }
+  .field-suffix input{ border-top-right-radius:0; border-bottom-right-radius:0; }
+  .field-suffix .suffix-badge{
+    display:flex; align-items:center; justify-content:center; padding:0 12px; flex-shrink:0;
+    border:1px solid var(--border); border-left:none; border-radius:0 8px 8px 0;
+    background:var(--surface-2); color:var(--ink-muted); font-size:14px; font-weight:600;
+  }
   .seg{ display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
   .seg button{
     flex:1; padding:9px 8px; background:var(--surface); border:none; cursor:pointer; font-size:13px; font-weight:600;
@@ -1478,8 +1487,12 @@
         <input type="number" step="0.01" min="0" id="oneDividaValorTotalInicial" class="mono" placeholder="0,00">
       </div>
       <div class="field" id="oneDividaJurosField" hidden>
-        <label for="oneDividaJuros">Juros (opcional — só pra anotar, o app não usa isso em nenhuma conta)</label>
-        <input type="text" id="oneDividaJuros" placeholder="Ex.: 5 (vira 5% sozinho), ao mês, ou R$ 50 por parcela...">
+        <label for="oneDividaJuros">Juros</label>
+        <div class="field-suffix">
+          <input type="number" step="0.01" min="0" id="oneDividaJuros" class="mono" placeholder="Ex.: 5">
+          <span class="suffix-badge">%</span>
+        </div>
+        <p class="piso-data-hint">Opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
       </div>
 
       <div class="field" id="oneFormaPagamentoField">
@@ -2044,8 +2057,12 @@
         <input type="number" step="0.01" min="0" id="dividaValorTotalInicial" class="mono" placeholder="0,00" required>
       </div>
       <div class="field">
-        <label for="dividaJuros">Juros (opcional — só pra você anotar, o app não usa isso em nenhuma conta)</label>
-        <input type="text" id="dividaJuros" placeholder="Ex.: 5 (vira 5% sozinho), ao mês, ou R$ 50 de juros por parcela...">
+        <label for="dividaJuros">Juros</label>
+        <div class="field-suffix">
+          <input type="number" step="0.01" min="0" id="dividaJuros" class="mono" placeholder="Ex.: 5">
+          <span class="suffix-badge">%</span>
+        </div>
+        <p class="piso-data-hint">Opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
       </div>
       <div class="row2">
         <div class="field">
@@ -4896,7 +4913,10 @@
       $('#dividaModalTitle').textContent = 'Editar dívida';
       $('#dividaDesc').value = editItem.desc;
       $('#dividaValorTotalInicial').value = editItem.valorTotalInicial;
-      $('#dividaJuros').value = editItem.juros || '';
+      // remove o "%" pra caber de volta no campo numérico (que já mostra o símbolo fixo do lado);
+      // se for um valor antigo que a pessoa tinha escrito por extenso (ex.: "R$ 50 por parcela",
+      // de antes desse campo virar só número), não tem como converter, então fica em branco
+      $('#dividaJuros').value = (editItem.juros || '').replace('%', '').trim();
       $('#dividaValor').value = editItem.valor;
       $('#dividaQtd').value = editItem.numParcelas;
       $('#dividaFreq').value = freqToSelectValue(editItem);
@@ -5613,8 +5633,8 @@
       let valorTotalInicial = null, juros = null;
       if (isDividas){
         valorTotalInicial = parseFloat($('#oneDividaValorTotalInicial').value);
-        juros = $('#oneDividaJuros').value.trim() || null;
-        if (juros && /^\d+([.,]\d+)?$/.test(juros)) juros = juros + '%';
+        juros = $('#oneDividaJuros').value.trim();
+        juros = juros ? juros + '%' : null;
         if (isNaN(valorTotalInicial)) return;
       }
       if (isNaN(valor) || isNaN(numParcelas) || !dataInicio) return;
@@ -5867,11 +5887,10 @@
     e.preventDefault();
     const desc = $('#dividaDesc').value.trim();
     const valorTotalInicial = parseFloat($('#dividaValorTotalInicial').value);
-    // se a pessoa só digitou um número (ex.: "5"), assume que é uma taxa e completa com "%"
-    // sozinho — sem isso ficava sem contexto nenhum ("Juros: 5"); se ela escreveu algo com letras
-    // (ex.: "R$ 50 por parcela"), deixa exatamente do jeito que ela quis
-    let juros = $('#dividaJuros').value.trim() || null;
-    if (juros && /^\d+([.,]\d+)?$/.test(juros)) juros = juros + '%';
+    // campo é só o número da taxa (o "%" já vem fixo do lado no formulário) — completa aqui
+    // pra guardar com o símbolo junto, senão ficava sem contexto nenhum ("Juros: 5")
+    let juros = $('#dividaJuros').value.trim();
+    juros = juros ? juros + '%' : null;
     const valor = parseFloat($('#dividaValor').value);
     const numParcelas = Math.max(1, parseInt($('#dividaQtd').value, 10));
     const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#dividaFreq').value, $('#dividaIntervaloDias').value);

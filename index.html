@@ -4544,14 +4544,14 @@
 
     if (isEditing){
       // editando um avulso já existente — sem categorias, sempre o fluxo simples de sempre
-      $('#oneCategoriaSaidaField').hidden = true;
-      $('#oneCategoriaEntradaField').hidden = true;
-      $('#oneRecorrenteToggleField').hidden = true;
+      $('#oneCategoriaSaidaField').style.display = 'none';
+      $('#oneCategoriaEntradaField').style.display = 'none';
+      $('#oneRecorrenteToggleField').style.display = 'none';
       $('#oneRecFields').hidden = true;
       $('#oneParcFields').hidden = true;
-      $('#oneDividaValorTotalInicialField').hidden = true;
-      $('#oneDividaJurosField').hidden = true;
-      $('#oneParcEntradaField').hidden = true;
+      $('#oneDividaValorTotalInicialField').style.display = 'none';
+      $('#oneDividaJurosField').style.display = 'none';
+      $('#oneParcEntradaField').style.display = 'none';
       $('#oneDataField').style.display = '';
       $('#oneData').required = true;
       $('#oneValorLabel').textContent = 'Valor (R$)';
@@ -4569,12 +4569,12 @@
     const isParcelas = isSaida && cat === 'parcelas';
     const isDividas = isSaida && cat === 'dividas';
 
-    $('#oneCategoriaSaidaField').hidden = !isSaida;
-    $('#oneCategoriaEntradaField').hidden = !isEntrada;
+    $('#oneCategoriaSaidaField').style.display = isSaida ? '' : 'none';
+    $('#oneCategoriaEntradaField').style.display = isEntrada ? '' : 'none';
 
     const mostraToggleRecorrente = isContas || isEntrada;
     const recorrenteAtiva = mostraToggleRecorrente && oneRecorrente;
-    $('#oneRecorrenteToggleField').hidden = !mostraToggleRecorrente;
+    $('#oneRecorrenteToggleField').style.display = mostraToggleRecorrente ? '' : 'none';
     $('#oneRecorrenteToggleLabel').textContent = isEntrada ? 'Esse recebimento é...' : 'Essa conta é...';
 
     const mostraRecFields = isAssinaturas || (mostraToggleRecorrente && recorrenteAtiva);
@@ -4586,13 +4586,13 @@
 
     $('#oneRecFields').hidden = !mostraRecFields;
     $('#oneParcFields').hidden = !mostraParcFields;
-    $('#oneDividaValorTotalInicialField').hidden = !isDividas;
-    $('#oneDividaJurosField').hidden = !isDividas;
-    $('#oneParcEntradaField').hidden = !isParcelas;
+    $('#oneDividaValorTotalInicialField').style.display = isDividas ? '' : 'none';
+    $('#oneDividaJurosField').style.display = isDividas ? '' : 'none';
+    $('#oneParcEntradaField').style.display = isParcelas ? '' : 'none';
 
     $('#oneRecDiaLabel').textContent = isEntrada ? 'Dia do recebimento' : 'Dia da cobrança';
     $('#oneRecInicioLabel').textContent = isEntrada ? 'Recebe a partir de' : (isAssinaturas ? 'Cobra a partir de' : 'Começa em');
-    $('#oneRecOndeCaiField').hidden = !isEntrada;
+    $('#oneRecOndeCaiField').style.display = isEntrada ? '' : 'none';
 
     // sempre chama (mesmo com o grupo escondido) — é o que zera o "required" de #oneRecDia quando
     // ele deixa de estar em uso; senão ficava um "required" grudado de uma categoria anterior (ex.:

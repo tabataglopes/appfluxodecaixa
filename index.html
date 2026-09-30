@@ -1472,16 +1472,6 @@
       <!-- categorias — só aparecem criando um lançamento novo (não ao editar um avulso existente),
            pra guiar a pessoa pro fluxo certo em vez de ela ter que saber de antemão que "assinatura"
            e "dívida" ficam em páginas separadas (ver openOneModal/updateOneCategoriaVisibility) -->
-      <div class="field" id="oneCategoriaSaidaField" hidden>
-        <label>Categoria</label>
-        <div class="chips" id="oneCategoriaSaidaChips">
-          <button type="button" class="chip chip-saida active" data-cat="contas">Contas</button>
-          <button type="button" class="chip chip-saida" data-cat="compras">Gastos</button>
-          <button type="button" class="chip chip-saida" data-cat="assinaturas">Assinaturas</button>
-          <button type="button" class="chip chip-saida" data-cat="parcelas">Parcelas</button>
-          <button type="button" class="chip chip-saida" data-cat="dividas">Dívidas</button>
-        </div>
-      </div>
       <div class="field" id="oneCategoriaEntradaField" hidden>
         <label>Categoria</label>
         <div class="chips" id="oneCategoriaEntradaChips">
@@ -4593,7 +4583,7 @@
   // nenhuma lógica de cálculo de data — só reaproveita freqValueToInterval/addDays/addMonthsISO que
   // já existiam pra essas páginas. Editar um lançamento avulso já existente continua no fluxo simples
   // de sempre (ver isEditing abaixo), sem categoria nenhuma — só lançamentos NOVOS passam por aqui.
-  let oneCategoria = 'contas';
+  let oneCategoria = 'compras';
   let oneCategoriaEntrada = 'salario';
   let oneRecorrente = false;
   let oneComprasParcelada = false;
@@ -4658,7 +4648,6 @@
 
     if (isEditing){
       // editando um avulso já existente — sem categorias, sempre o fluxo simples de sempre
-      $('#oneCategoriaSaidaField').style.display = 'none';
       $('#oneCategoriaEntradaField').style.display = 'none';
       $('#oneRecorrenteToggleField').style.display = 'none';
       $('#oneRecFields').hidden = true;
@@ -4686,7 +4675,6 @@
     const isParcelas = isSaida && cat === 'parcelas';
     const isDividas = isSaida && cat === 'dividas';
 
-    $('#oneCategoriaSaidaField').style.display = isSaida ? '' : 'none';
     $('#oneCategoriaEntradaField').style.display = isEntrada ? '' : 'none';
 
     const mostraToggleRecorrente = isContas || isEntrada;
@@ -4765,28 +4753,18 @@
     if (e.target.tagName==='BUTTON'){
       setSeg($('#oneSeg'), e.target.dataset.tipo);
       // trocar de Entrada/Saída sempre volta pra categoria padrão e tira o "Recorrente" marcado, pra
-      // não herdar por engano uma combinação que não existe mais (ex.: "Parcelas" numa Entrada)
-      oneCategoria = 'contas';
+      // não herdar por engano uma combinação que não existe mais — Saída só tem "Gastos" (as outras
+      // opções foram tiradas daqui: quem quiser lançar conta/assinatura/parcelado/dívida recorrente
+      // usa o "+" dedicado na própria página deles no menu)
+      oneCategoria = 'compras';
       oneCategoriaEntrada = 'salario';
       oneRecorrente = false;
-      $('#oneCategoriaSaidaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='contas'));
       $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='salario'));
       $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
       updateOneCategoriaVisibility();
       aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
       aplicarPisoData('#oneParcInicio', '#oneParcInicioHint');
     }
-  });
-  $('#oneCategoriaSaidaChips').addEventListener('click', e=>{
-    const btn = e.target.closest('button[data-cat]');
-    if (!btn) return;
-    oneCategoria = btn.dataset.cat;
-    $('#oneCategoriaSaidaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
-    oneRecorrente = false;
-    $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
-    updateOneCategoriaVisibility();
-    aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
-    aplicarPisoData('#oneParcInicio', '#oneParcInicioHint');
   });
   $('#oneCategoriaEntradaChips').addEventListener('click', e=>{
     const btn = e.target.closest('button[data-cat]');
@@ -4846,11 +4824,10 @@
   function openOneModal(prefillDate, editItem){
     $('#oneForm').reset();
     $('#oneEditId').value = '';
-    oneCategoria = 'contas';
+    oneCategoria = 'compras';
     oneCategoriaEntrada = 'salario';
     oneRecorrente = false;
     oneComprasParcelada = false;
-    $('#oneCategoriaSaidaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='contas'));
     $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='salario'));
     $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
     $('#oneComprasParceladaToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.parc==='nao'));

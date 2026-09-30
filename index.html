@@ -2346,6 +2346,20 @@
   <button id="toastUndo">Desfazer</button>
 </div>
 
+<!-- Pop-up de confirmação antes de apagar qualquer lançamento (avulso, recorrente, conta não
+     mensal, cartão ou poupança) — pedido explícito da Tabata, pra não sumir nada sem querer com um
+     toque sem querer. Fica por cima de qualquer outro pop-up já aberto (é o último overlay do body). -->
+<div class="overlay" id="overlayConfirmDelete" hidden>
+  <div class="modal" style="max-width:360px;">
+    <h3>Tem certeza que quer apagar?</h3>
+    <p class="piso-data-hint" id="confirmDeleteMsg" style="font-size:13.5px; margin:0 0 18px;"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="confirmDeleteNo" data-close="overlayConfirmDelete">Não</button>
+      <button type="button" class="btn danger" id="confirmDeleteYes">Sim, apagar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -4320,9 +4334,8 @@
   }
 
   function removeOneTime(id, desc){
-    const idx = state.oneTime.findIndex(t=>t.id===id);
-    if (idx===-1) return;
-    const item = state.oneTime[idx];
+    const item = state.oneTime.find(t=>t.id===id);
+    if (!item) return;
     // se esse lançamento está vinculado a uma poupança, apagar ele não pode deixar o total guardado
     // negativo — isso pode acontecer se a pessoa já tiver retirado esse mesmo valor de volta por
     // outro lançamento antes de vir apagar este aqui (a retirada "gastou" um dinheiro que só existia
@@ -4341,61 +4354,95 @@
         }
       }
     }
-    lastDeleted = { type:'oneTime', item };
-    state.oneTime.splice(idx,1);
-    reconcileFaturaPagamentos(item.formaPagamento);
-    renderAll();
-    showToast(`"${desc}" removido.`);
+    confirmarExclusao(`Tem certeza que quer apagar "${desc}"?`, () => {
+      const idx = state.oneTime.findIndex(t=>t.id===id);
+      if (idx===-1) return;
+      lastDeleted = { type:'oneTime', item: state.oneTime[idx] };
+      state.oneTime.splice(idx,1);
+      reconcileFaturaPagamentos(item.formaPagamento);
+      renderAll();
+      showToast(`"${desc}" removido.`);
+    });
   }
 
   function removeNaoMensal(id, nome){
-    const idx = state.contasNaoMensais.findIndex(x=>x.id===id);
-    if (idx===-1) return;
-    const item = state.contasNaoMensais[idx];
-    lastDeleted = { type:'naomensal', item };
-    state.contasNaoMensais.splice(idx,1);
-    renderAll();
-    showToast(`"${nome}" removida.`);
+    if (!state.contasNaoMensais.some(x=>x.id===id)) return;
+    confirmarExclusao(`Tem certeza que quer apagar "${nome}"?`, () => {
+      const idx = state.contasNaoMensais.findIndex(x=>x.id===id);
+      if (idx===-1) return;
+      const item = state.contasNaoMensais[idx];
+      lastDeleted = { type:'naomensal', item };
+      state.contasNaoMensais.splice(idx,1);
+      renderAll();
+      showToast(`"${nome}" removida.`);
+    });
   }
 
   function removeCartao(id, nome){
-    const idx = state.cartoes.findIndex(c=>c.id===id);
-    if (idx===-1) return;
-    // gastos que estavam nesse cartão passam a contar como dinheiro/pix/débito, na data em que foram lançados
-    for (const t of state.oneTime) if (t.formaPagamento === id) t.formaPagamento = null;
-    for (const r of state.recorrentes) if (r.formaPagamento === id) r.formaPagamento = null;
-    // pagamentos de fatura já confirmados nesse cartão: as compras que eles cobriam acabaram de virar
-    // dinheiro/pix/débito (linhas acima), então já entram sozinhas no saldo atual e no projetado a partir
-    // de agora. Manter esses registros de pagamento faria o valor ser descontado DUAS VEZES do saldo
-    // atual (uma pela compra virando dinheiro, outra pelo pagamento da fatura que ainda ficaria contando).
-    state.faturaPagamentos = state.faturaPagamentos.filter(p => p.cardId !== id);
-    state.cartoes.splice(idx,1);
-    renderAll();
-    showToast(`Cartão "${nome}" removido. Os gastos lançados nele passam a contar como dinheiro/pix/débito.`);
+    if (!state.cartoes.some(c=>c.id===id)) return;
+    confirmarExclusao(`Tem certeza que quer apagar o cartão "${nome}"?`, () => {
+      const idx = state.cartoes.findIndex(c=>c.id===id);
+      if (idx===-1) return;
+      // gastos que estavam nesse cartão passam a contar como dinheiro/pix/débito, na data em que foram lançados
+      for (const t of state.oneTime) if (t.formaPagamento === id) t.formaPagamento = null;
+      for (const r of state.recorrentes) if (r.formaPagamento === id) r.formaPagamento = null;
+      // pagamentos de fatura já confirmados nesse cartão: as compras que eles cobriam acabaram de virar
+      // dinheiro/pix/débito (linhas acima), então já entram sozinhas no saldo atual e no projetado a partir
+      // de agora. Manter esses registros de pagamento faria o valor ser descontado DUAS VEZES do saldo
+      // atual (uma pela compra virando dinheiro, outra pelo pagamento da fatura que ainda ficaria contando).
+      state.faturaPagamentos = state.faturaPagamentos.filter(p => p.cardId !== id);
+      state.cartoes.splice(idx,1);
+      renderAll();
+      showToast(`Cartão "${nome}" removido. Os gastos lançados nele passam a contar como dinheiro/pix/débito.`);
+    });
   }
 
   function removePoupanca(id, nome){
-    const idx = state.poupancas.findIndex(p=>p.id===id);
-    if (idx===-1) return;
-    // os lançamentos que já foram feitos pra essa poupança continuam no histórico (o dinheiro já
-    // saiu/voltou de verdade da conta principal) — só perdem a marcação de poupança e passam a
-    // contar como um lançamento avulso comum dali em diante
-    for (const t of state.oneTime) if (t.poupancaId === id) t.poupancaId = null;
-    state.poupancas.splice(idx,1);
-    renderAll();
-    showToast(`Poupança "${nome}" removida.`);
+    if (!state.poupancas.some(p=>p.id===id)) return;
+    confirmarExclusao(`Tem certeza que quer apagar a poupança "${nome}"?`, () => {
+      const idx = state.poupancas.findIndex(p=>p.id===id);
+      if (idx===-1) return;
+      // os lançamentos que já foram feitos pra essa poupança continuam no histórico (o dinheiro já
+      // saiu/voltou de verdade da conta principal) — só perdem a marcação de poupança e passam a
+      // contar como um lançamento avulso comum dali em diante
+      for (const t of state.oneTime) if (t.poupancaId === id) t.poupancaId = null;
+      state.poupancas.splice(idx,1);
+      renderAll();
+      showToast(`Poupança "${nome}" removida.`);
+    });
   }
 
   function removeRecurrente(id, desc, fromDayList){
-    const idx = state.recorrentes.findIndex(r=>r.id===id);
-    if (idx===-1) return;
-    const item = state.recorrentes[idx];
-    lastDeleted = { type:'recorrente', item };
-    state.recorrentes.splice(idx,1);
-    reconcileFaturaPagamentos(item.formaPagamento);
-    renderAll();
-    showToast(`Recorrência "${desc}" removida.`);
+    if (!state.recorrentes.some(r=>r.id===id)) return;
+    confirmarExclusao(`Tem certeza que quer apagar "${desc}"?`, () => {
+      const idx = state.recorrentes.findIndex(r=>r.id===id);
+      if (idx===-1) return;
+      const item = state.recorrentes[idx];
+      lastDeleted = { type:'recorrente', item };
+      state.recorrentes.splice(idx,1);
+      reconcileFaturaPagamentos(item.formaPagamento);
+      renderAll();
+      showToast(`Recorrência "${desc}" removida.`);
+    });
   }
+
+  // pop-up genérico "tem certeza que quer apagar?" — usado antes de qualquer remoção de verdade
+  // (lançamento avulso, recorrente, conta não mensal, cartão, poupança). Só executa a remoção em si
+  // (passada em onConfirm) se a pessoa clicar em "Sim, apagar"; fechar de qualquer outro jeito
+  // (Não, clique fora, Esc) cancela sem apagar nada.
+  let confirmDeleteCallback = null;
+  function confirmarExclusao(msg, onConfirm){
+    $('#confirmDeleteMsg').textContent = msg;
+    confirmDeleteCallback = onConfirm;
+    openOverlay('#overlayConfirmDelete');
+  }
+  $('#confirmDeleteYes').addEventListener('click', () => {
+    const cb = confirmDeleteCallback;
+    confirmDeleteCallback = null;
+    closeOverlay('#overlayConfirmDelete');
+    if (cb) cb();
+  });
+  $('#confirmDeleteNo').addEventListener('click', () => { confirmDeleteCallback = null; });
 
   function showToast(msg){
     $('#toastMsg').textContent = msg;
@@ -6089,6 +6136,8 @@
     scan(state.oneTime);
     scan(state.recorrentes);
     scan(state.faturaPagamentos);
+    scan(state.contasNaoMensais);
+    scan(state.poupancas);
     idCounter = Math.max(idCounter, maxUsed + 1);
   }
 

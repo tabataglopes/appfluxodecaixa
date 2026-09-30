@@ -876,19 +876,26 @@
   }
   .drawer-nav .base-chip{ width:100%; box-sizing:border-box; }
 
-  /* submenu flyout ("Contas recorrentes" no menu lateral) — solto no body (ver comentário no HTML),
-     posicionado via JS um pouquinho à direita do botão que o abriu, clampado pra nunca vazar da tela */
-  .submenu-flyout{
-    position:fixed; z-index:65; background:var(--surface); border:1px solid var(--border);
-    border-radius:12px; box-shadow:var(--shadow); padding:6px; display:flex; flex-direction:column;
-    gap:2px; width:210px; max-width:calc(100vw - 16px);
+  /* botão "Contas recorrentes": a setinha gira pra apontar pra baixo quando o submenu tá aberto */
+  #openContasRecorrentesMenuBtn{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  #openContasRecorrentesMenuBtn .chevron{
+    color:var(--ink-muted); font-size:15px; line-height:1; display:inline-block; transition:transform .15s ease;
   }
-  .submenu-flyout[hidden]{ display:none; }
-  .submenu-flyout .btn{
-    width:100%; box-sizing:border-box; text-align:left; padding:9px 10px; font-size:13.5px;
+  #openContasRecorrentesMenuBtn[aria-expanded="true"] .chevron{ transform:rotate(90deg); }
+
+  /* submenu de "Contas recorrentes": abre logo ABAIXO do próprio botão, dentro da lista do menu —
+     nada flutua pro lado (pedido explícito da Tabata). Recuo pequeno só pra deixar visualmente
+     claro que essas 4 opções são "filhas" de Contas recorrentes. */
+  #contasRecorrentesSubmenu{
+    display:flex; flex-direction:column; gap:2px; margin:2px 0 0 16px; padding-left:10px;
+    border-left:2px solid var(--border);
+  }
+  #contasRecorrentesSubmenu[hidden]{ display:none; }
+  #contasRecorrentesSubmenu .btn{
+    width:100%; box-sizing:border-box; text-align:left; padding:9px 10px; font-size:13px; font-weight:500;
     background:transparent; border-color:transparent;
   }
-  .submenu-flyout .btn:hover{ background:var(--surface-2); border-color:var(--border); }
+  #contasRecorrentesSubmenu .btn:hover{ background:var(--surface-2); border-color:var(--border); }
 
   /* toast */
   .toast{
@@ -1405,10 +1412,16 @@
         <span class="edit-icon" aria-hidden="true">&#9998;</span>
       </div>
       <button class="btn drawer-item" id="openReceitasBtn"><i class="swatch in" style="vertical-align:middle; margin-right:6px;"></i>Receitas recorrentes</button>
-      <button class="btn" id="openContasRecorrentesMenuBtn" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <button class="btn" id="openContasRecorrentesMenuBtn" type="button" aria-expanded="false" aria-controls="contasRecorrentesSubmenu">
         <span><i class="swatch out" style="vertical-align:middle; margin-right:6px;"></i>Contas recorrentes</span>
-        <span aria-hidden="true" style="color:var(--ink-muted); font-size:15px; line-height:1;">&rsaquo;</span>
+        <span class="chevron" aria-hidden="true">&rsaquo;</span>
       </button>
+      <div id="contasRecorrentesSubmenu" hidden>
+        <button type="button" class="btn" id="openContasBtn"><i class="swatch out" style="vertical-align:middle; margin-right:6px;"></i>Contas recorrentes</button>
+        <button type="button" class="btn" id="openAssinBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>Assinaturas</button>
+        <button type="button" class="btn" id="openParceladosBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Parcelados</button>
+        <button type="button" class="btn" id="openDividasBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Dívidas</button>
+      </div>
       <button class="btn drawer-item" id="openCartoesBtn">🚩 Cartão de crédito</button>
       <button class="btn drawer-item" id="openPoupancaBtn">🐷 Poupança</button>
       <button class="btn drawer-item" id="openNaoMensaisBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 15h.01M12 15h.01M16 15h.01"></path></svg>Espaço de Anotações</button>
@@ -2372,20 +2385,6 @@
       <button type="button" class="btn danger" id="confirmDeleteYes">Sim, apagar</button>
     </div>
   </div>
-</div>
-
-<!-- Submenu flyout de "Contas recorrentes" no menu lateral — abre um pouquinho à direita do botão
-     que o chamou, com as 4 categorias que antes ficavam soltas na lista principal do menu (pedido
-     da Tabata pra deixar o menu mais enxuto: só "Receitas recorrentes" e "Contas recorrentes" no
-     nível de cima). Fica fora do drawer (não é filho de .modal.drawer) de propósito: o .modal tem
-     overflow-y:auto, e por regra do CSS isso também vira "auto" no eixo horizontal — um filho
-     posicionado além da borda direita do drawer ficaria cortado, escondido. Sendo um elemento solto
-     do body com position:fixed (calculada no JS a partir da posição do botão), escapa desse corte. -->
-<div class="submenu-flyout" id="contasRecorrentesSubmenu" hidden>
-  <button type="button" class="btn" id="openContasBtn"><i class="swatch out" style="vertical-align:middle; margin-right:6px;"></i>Contas recorrentes</button>
-  <button type="button" class="btn" id="openAssinBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>Assinaturas</button>
-  <button type="button" class="btn" id="openParceladosBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Parcelados</button>
-  <button type="button" class="btn" id="openDividasBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Dívidas</button>
 </div>
 
 <script>
@@ -4542,27 +4541,21 @@
     el.addEventListener('click', () => closeOverlay('#overlayMenu'));
   });
 
-  // submenu "Contas recorrentes": abre um pouquinho à direita do botão que chamou (ver comentário
-  // no HTML sobre por que o elemento mora fora do drawer). Posição calculada a partir do botão e
-  // sempre clampada pra caber na tela, tanto no desktop quanto num celular estreito.
-  function closeContasRecorrentesSubmenu(){ $('#contasRecorrentesSubmenu').hidden = true; }
+  // submenu "Contas recorrentes": abre logo abaixo do próprio botão, dentro da lista do menu —
+  // sem flutuar pro lado (pedido da Tabata depois de ver o primeiro protótipo com flyout lateral).
+  function closeContasRecorrentesSubmenu(){
+    $('#contasRecorrentesSubmenu').hidden = true;
+    $('#openContasRecorrentesMenuBtn').setAttribute('aria-expanded', 'false');
+  }
   $('#openContasRecorrentesMenuBtn').addEventListener('click', (e) => {
     e.stopPropagation();
     const menu = $('#contasRecorrentesSubmenu');
-    if (!menu.hidden){ closeContasRecorrentesSubmenu(); return; }
-    const rect = $('#openContasRecorrentesMenuBtn').getBoundingClientRect();
-    menu.hidden = false;
-    const mw = menu.offsetWidth, mh = menu.offsetHeight;
-    let left = rect.right + 8;
-    if (left + mw > window.innerWidth - 8) left = Math.max(8, rect.left - mw - 8);
-    if (left + mw > window.innerWidth - 8) left = Math.max(8, window.innerWidth - mw - 8);
-    let top = rect.top;
-    if (top + mh > window.innerHeight - 8) top = Math.max(8, window.innerHeight - mh - 8);
-    menu.style.left = left + 'px';
-    menu.style.top = top + 'px';
+    const abrindo = menu.hidden;
+    menu.hidden = !abrindo;
+    $('#openContasRecorrentesMenuBtn').setAttribute('aria-expanded', String(abrindo));
   });
-  // qualquer categoria escolhida no submenu fecha ele junto com o menu lateral inteiro, já que
-  // clicar nelas está fora de #overlayMenu (não pega o fechamento automático dos outros itens)
+  // qualquer categoria escolhida no submenu fecha ele junto com o menu lateral inteiro (essas 4
+  // opções não têm a classe .drawer-item, então não pegam o fechamento automático dos outros itens)
   $('#contasRecorrentesSubmenu').addEventListener('click', (e) => {
     if (e.target.closest('button')){
       closeContasRecorrentesSubmenu();

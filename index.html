@@ -620,6 +620,9 @@
   .nm-total-bar .val{ font-size:18px; font-weight:700; color:var(--accent-strong); }
   .nm-add-btn{ align-self:flex-start; }
   .nm-empty-hint{ color:var(--ink-muted); font-size:13.5px; padding:20px 16px; text-align:center; }
+  /* separa as duas seções da página combinada "Parcelados/Dívidas" */
+  .nm-subhead{ font-size:17px; padding-top:14px; border-top:1px solid var(--border); }
+  .nm-subhead:first-of-type{ border-top:none; padding-top:0; }
 
   /* ---------- páginas "Contas fixas / Receitas fixas / Assinaturas / Parcelados": mesmo padrão
      visual da página de Contas Não Mensais (reaproveita .nm-view/.nm-page-head/.nm-intro/.nm-card/
@@ -873,21 +876,18 @@
   }
   .drawer-nav .base-chip{ width:100%; box-sizing:border-box; }
 
-  /* botão "Contas recorrentes": a setinha gira pra apontar pra baixo quando o submenu tá aberto */
-  #openContasRecorrentesMenuBtn{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  #openContasRecorrentesMenuBtn .chevron{
-    color:var(--ink-muted); font-size:15px; line-height:1; display:inline-block; transition:transform .15s ease;
-  }
-  #openContasRecorrentesMenuBtn[aria-expanded="true"] .chevron{ transform:rotate(90deg); }
+  /* "Despesas recorrentes": só um cabeçalho (não abre/fecha nada) — as opções embaixo já ficam
+     sempre visíveis, sem precisar clicar (pedido da Tabata: tirar o clique extra do acordeão) */
+  #despesasRecorrentesHeading{ cursor:default; }
+  #despesasRecorrentesHeading:hover{ border-color:var(--border); }
 
-  /* submenu de "Contas recorrentes": abre logo ABAIXO do próprio botão, dentro da lista do menu —
+  /* itens de "Despesas recorrentes": ficam logo ABAIXO do cabeçalho, dentro da lista do menu —
      nada flutua pro lado (pedido explícito da Tabata). Recuo pequeno só pra deixar visualmente
-     claro que essas 4 opções são "filhas" de Contas recorrentes. */
+     claro que essas opções são "filhas" de Despesas recorrentes. */
   #contasRecorrentesSubmenu{
     display:flex; flex-direction:column; gap:2px; margin:2px 0 0 16px; padding-left:10px;
     border-left:2px solid var(--border);
   }
-  #contasRecorrentesSubmenu[hidden]{ display:none; }
   #contasRecorrentesSubmenu .btn{
     width:100%; box-sizing:border-box; text-align:left; padding:9px 10px; font-size:13px; font-weight:500;
     background:transparent; border-color:transparent;
@@ -1290,16 +1290,19 @@
     <button class="btn primary nm-add-btn" id="addAssinaturaBtn" type="button">+ Nova assinatura</button>
   </div>
 
-  <!-- Parcelados: página cheia (formato próprio, com início/fim calculados e status de pagamento
-       marcado manualmente pela pessoa — o app não tem como confirmar pagamento sozinho, só
-       calendariza a compra) -->
-  <div class="nm-view" id="parceladosView" hidden>
+  <!-- Parcelados/Dívidas: página cheia combinada (pedido da Tabata pra juntar as duas no mesmo
+       lugar do menu) — mantém as duas listas e os dois formulários de "+" separados internamente
+       (formato próprio, com início/fim calculados e status de pagamento marcado manualmente pela
+       pessoa — o app não tem como confirmar pagamento sozinho), só compartilha cabeçalho/voltar -->
+  <div class="nm-view" id="parceladosDividasView" hidden>
     <div class="nm-page-head">
-      <button class="nm-back-btn" id="parceladosBackBtn" aria-label="Voltar">
+      <button class="nm-back-btn" id="parceladosDividasBackBtn" aria-label="Voltar">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
       </button>
-      <h2>Parcelados</h2>
+      <h2>Parcelados/Dívidas</h2>
     </div>
+
+    <h3 class="nm-subhead">Parcelados</h3>
     <div class="nm-intro">
       <span class="icon">🧾</span>
       <span>Compras parceladas em andamento. Veja quando começou, quando termina e quantas parcelas ao todo, e marque você mesma o status de pagamento — o app não tem como confirmar isso sozinho.</span>
@@ -1315,17 +1318,8 @@
       <span class="val mono" id="parceladosTotalVal">R$ 0,00</span>
     </div>
     <button class="btn primary nm-add-btn" id="addParceladoBtn" type="button">+ Novo parcelado</button>
-  </div>
 
-  <!-- Dívidas: mesma estrutura/layout da página de Parcelados acima, só com a linguagem de "dívida"
-       em vez de "compra" e um campo a mais (valor total inicial da dívida) -->
-  <div class="nm-view" id="dividasView" hidden>
-    <div class="nm-page-head">
-      <button class="nm-back-btn" id="dividasBackBtn" aria-label="Voltar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-      </button>
-      <h2>Dívidas</h2>
-    </div>
+    <h3 class="nm-subhead">Dívidas</h3>
     <div class="nm-intro">
       <span class="icon">🧾</span>
       <span>Dívidas parceladas em andamento. Veja quando começou, quando termina e quantas parcelas ao todo, e marque você mesma o status de pagamento — o app não tem como confirmar isso sozinho.</span>
@@ -1411,15 +1405,13 @@
         <span class="edit-icon" aria-hidden="true">&#9998;</span>
       </div>
       <button class="btn drawer-item" id="openReceitasBtn"><i class="swatch in" style="vertical-align:middle; margin-right:6px;"></i>Receitas recorrentes</button>
-      <button class="btn" id="openContasRecorrentesMenuBtn" type="button" aria-expanded="false" aria-controls="contasRecorrentesSubmenu">
-        <span><i class="swatch out" style="vertical-align:middle; margin-right:6px;"></i>Contas recorrentes</span>
-        <span class="chevron" aria-hidden="true">&rsaquo;</span>
-      </button>
-      <div id="contasRecorrentesSubmenu" hidden>
+      <div class="btn" id="despesasRecorrentesHeading" role="heading" aria-level="4">
+        <i class="swatch out" style="vertical-align:middle; margin-right:6px;"></i>Despesas recorrentes
+      </div>
+      <div id="contasRecorrentesSubmenu">
         <button type="button" class="btn" id="openContasBtn"><i class="swatch out" style="vertical-align:middle; margin-right:6px;"></i>Contas recorrentes</button>
         <button type="button" class="btn" id="openAssinBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>Assinaturas</button>
-        <button type="button" class="btn" id="openParceladosBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Parcelados</button>
-        <button type="button" class="btn" id="openDividasBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>Dívidas</button>
+        <button type="button" class="btn" id="openParceladosDividasBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>Parcelados/Dívidas</button>
       </div>
       <button class="btn drawer-item" id="openCartoesBtn">🚩 Cartão de crédito</button>
       <button class="btn drawer-item" id="openPoupancaBtn">🐷 Poupança</button>
@@ -1484,7 +1476,7 @@
         <label>Categoria</label>
         <div class="chips" id="oneCategoriaSaidaChips">
           <button type="button" class="chip chip-saida active" data-cat="contas">Contas</button>
-          <button type="button" class="chip chip-saida" data-cat="compras">Compras</button>
+          <button type="button" class="chip chip-saida" data-cat="compras">Gastos</button>
           <button type="button" class="chip chip-saida" data-cat="assinaturas">Assinaturas</button>
           <button type="button" class="chip chip-saida" data-cat="parcelas">Parcelas</button>
           <button type="button" class="chip chip-saida" data-cat="dividas">Dívidas</button>
@@ -1515,8 +1507,8 @@
       <div class="field" id="oneDividaJurosField" hidden>
         <label for="oneDividaJuros">Juros</label>
         <div class="field-suffix">
-          <input type="number" step="0.01" min="0" id="oneDividaJuros" class="mono" placeholder="Ex.: 5">
-          <span class="suffix-badge">%</span>
+          <input type="number" step="0.01" min="0" id="oneDividaJuros" class="mono" placeholder="(opcional)">
+          <span class="suffix-badge">% ao ano</span>
         </div>
         <p class="piso-data-hint">Opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
       </div>
@@ -1529,6 +1521,15 @@
         <label for="onePoupanca" id="onePoupancaLabel">Mandar para poupança</label>
         <select id="onePoupanca"></select>
         <p class="piso-data-hint" id="onePoupancaErro" hidden style="color:var(--expense); font-weight:600;"></p>
+      </div>
+
+      <!-- só aparece em Gastos, quando a forma de pagamento é um cartão de crédito -->
+      <div class="field" id="oneComprasParceladaField" hidden>
+        <label>É uma compra parcelada?</label>
+        <div class="seg" id="oneComprasParceladaToggle">
+          <button type="button" data-parc="nao" class="active">Não</button>
+          <button type="button" data-parc="sim">Sim</button>
+        </div>
       </div>
 
       <!-- uma vez/recorrente — só existe pra Contas (dentro de Saída) e pra qualquer categoria de
@@ -1548,10 +1549,18 @@
           <input type="number" step="0.01" min="0" id="oneValor" class="mono" placeholder="0,00" required>
         </div>
         <div class="field" id="oneDataField">
-          <label for="oneData">Data</label>
+          <label for="oneData" id="oneDataLabel">Data</label>
           <input type="date" id="oneData" required>
           <p class="piso-data-hint" id="oneDataHint" hidden></p>
         </div>
+      </div>
+
+      <!-- só aparece em Gastos, quando a pessoa marca "Sim" em "é uma compra parcelada?" acima —
+           o Maré assume mensal e calcula o fim sozinho a partir da data da compra, sem precisar
+           perguntar frequência/início separados de novo -->
+      <div class="field" id="oneComprasQtdParcelasField" hidden>
+        <label for="oneComprasQtdParcelas">Quantas parcelas</label>
+        <input type="number" min="2" max="60" id="oneComprasQtdParcelas" class="mono" placeholder="Ex.: 10">
       </div>
 
       <!-- grupo "recorrência simples" (sem fim obrigatório) — usado por Contas recorrente, Entrada
@@ -2085,8 +2094,8 @@
       <div class="field">
         <label for="dividaJuros">Juros</label>
         <div class="field-suffix">
-          <input type="number" step="0.01" min="0" id="dividaJuros" class="mono" placeholder="Ex.: 5">
-          <span class="suffix-badge">%</span>
+          <input type="number" step="0.01" min="0" id="dividaJuros" class="mono" placeholder="(opcional)">
+          <span class="suffix-badge">% ao ano</span>
         </div>
         <p class="piso-data-hint">Opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
       </div>
@@ -4260,8 +4269,7 @@
     contasfixas: { viewId:'#contasFixasView', render:renderContasFixasPage },
     receitasfixas: { viewId:'#receitasFixasView', render:renderReceitasFixasPage },
     assinaturas: { viewId:'#assinView', render:renderAssinPage },
-    parcelados: { viewId:'#parceladosView', render:renderParceladosPage },
-    dividas: { viewId:'#dividasView', render:renderDividasPage },
+    parceladosdividas: { viewId:'#parceladosDividasView', render:()=>{ renderParceladosPage(); renderDividasPage(); } },
     cartoes: { viewId:'#cartoesView', render:renderCartoesPage },
     poupanca: { viewId:'#poupancaView', render:renderPoupancaPage },
   };
@@ -4492,10 +4500,6 @@
   function openOverlay(id){ $(id).hidden = false; }
   function closeOverlay(id){
     $(id).hidden = true;
-    // fechar o menu lateral por qualquer caminho (X, clique fora, Esc, escolher um item comum)
-    // também fecha o submenu de "Contas recorrentes", se estiver aberto — senão ele ficava
-    // flutuando sozinho na tela sem o menu por trás
-    if (id === '#overlayMenu') closeContasRecorrentesSubmenu();
   }
 
   // enquanto o saldo em conta inicial não foi definido, o pop-up correspondente não pode ser
@@ -4519,14 +4523,12 @@
     ov.addEventListener('click', e => {
       if (e.target===ov && podeFechar(ov.id)){
         ov.hidden = true;
-        if (ov.id === 'overlayMenu') closeContasRecorrentesSubmenu();
       }
     });
   });
   document.addEventListener('keydown', e => {
     if (e.key==='Escape'){
       document.querySelectorAll('.overlay').forEach(o=>{ if (podeFechar(o.id)) o.hidden = true; });
-      closeContasRecorrentesSubmenu();
     }
   });
 
@@ -4537,30 +4539,13 @@
     el.addEventListener('click', () => closeOverlay('#overlayMenu'));
   });
 
-  // submenu "Contas recorrentes": abre logo abaixo do próprio botão, dentro da lista do menu —
-  // sem flutuar pro lado (pedido da Tabata depois de ver o primeiro protótipo com flyout lateral).
-  function closeContasRecorrentesSubmenu(){
-    $('#contasRecorrentesSubmenu').hidden = true;
-    $('#openContasRecorrentesMenuBtn').setAttribute('aria-expanded', 'false');
-  }
-  $('#openContasRecorrentesMenuBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const menu = $('#contasRecorrentesSubmenu');
-    const abrindo = menu.hidden;
-    menu.hidden = !abrindo;
-    $('#openContasRecorrentesMenuBtn').setAttribute('aria-expanded', String(abrindo));
-  });
-  // qualquer categoria escolhida no submenu fecha ele junto com o menu lateral inteiro (essas 4
-  // opções não têm a classe .drawer-item, então não pegam o fechamento automático dos outros itens)
+  // itens de "Despesas recorrentes": ficam sempre visíveis, sem precisar abrir nada (pedido da
+  // Tabata pra tirar o clique extra do acordeão) — só fecham o menu lateral inteiro ao escolher
+  // uma categoria (essas opções não têm a classe .drawer-item, então não pegam o fechamento
+  // automático dos outros itens)
   $('#contasRecorrentesSubmenu').addEventListener('click', (e) => {
     if (e.target.closest('button')){
-      closeContasRecorrentesSubmenu();
       closeOverlay('#overlayMenu');
-    }
-  });
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#contasRecorrentesSubmenu') && !e.target.closest('#openContasRecorrentesMenuBtn')){
-      closeContasRecorrentesSubmenu();
     }
   });
 
@@ -4611,8 +4596,9 @@
   let oneCategoria = 'contas';
   let oneCategoriaEntrada = 'salario';
   let oneRecorrente = false;
+  let oneComprasParcelada = false;
 
-  const ONE_CATEGORIA_LABELS_SAIDA = { contas:'Contas', compras:'Compras', assinaturas:'Assinaturas', parcelas:'Parcelas', dividas:'Dívidas' };
+  const ONE_CATEGORIA_LABELS_SAIDA = { contas:'Contas', compras:'Gastos', assinaturas:'Assinaturas', parcelas:'Parcelas', dividas:'Dívidas' };
   const ONE_CATEGORIA_LABELS_ENTRADA = { salario:'Salário', bonus:'Bônus', rendaextra:'Renda Extra', investimento:'Investimento', outros:'Outros' };
   const ONE_DESC_PLACEHOLDERS = {
     saida: {
@@ -4680,8 +4666,11 @@
       $('#oneDividaValorTotalInicialField').style.display = 'none';
       $('#oneDividaJurosField').style.display = 'none';
       $('#oneParcEntradaField').style.display = 'none';
+      $('#oneComprasParceladaField').style.display = 'none';
+      $('#oneComprasQtdParcelasField').style.display = 'none';
       $('#oneDataField').style.display = '';
       $('#oneData').required = true;
+      $('#oneDataLabel').textContent = 'Data';
       $('#oneValorLabel').textContent = 'Valor (R$)';
       $('#oneDescLabel').textContent = 'Descrição (opcional)';
       $('#oneDesc').placeholder = 'Ex.: Freelance, conta de luz...';
@@ -4711,6 +4700,18 @@
 
     $('#oneDataField').style.display = mostraDataAvulsa ? '' : 'none';
     $('#oneData').required = mostraDataAvulsa;
+    $('#oneDataLabel').textContent = isCompras ? 'Data da compra' : 'Data';
+
+    // "é uma compra parcelada?" só aparece em Gastos com cartão de crédito escolhido (a exclusão
+    // com poupança já zera a forma de pagamento sozinha, então basta olhar se tem um cartão ali)
+    const cartaoEscolhido = !!$('#oneFormaPagamento').value;
+    const mostraToggleComprasParcelada = isCompras && cartaoEscolhido;
+    if (!mostraToggleComprasParcelada) oneComprasParcelada = false;
+    $('#oneComprasParceladaField').style.display = mostraToggleComprasParcelada ? '' : 'none';
+    $('#oneComprasParceladaToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.parc === (oneComprasParcelada ? 'sim' : 'nao')));
+    const comprasParceladaAtiva = mostraToggleComprasParcelada && oneComprasParcelada;
+    $('#oneComprasQtdParcelasField').style.display = comprasParceladaAtiva ? '' : 'none';
+    $('#oneComprasQtdParcelas').required = comprasParceladaAtiva;
 
     $('#oneRecFields').hidden = !mostraRecFields;
     $('#oneParcFields').hidden = !mostraParcFields;
@@ -4736,7 +4737,7 @@
     updateOnePoupancaVisibility(tipo);
     if (!mostraDataAvulsa) $('#onePoupancaField').style.display = 'none';
 
-    $('#oneValorLabel').textContent = (isParcelas || isDividas) ? 'Valor da parcela (R$)' : 'Valor (R$)';
+    $('#oneValorLabel').textContent = (isParcelas || isDividas || comprasParceladaAtiva) ? 'Valor da parcela (R$)' : 'Valor (R$)';
 
     $('#oneDescLabel').textContent = 'Descrição (opcional)';
     const placeholders = isSaida ? ONE_DESC_PLACEHOLDERS.saida : ONE_DESC_PLACEHOLDERS.entrada;
@@ -4802,6 +4803,13 @@
     updateOneCategoriaVisibility();
     aplicarPisoData('#oneRecInicio', '#oneRecInicioHint');
   });
+  $('#oneComprasParceladaToggle').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-parc]');
+    if (!btn) return;
+    oneComprasParcelada = btn.dataset.parc === 'sim';
+    $('#oneComprasParceladaToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+    updateOneCategoriaVisibility();
+  });
   $('#oneRecFreq').addEventListener('change', updateOneRecFreqFieldsVisibility);
   $('#oneRecSemFim').addEventListener('change', e=>{
     $('#oneRecFim').disabled = e.target.checked;
@@ -4829,6 +4837,7 @@
     if ($('#oneFormaPagamento').value) $('#onePoupanca').value = '';
     syncPoupancaCartaoExclusividade();
     if (!$('#oneParcFields').hidden) updateOneParcResumoEFim();
+    updateOneCategoriaVisibility();
   });
   $('#oneValor').addEventListener('input', () => {
     if (!$('#oneParcFields').hidden) updateOneParcResumoEFim();
@@ -4840,9 +4849,12 @@
     oneCategoria = 'contas';
     oneCategoriaEntrada = 'salario';
     oneRecorrente = false;
+    oneComprasParcelada = false;
     $('#oneCategoriaSaidaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='contas'));
     $('#oneCategoriaEntradaChips').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.cat==='salario'));
     $('#oneRecorrenteToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.rec==='nao'));
+    $('#oneComprasParceladaToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.parc==='nao'));
+    $('#oneComprasQtdParcelas').value = '';
     $('#oneRecFreq').value = '1';
     $('#oneRecIntervaloDias').value = '';
     $('#oneRecSemFim').checked = true;
@@ -5625,13 +5637,11 @@
   $('#openContasBtn').addEventListener('click', ()=> setViewMode('contasfixas'));
   $('#openReceitasBtn').addEventListener('click', ()=> setViewMode('receitasfixas'));
   $('#openAssinBtn').addEventListener('click', ()=> setViewMode('assinaturas'));
-  $('#openParceladosBtn').addEventListener('click', ()=> setViewMode('parcelados'));
-  $('#openDividasBtn').addEventListener('click', ()=> setViewMode('dividas'));
+  $('#openParceladosDividasBtn').addEventListener('click', ()=> setViewMode('parceladosdividas'));
   $('#contasFixasBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#receitasFixasBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#assinBackBtn').addEventListener('click', ()=> setViewMode('month'));
-  $('#parceladosBackBtn').addEventListener('click', ()=> setViewMode('month'));
-  $('#dividasBackBtn').addEventListener('click', ()=> setViewMode('month'));
+  $('#parceladosDividasBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openCartoesBtn').addEventListener('click', ()=> setViewMode('cartoes'));
   $('#cartoesBackBtn').addEventListener('click', ()=> setViewMode('month'));
   $('#openPoupancaBtn').addEventListener('click', ()=> setViewMode('poupanca'));
@@ -5709,8 +5719,10 @@
     const isParcelas = isSaida && cat === 'parcelas';
     const isDividas = isSaida && cat === 'dividas';
     const isContas = isSaida && cat === 'contas';
+    const isCompras = isSaida && cat === 'compras';
     const mostraToggleRecorrente = isContas || isEntrada;
     const recorrenteAtiva = mostraToggleRecorrente && oneRecorrente;
+    const comprasParceladaAtiva = isCompras && !!$('#oneFormaPagamento').value && oneComprasParcelada;
 
     const categoriaSalva = isSaida ? cat : oneCategoriaEntrada;
     const catLabels = isSaida ? ONE_CATEGORIA_LABELS_SAIDA : ONE_CATEGORIA_LABELS_ENTRADA;
@@ -5783,6 +5795,23 @@
       if (freqType === 'meses' && isNaN(dia)) return;
       if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
       state.recorrentes.push({ id: nextId(), kind:'fixa', tipo, desc, valor, dia, freqType, intervalMeses, intervalDias, dataInicio, dataFim, formaPagamento, ondeCai, categoria: categoriaSalva });
+      closeOverlay('#overlayOne');
+      renderAll();
+      return;
+    }
+
+    // ----- Gastos parcelados no cartão: mesmo "kind: parcelado" das Parcelas normais, só que a
+    // pessoa não escolhe frequência/início à parte — usa a própria "data da compra" como início e
+    // assume mensal (o Maré calcula o fim sozinho a partir de quantas parcelas) -----
+    if (comprasParceladaAtiva){
+      const valor = parseFloat($('#oneValor').value);
+      const numParcelas = Math.max(2, parseInt($('#oneComprasQtdParcelas').value, 10));
+      const dataInicio = $('#oneData').value;
+      const formaPagamento = $('#oneFormaPagamento').value || null;
+      if (isNaN(valor) || isNaN(numParcelas) || !dataInicio) return;
+      const dia = Number(dataInicio.split('-')[2]);
+      const dataFim = addMonthsISO(dataInicio, numParcelas-1);
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, freqType:'meses', intervalMeses:1, intervalDias:null, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso', categoria: categoriaSalva });
       closeOverlay('#overlayOne');
       renderAll();
       return;

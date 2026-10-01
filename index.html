@@ -635,6 +635,9 @@
   /* espaçamento da linha (mobile e desktop) — sem isso o texto fica colado na borda do cartão */
   .rl-row, .pc-row, .ct-row, .pp-row{ padding:16px 20px; border-bottom:1px solid var(--border); }
   .rl-row:last-child, .pc-row:last-child, .ct-row:last-child, .pp-row:last-child{ border-bottom:none; }
+  /* linha de Dívidas/Compras parceladas ficou com mais informação (valor inicial/atual, atrasou,
+     juros, última atualização) — um pouco mais alta que as outras páginas pra não ficar apertada */
+  .pc-row{ padding-block:20px; }
   /* poupança (mobile): nome+valor numa linha, botões guardar/retirar embaixo, editar/excluir por
      último — mesma ideia visual das outras páginas, sem precisar de grid antes dos 760px */
   .pp-row{ display:flex; flex-direction:column; gap:10px; }
@@ -644,16 +647,46 @@
   .rl-cartao-tag{ font-size:12.5px; color:var(--ink-muted); }
   .rl-cartao-tag.empty{ color:var(--ink-muted); opacity:.6; }
   .pc-cartao-line{ font-size:12px; color:var(--ink-muted); margin-top:2px; }
-  /* valor total inicial / juros da dívida — maiores e mais legíveis que a linha "no cartão X" acima,
-     porque são informações que a pessoa quer bater o olho e ler rápido, não só um detalhe secundário */
+  /* valor total inicial / valor atual após atraso da dívida — maiores e mais legíveis que a linha
+     "no cartão X" acima, porque são informações que a pessoa quer bater o olho e ler rápido, não só
+     um detalhe secundário */
   .pc-divida-info-line{ font-size:14px; color:var(--ink); margin-top:3px; font-weight:600; }
+  /* "valor atual após atraso" chama mais atenção que o resto (cor de alerta), pra pessoa notar
+     de cara que essa dívida está atrasada e quanto falta pagar hoje */
+  .pc-divida-info-line.alerta{ color:var(--expense); }
   .pc-data1{ font-size:13px; }
-  .pc-qtd{ font-size:13px; color:var(--ink-muted); }
-  /* mobile: linha de valor + (parcelas em cima, datas embaixo) lado a lado */
-  .pc-meta-mobile{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-top:2px; }
+  .pc-qtd{ font-size:13px; color:var(--ink); font-weight:700; }
+  .pc-juros-line{ font-size:11.5px; color:var(--ink-muted); }
+  /* desktop: cada dívida virou um cartãozinho com mini-tabela própria (Início / Atrasou?-Atual),
+     desenho que a Tabata mandou — em vez de uma linha numa tabela compartilhada pra lista toda */
+  .pc-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:12px; }
+  .pc-card-identity{ min-width:0; }
+  .pc-card-data-inicio{ font-size:12.5px; color:var(--ink-muted); margin-top:4px; }
+  .pc-card-status-wrap{ display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0; }
+  .pc-card-table{ border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .pc-card-table-header, .pc-card-table-row{
+    display:grid; grid-template-columns: 1.1fr 1fr 1fr 0.7fr 0.9fr; gap:10px; align-items:center;
+  }
+  .pc-card-table-header{
+    padding:8px 14px; background:var(--surface);
+    font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-muted); font-weight:700;
+  }
+  .pc-card-table-row{ padding:10px 14px; font-size:13.5px; border-top:1px solid var(--border); }
+  .pc-card-row-label{ font-weight:700; color:var(--ink-muted); font-size:12px; }
+  /* linha "Atrasou? Atual" chama mais atenção (fundo e texto de alerta), pra pessoa notar de cara
+     que essa dívida está atrasada */
+  .pc-card-table-row.atraso{ background:var(--expense-soft); }
+  .pc-card-table-row.atraso .pc-card-row-label, .pc-card-table-row.atraso .pc-card-cell{ color:var(--expense); font-weight:700; }
+  .pc-card-footer{ display:flex; justify-content:flex-end; margin-top:12px; }
+  /* mobile: linha de valor + (parcelas em cima, datas embaixo) lado a lado, com a "última
+     atualização" (se tiver) numa linha própria embaixo, ocupando a largura toda */
+  .pc-meta-mobile{ display:flex; flex-direction:column; gap:6px; margin-top:2px; }
+  .pc-meta-mobile-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .pc-qtd-datas-mobile{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
   .pc-qtd-mobile{ font-size:13px; font-weight:700; }
   .pc-datas-mobile{ font-size:11.5px; color:var(--ink-muted); white-space:nowrap; }
+  .pc-atualizacao-line{ font-size:11px; color:var(--ink-muted); margin-top:5px; }
+  .pc-pagamento-wrap{ display:flex; flex-direction:column; gap:5px; }
   .pc-pagamento{
     width:100%; min-width:0; border:1px solid var(--border); border-radius:8px; padding:6px 8px; font-size:12.5px;
     font-weight:600; font-family:inherit; cursor:pointer; background:var(--surface-2); color:var(--ink);
@@ -674,7 +707,7 @@
       align-items:start;
     }
     .pc-row .pc-name-block{ grid-area:name; min-width:0; }
-    .pc-row .pc-pagamento{ grid-area:pagamento; width:auto; justify-self:end; }
+    .pc-row .pc-pagamento-wrap{ grid-area:pagamento; width:auto; justify-self:end; align-items:flex-end; }
     .pc-row .pc-meta-mobile{ grid-area:meta; }
     .pc-row .rl-col-actions{ grid-area:actions; justify-content:flex-end; }
   }
@@ -686,15 +719,21 @@
     }
     .rl-row{ display:grid; grid-template-columns: 1.7fr 1fr 1fr 1.3fr 64px; gap:16px; align-items:center; }
 
-    .pc-header-row{
-      display:grid; grid-template-columns: 1.35fr 0.95fr 0.85fr 0.85fr 0.65fr 1.15fr 64px; gap:16px;
-      padding:0 20px 12px; margin-top:14px; border-bottom:1px solid var(--border);
-      font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-muted); font-weight:600;
-    }
-    .pc-row{
-      display:grid; grid-template-columns: 1.35fr 0.95fr 0.85fr 0.85fr 0.65fr 1.15fr 64px; gap:16px;
-      align-items:center;
-    }
+    /* cada dívida é um cartão próprio agora (não uma linha de tabela compartilhada), então não tem
+       mais cabeçalho de página — cada cartão mostra seu próprio cabeçalho de mini-tabela. Usa flex
+       com "order" (em vez de grid-template-areas, que exige filho direto numa posição fixa) porque
+       o select de status (.pc-pagamento-wrap) precisa continuar filho direto do .pc-row pro layout
+       mobile (acima) funcionar, mas aqui no desktop ele precisa aparecer no canto superior direito */
+    .pc-row{ display:flex; flex-wrap:wrap; column-gap:14px; align-items:flex-start; }
+    .pc-row .pc-card-identity{ flex:1 1 320px; order:1; }
+    .pc-row .pc-pagamento-wrap{ flex:0 0 auto; order:2; align-items:flex-end; }
+    .pc-row .pc-card-table-wrap{ flex:0 0 100%; order:3; margin-top:12px; }
+    .pc-row .rl-col-actions{ flex:0 0 100%; order:4; justify-content:flex-end; margin-top:12px; }
+    /* pedido da Tabata: a linha entre as dívidas estava "meio invisível" no desktop — deixa mais
+       grossa pra separar melhor cada cartão, e o nome/descrição maior (antes herdava o mesmo
+       tamanho pequeno usado nas outras listas) */
+    #dividasPageList .pc-row{ border-bottom-width:3px; }
+    #dividasPageList .pc-card-identity .nm-nome{ font-size:17px; }
 
     .ct-header-row{
       display:grid; grid-template-columns: 1.7fr 1fr 1fr 64px; gap:16px;
@@ -754,11 +793,22 @@
   /* campo com sufixo fixo ao lado (ex.: "Juros" + "%") — junta visualmente input e sufixo num
      bloco só, em vez de deixar o símbolo solto ou escondido dentro de um texto de exemplo longo */
   .field-suffix{ display:flex; align-items:stretch; }
-  .field-suffix input{ border-top-right-radius:0; border-bottom-right-radius:0; }
+  /* pedido da Tabata: o campo de Juros em si maior/mais largo, e o seletor de período
+     ("% ao ano"/"% ao mês") mais espremido/estreito do lado — antes os dois dividiam o espaço
+     igual, e o número (que é o que importa) ficava pequeno */
+  .field-suffix input{ border-top-right-radius:0; border-bottom-right-radius:0; flex:1 1 auto; min-width:0; font-size:16px; }
+  .field-suffix input::placeholder{ color:#B7C2B4; font-weight:400; }
   .field-suffix .suffix-badge{
     display:flex; align-items:center; justify-content:center; padding:0 12px; flex-shrink:0;
     border:1px solid var(--border); border-left:none; border-radius:0 8px 8px 0;
     background:var(--surface-2); color:var(--ink-muted); font-size:14px; font-weight:600;
+  }
+  /* igual ao suffix-badge, só que um <select> de verdade (ex.: Juros: escolher entre "ao ano" e
+     "ao mês" — só pra anotação, o app não calcula nada com isso) */
+  .field-suffix .suffix-select{
+    flex:0 0 auto; width:auto; max-width:88px; border:1px solid var(--border); border-left:none; border-radius:0 8px 8px 0;
+    background:var(--surface-2); color:var(--ink-muted); font-size:11.5px; font-weight:600;
+    padding:0 6px; font-family:inherit; cursor:pointer;
   }
   .seg{ display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
   .seg button{
@@ -1314,9 +1364,8 @@
       <span>Tenha mais clareza sobre suas dívidas e compras parceladas. Anote todas aqui. Assim, se um dia você quiser renegociá-las, basta voltar aqui pra ver qual vale mais a pena atacar primeiro.</span>
     </div>
     <div class="nm-card">
-      <div class="pc-header-row">
-        <span>Dívida</span><span>Valor da parcela</span><span>Início</span><span>Fim</span><span>Parcelas</span><span>Pagamento</span><span></span>
-      </div>
+      <!-- cada dívida agora é um cartão com sua própria mini-tabela (Início / Atrasou?-Atual), em
+           vez de uma linha só numa tabela compartilhada — pedido da Tabata, desenho dela mesma -->
       <div id="dividasPageList"></div>
     </div>
     <div class="nm-total-bar">
@@ -2052,25 +2101,12 @@
     <h3 id="dividaModalTitle">Nova dívida/compra parcelada</h3>
     <form id="dividaForm">
       <div class="field">
-        <label for="dividaDesc">Qual é a dívida</label>
+        <label for="dividaDesc">Descrição</label>
         <input type="text" id="dividaDesc" placeholder="Ex.: Empréstimo, cartão atrasado, financiamento..." required>
       </div>
       <div class="field">
-        <label for="dividaValorTotalInicial">Valor total inicial da dívida (R$)</label>
+        <label for="dividaValorTotalInicial">Valor <b>INICIAL</b> total (R$)</label>
         <input type="number" step="0.01" min="0" id="dividaValorTotalInicial" class="mono" placeholder="0,00" required>
-      </div>
-      <div class="field">
-        <label for="dividaJuros">Juros</label>
-        <div class="field-suffix">
-          <input type="number" step="0.01" min="0" id="dividaJuros" class="mono" placeholder="(opcional)">
-          <span class="suffix-badge">% ao ano</span>
-        </div>
-        <p class="piso-data-hint">Opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
-      </div>
-      <div class="field">
-        <label for="dividaValorAtrasado" style="line-height:1.3;">Atrasou?<br>Valor atual total a pagar (R$)</label>
-        <input type="number" step="0.01" min="0" id="dividaValorAtrasado" class="mono" placeholder="(opcional)">
-        <p class="piso-data-hint">Preencha só se estiver atrasada — pra você lembrar quanto falta pagar hoje, já com juros/multa.</p>
       </div>
       <div class="row2">
         <div class="field">
@@ -2113,9 +2149,44 @@
           <input type="number" min="1" id="dividaIntervaloDias" class="mono" placeholder="Ex.: 10">
         </div>
       </div>
+      <div class="row2">
+        <div class="field">
+          <label for="dividaFormaPagamento">Forma de pagamento</label>
+          <select id="dividaFormaPagamento"></select>
+        </div>
+        <div class="field">
+          <label for="dividaJuros">Juros</label>
+          <div class="field-suffix">
+            <input type="number" step="0.01" min="0" id="dividaJuros" class="mono" placeholder="Ex.: 10">
+            <select id="dividaJurosPeriodo" class="suffix-select">
+              <option value="ano">% ao ano</option>
+              <option value="mes">% ao mês</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <p class="piso-data-hint" style="margin:-8px 0 12px;">Juros é opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
+      <!-- "Atrasou?": pergunta em destaque (vermelho) — só quando a pessoa marca "Sim" é que
+           aparecem os dois campos de valor atualizado. É tudo informativo, não entra em conta
+           nenhuma do app -->
       <div class="field">
-        <label for="dividaFormaPagamento">Forma de pagamento</label>
-        <select id="dividaFormaPagamento"></select>
+        <label for="dividaAtrasouToggle" style="color:var(--expense);">Atrasou?</label>
+        <div class="seg" id="dividaAtrasouToggle">
+          <button type="button" data-atrasou="nao" class="active">Não</button>
+          <button type="button" data-atrasou="sim">Sim</button>
+        </div>
+      </div>
+      <div id="dividaAtrasadoFields" hidden>
+        <div class="field">
+          <label for="dividaValorAtrasado">Valor <b>ATUAL</b> total (R$)</label>
+          <input type="number" step="0.01" min="0" id="dividaValorAtrasado" class="mono" placeholder="0,00">
+          <p class="piso-data-hint">Quanto falta pagar hoje no total, já com juros/multa.</p>
+        </div>
+        <div class="field">
+          <label for="dividaValorAtualParcela">Valor atual da parcela (R$)</label>
+          <input type="number" step="0.01" min="0" id="dividaValorAtualParcela" class="mono" placeholder="0,00">
+          <p class="piso-data-hint">Se a parcela mudou de valor depois do atraso (ex.: renegociação), anote aqui.</p>
+        </div>
       </div>
       <p id="dividaResumo" style="font-size:12px; color:var(--ink-muted); margin:-6px 0 12px;"></p>
       <input type="hidden" id="dividaEditId">
@@ -3819,26 +3890,30 @@
     const cardNome = r.formaPagamento ? (getCardById(r.formaPagamento)?.nome || 'removido') : '';
     const inicioTxt = fmtDateFull(r.dataInicio);
     const fimTxt = r.dataFim ? fmtDateFull(r.dataFim) : '—';
+    // itens antigos (criados antes desse campo existir) não têm valorInicialParcela guardado —
+    // nesse caso usa o valor atual mesmo como "inicial" também, só pra não aparecer vazio
+    const valorInicial = r.valorInicialParcela != null ? r.valorInicialParcela : r.valor;
+    const atualizacaoTxt = r.atualizadoEm ? fmtDateFull(r.atualizadoEm) : null;
 
+    // ---------- MOBILE (sem mudanças nessa rodada — a Tabata pediu pra deixar assim por enquanto,
+    // enquanto pensa no layout mobile com calma) ----------
     const nameBlock = document.createElement('div');
-    nameBlock.className = 'pc-name-block';
+    nameBlock.className = 'pc-name-block nm-mobile-only';
     const nome = document.createElement('div');
     nome.className = 'nm-nome';
     nome.textContent = r.desc;
     nameBlock.appendChild(nome);
-    // valor total inicial da dívida e (se anotado) os juros ficam sempre visíveis aqui embaixo do
-    // nome — é só informação pra pessoa lembrar, não entra em nenhuma conta do app
     if (r.valorTotalInicial != null && !isNaN(r.valorTotalInicial)){
       const totalLine = document.createElement('div');
       totalLine.className = 'pc-divida-info-line';
       totalLine.textContent = `Valor total inicial: ${fmtBRL(r.valorTotalInicial)}`;
       nameBlock.appendChild(totalLine);
     }
-    if (r.juros){
-      const jurosLine = document.createElement('div');
-      jurosLine.className = 'pc-divida-info-line';
-      jurosLine.textContent = `Juros: ${r.juros}`;
-      nameBlock.appendChild(jurosLine);
+    if (r.valorAtrasado != null && !isNaN(r.valorAtrasado)){
+      const atrasadoLine = document.createElement('div');
+      atrasadoLine.className = 'pc-divida-info-line alerta';
+      atrasadoLine.textContent = `Valor atual após atraso: ${fmtBRL(r.valorAtrasado)}`;
+      nameBlock.appendChild(atrasadoLine);
     }
     if (cardNome){
       const cardLine = document.createElement('div');
@@ -3848,30 +3923,12 @@
     }
     row.appendChild(nameBlock);
 
-    const valorCol = document.createElement('div');
-    valorCol.className = 'mono nm-desktop-only';
-    valorCol.style.color = 'var(--expense)';
-    valorCol.style.fontWeight = '600';
-    valorCol.textContent = '- ' + fmtBRL(r.valor);
-    row.appendChild(valorCol);
-
-    const inicioCol = document.createElement('div');
-    inicioCol.className = 'mono pc-data1 nm-desktop-only';
-    inicioCol.textContent = inicioTxt;
-    row.appendChild(inicioCol);
-
-    const fimCol = document.createElement('div');
-    fimCol.className = 'mono pc-data1 nm-desktop-only';
-    fimCol.textContent = fimTxt;
-    row.appendChild(fimCol);
-
-    const qtdCol = document.createElement('div');
-    qtdCol.className = 'mono pc-qtd nm-desktop-only';
-    qtdCol.textContent = `${r.numParcelas}x`;
-    row.appendChild(qtdCol);
-
     const status = r.statusPagamento || 'em_curso';
     const statusClass = status === 'pago' ? 'pago' : status === 'atrasado' ? 'atrasado' : 'em-curso';
+    // select de status: compartilhado entre mobile e desktop (precisa continuar filho direto do
+    // .pc-row pro grid-template-areas do mobile funcionar), só muda de posição visual via CSS
+    const pagamentoWrap = document.createElement('div');
+    pagamentoWrap.className = 'pc-pagamento-wrap';
     const sel = document.createElement('select');
     sel.className = 'pc-pagamento ' + statusClass;
     for (const val of ['em_curso','pago','atrasado']){
@@ -3885,25 +3942,106 @@
       r.statusPagamento = sel.value;
       renderAll();
     });
-    row.appendChild(sel);
+    pagamentoWrap.appendChild(sel);
+    if (atualizacaoTxt){
+      const atualizacaoLine = document.createElement('div');
+      atualizacaoLine.className = 'pc-atualizacao-line';
+      atualizacaoLine.textContent = `Última atualização: ${atualizacaoTxt}`;
+      pagamentoWrap.appendChild(atualizacaoLine);
+    }
+    row.appendChild(pagamentoWrap);
+
+    // ---------- DESKTOP: cartão com identidade (nome/cartão/início-fim) + status em cima, e
+    // embaixo a mini-tabela de 2 linhas (Início / Atrasou?-Atual) — desenho que a Tabata mandou ----------
+    const identity = document.createElement('div');
+    identity.className = 'pc-card-identity nm-desktop-only';
+    const nomeD = document.createElement('div');
+    nomeD.className = 'nm-nome';
+    nomeD.textContent = r.desc;
+    identity.appendChild(nomeD);
+    if (cardNome){
+      const cardLineD = document.createElement('div');
+      cardLineD.className = 'pc-cartao-line';
+      cardLineD.textContent = `no cartão ${cardNome}`;
+      identity.appendChild(cardLineD);
+    }
+    const dataInicioLine = document.createElement('div');
+    dataInicioLine.className = 'pc-card-data-inicio mono';
+    dataInicioLine.textContent = `Início: ${inicioTxt} · Fim: ${fimTxt}`;
+    identity.appendChild(dataInicioLine);
+    row.appendChild(identity);
+
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'pc-card-table-wrap nm-desktop-only';
+    const table = document.createElement('div');
+    table.className = 'pc-card-table';
+    const header = document.createElement('div');
+    header.className = 'pc-card-table-header';
+    header.innerHTML = '<span></span><span>Valor total</span><span>Valor da parcela</span><span>Parcelas</span><span>Juros</span>';
+    table.appendChild(header);
+    // compras parceladas comuns feitas pelo atalho de cartão no "+ Gasto" (fora do formulário de
+    // Dívida) não têm "valorTotalInicial" nem "juros" guardados — mostra "—" em vez de quebrar
+    const valorTotalTxt = r.valorTotalInicial != null && !isNaN(r.valorTotalInicial) ? fmtBRL(r.valorTotalInicial) : '—';
+    const rowInicio = document.createElement('div');
+    rowInicio.className = 'pc-card-table-row';
+    rowInicio.innerHTML = `
+      <span class="pc-card-row-label">Início</span>
+      <span class="pc-card-cell mono">${valorTotalTxt}</span>
+      <span class="pc-card-cell mono">${fmtBRL(r.valor)}</span>
+      <span class="pc-card-cell mono">${r.numParcelas}x</span>
+      <span class="pc-card-cell">${r.juros || '—'}</span>
+    `;
+    table.appendChild(rowInicio);
+    if (r.atrasou){
+      const rowAtraso = document.createElement('div');
+      rowAtraso.className = 'pc-card-table-row atraso';
+      rowAtraso.innerHTML = `
+        <span class="pc-card-row-label">Atrasou? Atual</span>
+        <span class="pc-card-cell mono">${r.valorAtrasado != null ? fmtBRL(r.valorAtrasado) : '—'}</span>
+        <span class="pc-card-cell mono">${r.valorAtualParcela != null ? fmtBRL(r.valorAtualParcela) : '—'}</span>
+        <span class="pc-card-cell"></span>
+        <span class="pc-card-cell"></span>
+      `;
+      table.appendChild(rowAtraso);
+    }
+    tableWrap.appendChild(table);
+    row.appendChild(tableWrap);
 
     const metaMobile = document.createElement('div');
     metaMobile.className = 'nm-mobile-only pc-meta-mobile';
-    const amtSpanMob = document.createElement('span');
+    const metaMobileTop = document.createElement('div');
+    metaMobileTop.className = 'pc-meta-mobile-top';
+    const amtWrapMob = document.createElement('div');
+    const amtSpanMob = document.createElement('div');
     amtSpanMob.className = 'mob-amt-out mono';
-    amtSpanMob.textContent = '- ' + fmtBRL(r.valor);
-    metaMobile.appendChild(amtSpanMob);
+    amtSpanMob.textContent = fmtBRL(r.valor);
+    amtWrapMob.appendChild(amtSpanMob);
+    const amtInicialSpanMob = document.createElement('div');
+    amtInicialSpanMob.className = 'pc-valor-inicial-line mono';
+    amtInicialSpanMob.textContent = `Inicial: ${fmtBRL(valorInicial)}`;
+    amtWrapMob.appendChild(amtInicialSpanMob);
+    metaMobileTop.appendChild(amtWrapMob);
     const qtdDatasWrap = document.createElement('div');
     qtdDatasWrap.className = 'pc-qtd-datas-mobile';
     const qtdSpanMob = document.createElement('div');
     qtdSpanMob.className = 'pc-qtd-mobile mono';
     qtdSpanMob.textContent = `${r.numParcelas}x`;
+    qtdDatasWrap.appendChild(qtdSpanMob);
+    if (r.juros){
+      const jurosSpanMob = document.createElement('div');
+      jurosSpanMob.className = 'pc-juros-line';
+      jurosSpanMob.textContent = `Juros: ${r.juros}`;
+      qtdDatasWrap.appendChild(jurosSpanMob);
+    }
     const datasSpanMob = document.createElement('div');
     datasSpanMob.className = 'pc-datas-mobile mono';
     datasSpanMob.textContent = `${inicioTxt} – ${fimTxt}`;
-    qtdDatasWrap.appendChild(qtdSpanMob);
     qtdDatasWrap.appendChild(datasSpanMob);
-    metaMobile.appendChild(qtdDatasWrap);
+    metaMobileTop.appendChild(qtdDatasWrap);
+    metaMobile.appendChild(metaMobileTop);
+    // "Última atualização" não precisa duplicar aqui: o pc-pagamento-wrap (nome logo abaixo) já
+    // aparece no mobile também, embaixo do próprio dropdown de Pagamento — que é exatamente onde
+    // a Tabata pediu pra essa informação ficar
     row.appendChild(metaMobile);
 
     const actions = document.createElement('div');
@@ -5010,6 +5148,15 @@
     }
   }
 
+  // separa o número e o período ("ano"/"mes") de uma string de juros guardada tipo "5% ao ano" —
+  // usado só pra preencher de volta os 2 campos do formulário na hora de editar
+  function parseJurosDisplay(jurosStr){
+    if (!jurosStr) return { num: '', periodo: 'ano' };
+    const num = jurosStr.replace('%', '').replace(/ao\s*(ano|m[eê]s)/i, '').trim();
+    const periodo = /m[eê]s/i.test(jurosStr) ? 'mes' : 'ano';
+    return { num, periodo };
+  }
+
   function openDividaModal(editItem){
     $('#dividaForm').reset();
     $('#dividaEditId').value = '';
@@ -5017,11 +5164,18 @@
       $('#dividaModalTitle').textContent = 'Editar dívida/compra parcelada';
       $('#dividaDesc').value = editItem.desc;
       $('#dividaValorTotalInicial').value = editItem.valorTotalInicial;
-      // remove o "%" pra caber de volta no campo numérico (que já mostra o símbolo fixo do lado);
-      // se for um valor antigo que a pessoa tinha escrito por extenso (ex.: "R$ 50 por parcela",
-      // de antes desse campo virar só número), não tem como converter, então fica em branco
-      $('#dividaJuros').value = (editItem.juros || '').replace('%', '').trim();
+      // separa o número do período ("ao ano"/"ao mês") guardados juntos em "juros" (ex.: "5% ao
+      // ano") pra caber de volta nos 2 campos; valor antigo de antes do período existir (só "5%")
+      // assume "ao ano", que era o único período que existia até então
+      const jurosParsed = parseJurosDisplay(editItem.juros);
+      $('#dividaJuros').value = jurosParsed.num;
+      $('#dividaJurosPeriodo').value = jurosParsed.periodo;
+      // "Atrasou?": considera "Sim" se algum dos 2 valores atualizados foi preenchido algum dia
+      const atrasou = editItem.valorAtrasado != null || editItem.valorAtualParcela != null;
+      $('#dividaAtrasouToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.atrasou === (atrasou ? 'sim' : 'nao')));
+      $('#dividaAtrasadoFields').hidden = !atrasou;
       $('#dividaValorAtrasado').value = editItem.valorAtrasado != null ? editItem.valorAtrasado : '';
+      $('#dividaValorAtualParcela').value = editItem.valorAtualParcela != null ? editItem.valorAtualParcela : '';
       $('#dividaValor').value = editItem.valor;
       $('#dividaQtd').value = editItem.numParcelas;
       $('#dividaFreq').value = freqToSelectValue(editItem);
@@ -5034,6 +5188,9 @@
       $('#dividaFreq').value = '1';
       $('#dividaIntervaloDias').value = '';
       $('#dividaInicio').value = todayISO;
+      $('#dividaJurosPeriodo').value = 'ano';
+      $('#dividaAtrasouToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.atrasou === 'nao'));
+      $('#dividaAtrasadoFields').hidden = true;
       populateFormaPagamentoSelect('#dividaFormaPagamento', '');
     }
     updateDividaFreqFieldsVisibility();
@@ -5647,6 +5804,19 @@
   $('#dividaFormaPagamento').addEventListener('change', updateDividaResumo);
   $('#dividaInicio').addEventListener('input', updateDividaResumo);
   $('#dividaIntervaloDias').addEventListener('input', updateDividaResumo);
+  // "Atrasou?" Sim/Não — só revela os 2 campos de valor atualizado quando marca "Sim" (pedido
+  // da Tabata: antes esses campos ficavam sempre visíveis, meio escondidos no meio do formulário)
+  $('#dividaAtrasouToggle').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-atrasou]');
+    if (!btn) return;
+    const atrasou = btn.dataset.atrasou === 'sim';
+    $('#dividaAtrasouToggle').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+    $('#dividaAtrasadoFields').hidden = !atrasou;
+    if (!atrasou){
+      $('#dividaValorAtrasado').value = '';
+      $('#dividaValorAtualParcela').value = '';
+    }
+  });
   $('#btnEntradasMes').addEventListener('click', ()=> openMesDetalheModal('entrada'));
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
   $('#oneForm').addEventListener('submit', e=>{
@@ -6019,14 +6189,18 @@
     e.preventDefault();
     const desc = $('#dividaDesc').value.trim();
     const valorTotalInicial = parseFloat($('#dividaValorTotalInicial').value);
-    // campo é só o número da taxa (o "%" já vem fixo do lado no formulário) — completa aqui
-    // pra guardar com o símbolo junto, senão ficava sem contexto nenhum ("Juros: 5")
-    let juros = $('#dividaJuros').value.trim();
-    juros = juros ? juros + '%' : null;
-    // "Atrasou? Valor atual total a pagar" — opcional, só pra pessoa anotar quanto falta pagar hoje
-    // (já com juros/multa) quando está atrasada; o app não usa isso em nenhuma conta
+    // campo é só o número da taxa — guarda junto com o período escolhido (ao ano/ao mês), que é
+    // só pra anotação mesmo, o app não calcula nada com isso
+    let jurosNum = $('#dividaJuros').value.trim();
+    const jurosPeriodo = $('#dividaJurosPeriodo').value === 'mes' ? 'mês' : 'ano';
+    let juros = jurosNum ? `${jurosNum}% ao ${jurosPeriodo}` : null;
+    // "Atrasou?" Sim/Não — só quando "Sim" é que os 2 valores atualizados (total e parcela) valem
+    // alguma coisa; se a pessoa volta pra "Não", eles não são salvos (o toggle já limpa os campos)
+    const atrasou = $('#dividaAtrasouToggle').querySelector('button.active').dataset.atrasou === 'sim';
     const valorAtrasadoRaw = $('#dividaValorAtrasado').value.trim();
-    const valorAtrasado = valorAtrasadoRaw ? parseFloat(valorAtrasadoRaw) : null;
+    const valorAtrasado = atrasou && valorAtrasadoRaw ? parseFloat(valorAtrasadoRaw) : null;
+    const valorAtualParcelaRaw = $('#dividaValorAtualParcela').value.trim();
+    const valorAtualParcela = atrasou && valorAtualParcelaRaw ? parseFloat(valorAtualParcelaRaw) : null;
     const valor = parseFloat($('#dividaValor').value);
     const numParcelas = Math.max(1, parseInt($('#dividaQtd').value, 10));
     const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#dividaFreq').value, $('#dividaIntervaloDias').value);
@@ -6037,15 +6211,24 @@
     if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
     const dia = freqType === 'dias' ? null : Number(dataInicio.split('-')[2]);
     const dataFim = freqType === 'dias' ? addDays(dataInicio, (numParcelas-1)*intervalDias) : addMonthsISO(dataInicio, (numParcelas-1)*intervalMeses);
+    // "última atualização": data de hoje, registrada toda vez que a pessoa salva mudanças aqui —
+    // pedido da Tabata pra ela saber se os valores (parcela atual, valor atrasado etc) estão em dia
+    const hojeISO = new Date().toISOString().slice(0,10);
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
         const cartaoAntigo = r.formaPagamento;
-        r.desc=desc; r.valorTotalInicial=valorTotalInicial; r.juros=juros; r.valorAtrasado=valorAtrasado; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        r.desc=desc; r.valorTotalInicial=valorTotalInicial; r.juros=juros; r.atrasou=atrasou; r.valorAtrasado=valorAtrasado; r.valorAtualParcela=valorAtualParcela; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento; r.atualizadoEm=hojeISO;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, juros, valorAtrasado, tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso' });
+      // valorInicialParcela: guarda pra sempre o valor da parcela de quando foi criada (não muda
+      // mais depois) — "valor" continua sendo o valor da parcela normal/contratada, editável, usado
+      // em todas as contas do app (saldo/calendário) como sempre foi; a diferença entre os dois
+      // ajuda a pessoa a renegociar (ver quanto a parcela cresceu desde o começo). Isso é separado
+      // do "valorAtualParcela" (só existe quando "Atrasou?" = Sim) — esse é uma anotação manual de
+      // quanto a parcela ficou DEPOIS do atraso/renegociação, não é calculado automaticamente
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, juros, atrasou, valorAtrasado, valorAtualParcela, tipo:'saida', desc, valor, valorInicialParcela:valor, numParcelas, freqType, intervalMeses, intervalDias, dia, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso', atualizadoEm:hojeISO });
     }
     closeOverlay('#overlayDivida');
     renderAll();

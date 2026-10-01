@@ -664,8 +664,10 @@
   .pc-card-data-inicio{ font-size:12.5px; color:var(--ink-muted); margin-top:4px; }
   .pc-card-status-wrap{ display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0; }
   .pc-card-table{ border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  /* pedido da Tabata: entrou a coluna "Total já pago" depois de Juros — encolheu as outras um
+     pouco (tudo "pra esquerda") pra caber sem estourar a largura do cartão */
   .pc-card-table-header, .pc-card-table-row{
-    display:grid; grid-template-columns: 1.1fr 1fr 1fr 0.7fr 0.9fr; gap:10px; align-items:center;
+    display:grid; grid-template-columns: 1fr 0.95fr 0.95fr 0.6fr 0.8fr 0.95fr; gap:8px; align-items:center;
   }
   .pc-card-table-header{
     padding:8px 14px; background:var(--surface);
@@ -677,6 +679,15 @@
      que essa dívida está atrasada */
   .pc-card-table-row.atraso{ background:var(--expense-soft); }
   .pc-card-table-row.atraso .pc-card-row-label, .pc-card-table-row.atraso .pc-card-cell{ color:var(--expense); font-weight:700; }
+  /* "Total já pago" tem botão de edição próprio dentro da célula — fica num pop-up pequeno,
+     separado do formulário grande de editar a dívida inteira (pedido da Tabata) */
+  .pc-card-cell-editable{ display:flex; align-items:center; gap:6px; }
+  .icon-btn-sm{
+    border:1px solid var(--border); background:var(--surface-2); border-radius:6px; width:20px; height:20px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-muted); font-size:11px;
+    flex-shrink:0; padding:0;
+  }
+  .icon-btn-sm:hover{ border-color:var(--accent); color:var(--accent); }
   .pc-card-footer{ display:flex; justify-content:flex-end; margin-top:12px; }
   /* mobile: linha de valor + (parcelas em cima, datas embaixo) lado a lado, com a "última
      atualização" (se tiver) numa linha própria embaixo, ocupando a largura toda */
@@ -782,6 +793,9 @@
     width:100%; max-width:420px; padding:20px; max-height:90vh; overflow-y:auto;
   }
   .modal h3{ font-size:17px; margin-bottom:14px; }
+  /* pop-up pequeno, só com um campo (ex.: "Total já pago") — não precisa da largura toda de um
+     formulário completo */
+  .modal.modal-small{ max-width:320px; }
   .field{ display:flex; flex-direction:column; gap:5px; margin-bottom:12px; min-width:0; }
   .field label{ font-size:12.5px; color:var(--ink-muted); font-weight:600; }
   .field input[type="text"], .field input[type="number"], .field input[type="date"], .field select{
@@ -1098,9 +1112,6 @@
         <button type="button" class="theme-seg-btn" data-theme-opt="light" title="Claro" aria-label="Tema claro"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="1.5" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22.5"></line><line x1="4.2" y1="4.2" x2="6" y2="6"></line><line x1="18" y1="18" x2="19.8" y2="19.8"></line><line x1="1.5" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22.5" y2="12"></line><line x1="4.2" y1="19.8" x2="6" y2="18"></line><line x1="18" y1="6" x2="19.8" y2="4.2"></line></svg></button>
         <button type="button" class="theme-seg-btn" data-theme-opt="dark" title="Escuro" aria-label="Tema escuro"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path></svg></button>
       </div>
-      <!-- link externo pro site de calculadoras da Tabata (comparar preços) — abre numa aba nova,
-           não mexe em nada do estado do Maré, só um atalho -->
-      <a class="btn" href="https://www.valemeudinheiro.site/" target="_blank" rel="noopener noreferrer" title="Compare preços antes de comprar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="12" y1="10" x2="12" y2="10.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="8" y1="18" x2="16" y2="18"></line></svg>Calculadora</a>
       <button class="btn" id="toggleViewBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="8" y1="18" x2="8.01" y2="18"></line><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>Visão anual</button>
     </div>
   </div>
@@ -1454,6 +1465,10 @@
       <button class="btn drawer-item" id="openCartoesBtn">🚩 Cartão de crédito</button>
       <button class="btn drawer-item" id="openPoupancaBtn">🐷 Poupança</button>
       <button class="btn drawer-item" id="openNaoMensaisBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 15h.01M12 15h.01M16 15h.01"></path></svg>Anotações</button>
+      <!-- link externo pro site de calculadoras da Tabata (comparar preços) — saiu do topo da tela
+           e virou item do menu lateral, pedido da Tabata. Abre numa aba nova, não mexe em nada do
+           estado do Maré, só um atalho -->
+      <a class="btn drawer-item" href="https://www.valemeudinheiro.site/" target="_blank" rel="noopener noreferrer" title="Compare preços antes de comprar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="12" y1="10" x2="12" y2="10.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="8" y1="18" x2="16" y2="18"></line></svg>Calculadora de economia</a>
 
       <!-- login/conta: fica bem embaixo do menu lateral, separado do resto por uma linha, já que
            não é algo que a pessoa mexe no dia a dia (mesmos elementos de antes, só que agora aqui
@@ -2166,6 +2181,9 @@
         </div>
       </div>
       <p class="piso-data-hint" style="margin:-8px 0 12px;">Juros é opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
+      <!-- "Total já pago" NÃO fica aqui dentro — tem botão de edição próprio direto no cartão da
+           dívida (pedido da Tabata: ela quer atualizar só esse valor, sem abrir o formulário
+           inteiro) — ver #overlayTotalJaPago -->
       <!-- "Atrasou?": pergunta em destaque (vermelho) — só quando a pessoa marca "Sim" é que
            aparecem os dois campos de valor atualizado. É tudo informativo, não entra em conta
            nenhuma do app -->
@@ -2192,6 +2210,27 @@
       <input type="hidden" id="dividaEditId">
       <div class="modal-actions">
         <button type="button" class="btn" data-close="overlayDivida">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal pequeno, só pra atualizar "Total já pago" de uma dívida/compra parcelada — separado do
+     formulário grande de editar, pedido da Tabata pra ser mais rápido de atualizar sozinho -->
+<div class="overlay" id="overlayTotalJaPago" hidden>
+  <div class="modal modal-small">
+    <button class="modal-close" data-close="overlayTotalJaPago" aria-label="Fechar">&times;</button>
+    <h3>Total já pago</h3>
+    <form id="totalJaPagoForm">
+      <div class="field">
+        <label for="totalJaPagoInput">Total já pago (R$)</label>
+        <input type="number" step="0.01" min="0" id="totalJaPagoInput" class="mono" placeholder="0,00">
+        <p class="piso-data-hint">Você mesma atualiza esse valor aqui conforme for pagando. O app não calcula isso automaticamente.</p>
+      </div>
+      <input type="hidden" id="totalJaPagoEditId">
+      <div class="modal-actions">
+        <button type="button" class="btn" data-close="overlayTotalJaPago">Cancelar</button>
         <button type="submit" class="btn primary">Salvar</button>
       </div>
     </form>
@@ -3977,11 +4016,14 @@
     table.className = 'pc-card-table';
     const header = document.createElement('div');
     header.className = 'pc-card-table-header';
-    header.innerHTML = '<span></span><span>Valor total</span><span>Valor da parcela</span><span>Parcelas</span><span>Juros</span>';
+    // "Total já pago" entrou depois de Juros, a pedido da Tabata — é um campo manual (a pessoa
+    // mesma anota quanto já pagou), o app não calcula isso em nenhum momento
+    header.innerHTML = '<span></span><span>Valor total</span><span>Valor da parcela</span><span>Parcelas</span><span>Juros</span><span>Total já pago</span>';
     table.appendChild(header);
     // compras parceladas comuns feitas pelo atalho de cartão no "+ Gasto" (fora do formulário de
     // Dívida) não têm "valorTotalInicial" nem "juros" guardados — mostra "—" em vez de quebrar
     const valorTotalTxt = r.valorTotalInicial != null && !isNaN(r.valorTotalInicial) ? fmtBRL(r.valorTotalInicial) : '—';
+    const totalJaPagoTxt = r.totalJaPago != null && !isNaN(r.totalJaPago) ? fmtBRL(r.totalJaPago) : '—';
     const rowInicio = document.createElement('div');
     rowInicio.className = 'pc-card-table-row';
     rowInicio.innerHTML = `
@@ -3991,6 +4033,23 @@
       <span class="pc-card-cell mono">${r.numParcelas}x</span>
       <span class="pc-card-cell">${r.juros || '—'}</span>
     `;
+    // "Total já pago" tem botão próprio de edição (pedido da Tabata: é pra pessoa atualizar isso
+    // separado, sem precisar abrir o formulário inteiro de editar a dívida) — abre um pop-up
+    // pequeno, só com esse campo
+    const totalJaPagoCell = document.createElement('span');
+    totalJaPagoCell.className = 'pc-card-cell pc-card-cell-editable';
+    const totalJaPagoVal = document.createElement('span');
+    totalJaPagoVal.className = 'mono';
+    totalJaPagoVal.textContent = totalJaPagoTxt;
+    const totalJaPagoBtn = document.createElement('button');
+    totalJaPagoBtn.type = 'button';
+    totalJaPagoBtn.className = 'icon-btn-sm';
+    totalJaPagoBtn.setAttribute('aria-label', 'Atualizar total já pago');
+    totalJaPagoBtn.textContent = '✎';
+    totalJaPagoBtn.addEventListener('click', () => openTotalJaPagoModal(r));
+    totalJaPagoCell.appendChild(totalJaPagoVal);
+    totalJaPagoCell.appendChild(totalJaPagoBtn);
+    rowInicio.appendChild(totalJaPagoCell);
     table.appendChild(rowInicio);
     if (r.atrasou){
       const rowAtraso = document.createElement('div');
@@ -3999,6 +4058,7 @@
         <span class="pc-card-row-label">Atrasou? Atual</span>
         <span class="pc-card-cell mono">${r.valorAtrasado != null ? fmtBRL(r.valorAtrasado) : '—'}</span>
         <span class="pc-card-cell mono">${r.valorAtualParcela != null ? fmtBRL(r.valorAtualParcela) : '—'}</span>
+        <span class="pc-card-cell"></span>
         <span class="pc-card-cell"></span>
         <span class="pc-card-cell"></span>
       `;
@@ -5200,6 +5260,16 @@
     $('#dividaDesc').focus();
   }
 
+  // pop-up pequeno, só pra atualizar "Total já pago" de uma dívida/compra parcelada — separado do
+  // formulário grande de editar (pedido da Tabata), pra ser mais rápido de atualizar sozinho
+  function openTotalJaPagoModal(r){
+    $('#totalJaPagoForm').reset();
+    $('#totalJaPagoEditId').value = r.id;
+    $('#totalJaPagoInput').value = r.totalJaPago != null ? r.totalJaPago : '';
+    openOverlay('#overlayTotalJaPago');
+    $('#totalJaPagoInput').focus();
+  }
+
   function updateNaoMensalFreqFieldsVisibility(){
     $('#naoMensalIntervaloDiasRow').hidden = $('#naoMensalFreq').value !== 'personalizado';
   }
@@ -6218,6 +6288,8 @@
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
         const cartaoAntigo = r.formaPagamento;
+        // "totalJaPago" não é tocado aqui — tem o pop-up próprio dele (ver openTotalJaPagoModal),
+        // então salvar esse formulário grande nunca mexe nesse valor
         r.desc=desc; r.valorTotalInicial=valorTotalInicial; r.juros=juros; r.atrasou=atrasou; r.valorAtrasado=valorAtrasado; r.valorAtualParcela=valorAtualParcela; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento; r.atualizadoEm=hojeISO;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
@@ -6228,9 +6300,22 @@
       // ajuda a pessoa a renegociar (ver quanto a parcela cresceu desde o começo). Isso é separado
       // do "valorAtualParcela" (só existe quando "Atrasou?" = Sim) — esse é uma anotação manual de
       // quanto a parcela ficou DEPOIS do atraso/renegociação, não é calculado automaticamente
-      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, juros, atrasou, valorAtrasado, valorAtualParcela, tipo:'saida', desc, valor, valorInicialParcela:valor, numParcelas, freqType, intervalMeses, intervalDias, dia, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso', atualizadoEm:hojeISO });
+      // totalJaPago começa null — só é preenchido depois, pelo botão de edição próprio no cartão
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, juros, atrasou, valorAtrasado, valorAtualParcela, totalJaPago:null, tipo:'saida', desc, valor, valorInicialParcela:valor, numParcelas, freqType, intervalMeses, intervalDias, dia, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso', atualizadoEm:hojeISO });
     }
     closeOverlay('#overlayDivida');
+    renderAll();
+  });
+
+  // pop-up pequeno de "Total já pago" — só mexe nesse campo, não toca em mais nada da dívida
+  $('#totalJaPagoForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const editId = $('#totalJaPagoEditId').value;
+    const r = state.recorrentes.find(x=>x.id===editId);
+    if (!r) return;
+    const raw = $('#totalJaPagoInput').value.trim();
+    r.totalJaPago = raw ? parseFloat(raw) : null;
+    closeOverlay('#overlayTotalJaPago');
     renderAll();
   });
 

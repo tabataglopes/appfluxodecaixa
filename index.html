@@ -1198,7 +1198,7 @@
       <button class="nm-back-btn" id="nmBackBtn" aria-label="Voltar">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
       </button>
-      <h2>Espaço de Anotações</h2>
+      <h2>Anotações</h2>
     </div>
     <div class="nm-intro">
       <span class="icon">💡</span>
@@ -1422,7 +1422,7 @@
       </div>
       <button class="btn drawer-item" id="openCartoesBtn">🚩 Cartão de crédito</button>
       <button class="btn drawer-item" id="openPoupancaBtn">🐷 Poupança</button>
-      <button class="btn drawer-item" id="openNaoMensaisBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 15h.01M12 15h.01M16 15h.01"></path></svg>Espaço de Anotações</button>
+      <button class="btn drawer-item" id="openNaoMensaisBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 15h.01M12 15h.01M16 15h.01"></path></svg>Anotações</button>
 
       <!-- login/conta: fica bem embaixo do menu lateral, separado do resto por uma linha, já que
            não é algo que a pessoa mexe no dia a dia (mesmos elementos de antes, só que agora aqui
@@ -1471,8 +1471,9 @@
       <div class="field">
         <label>Tipo</label>
         <div class="seg" id="oneSeg">
-          <button type="button" data-tipo="entrada">Entrada</button>
-          <button type="button" data-tipo="saida" class="active">Saída</button>
+          <button type="button" data-tipo="entrada">+ Receita</button>
+          <button type="button" data-tipo="saida" class="active">+ Gasto</button>
+          <button type="button" data-tipo="poupanca" style="line-height:1.25;">Enviar<br>poupança</button>
         </div>
       </div>
 
@@ -1484,7 +1485,7 @@
         <div class="chips" id="oneCategoriaEntradaChips">
           <button type="button" class="chip chip-entrada active" data-cat="bonus">Bônus</button>
           <button type="button" class="chip chip-entrada" data-cat="rendaextra">Renda Extra</button>
-          <button type="button" class="chip chip-entrada" data-cat="investimento">Investimento</button>
+          <button type="button" class="chip chip-entrada" data-cat="investimento">Rendimento</button>
           <button type="button" class="chip chip-entrada" data-cat="outros">Outros</button>
         </div>
       </div>
@@ -1509,6 +1510,11 @@
         <p class="piso-data-hint">Opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
       </div>
 
+      <div class="field">
+        <label for="oneValor" id="oneValorLabel">Valor (R$)</label>
+        <input type="number" step="0.01" min="0" id="oneValor" class="mono" placeholder="0,00" required>
+      </div>
+
       <div class="field" id="oneFormaPagamentoField">
         <label for="oneFormaPagamento">Forma de pagamento</label>
         <select id="oneFormaPagamento"></select>
@@ -1516,6 +1522,7 @@
       <div class="field" id="onePoupancaField">
         <label for="onePoupanca" id="onePoupancaLabel">Mandar para poupança</label>
         <select id="onePoupanca"></select>
+        <p class="piso-data-hint" id="onePoupancaSemNenhuma" hidden>Você ainda não tem nenhuma poupança — crie uma primeiro no menu lateral, em "Poupança".</p>
         <p class="piso-data-hint" id="onePoupancaErro" hidden style="color:var(--expense); font-weight:600;"></p>
       </div>
 
@@ -1528,24 +1535,18 @@
         </div>
       </div>
 
-      <div class="row2">
-        <div class="field">
-          <label for="oneValor" id="oneValorLabel">Valor (R$)</label>
-          <input type="number" step="0.01" min="0" id="oneValor" class="mono" placeholder="0,00" required>
-        </div>
-        <div class="field" id="oneDataField">
-          <label for="oneData" id="oneDataLabel">Data</label>
-          <input type="date" id="oneData" required>
-          <p class="piso-data-hint" id="oneDataHint" hidden></p>
-        </div>
-      </div>
-
       <!-- só aparece em Gastos, quando a pessoa marca "Sim" em "é uma compra parcelada?" acima —
            o Maré assume mensal e calcula o fim sozinho a partir da data da compra, sem precisar
            perguntar frequência/início separados de novo -->
       <div class="field" id="oneComprasQtdParcelasField" hidden>
         <label for="oneComprasQtdParcelas">Quantas parcelas</label>
         <input type="number" min="2" max="60" id="oneComprasQtdParcelas" class="mono" placeholder="Ex.: 10">
+      </div>
+
+      <div class="field" id="oneDataField">
+        <label for="oneData" id="oneDataLabel">Data</label>
+        <input type="date" id="oneData" required>
+        <p class="piso-data-hint" id="oneDataHint" hidden></p>
       </div>
 
       <!-- grupo "recorrência simples" (sem fim obrigatório) — usado por Contas recorrente, Entrada
@@ -4113,13 +4114,16 @@
   // select "Mandar para poupança" (saída) / "Vindo da poupança" (entrada), dentro do popup de
   // lançamento avulso comum — mesma ideia do select de forma de pagamento, só que apontando pra uma
   // conta de poupança em vez de um cartão. "Não" (valor vazio) = lançamento normal, sem poupança.
-  function populatePoupancaSelect(selector, selectedValue){
+  function populatePoupancaSelect(selector, selectedValue, opts){
+    const incluirNenhuma = !opts || opts.incluirNenhuma !== false;
     const sel = $(selector);
     sel.innerHTML = '';
-    const optNone = document.createElement('option');
-    optNone.value = '';
-    optNone.textContent = 'Não';
-    sel.appendChild(optNone);
+    if (incluirNenhuma){
+      const optNone = document.createElement('option');
+      optNone.value = '';
+      optNone.textContent = 'Não';
+      sel.appendChild(optNone);
+    }
     for (const p of state.poupancas){
       const opt = document.createElement('option');
       opt.value = p.id;
@@ -4130,11 +4134,27 @@
   }
 
   // some inteiro se a pessoa ainda não tem nenhuma poupança criada (não faz sentido oferecer a
-  // opção antes de existir alguma conta pra escolher) — e troca o texto do rótulo conforme o tipo
-  function updateOnePoupancaVisibility(tipo){
-    $('#onePoupancaField').style.display = state.poupancas.length > 0 ? '' : 'none';
-    $('#onePoupancaLabel').textContent = tipo === 'entrada' ? 'Vindo da poupança' : 'Mandar para poupança';
+  // opção antes de existir alguma conta pra escolher) — e troca o texto do rótulo conforme o tipo.
+  // No atalho "Enviar poupança" (isPoupanca) o campo fica sempre visível e obrigatório (sem a opção
+  // "Não" — ali o ponto inteiro é escolher uma poupança), e some a pessoa ainda não tiver nenhuma.
+  function updateOnePoupancaVisibility(tipo, isPoupanca){
+    const temPoupancas = state.poupancas.length > 0;
     $('#onePoupancaErro').hidden = true;
+    if (isPoupanca){
+      $('#onePoupancaField').style.display = '';
+      $('#onePoupancaLabel').textContent = 'Em qual poupança guardar';
+      $('#onePoupanca').hidden = !temPoupancas;
+      $('#onePoupanca').required = temPoupancas;
+      if (temPoupancas) populatePoupancaSelect('#onePoupanca', $('#onePoupanca').value, { incluirNenhuma:false });
+      $('#onePoupancaSemNenhuma').hidden = temPoupancas;
+    } else {
+      $('#onePoupancaField').style.display = temPoupancas ? '' : 'none';
+      $('#onePoupancaLabel').textContent = tipo === 'entrada' ? 'Vindo da poupança' : 'Mandar para poupança';
+      $('#onePoupanca').hidden = false;
+      $('#onePoupanca').required = false;
+      populatePoupancaSelect('#onePoupanca', $('#onePoupanca').value, { incluirNenhuma:true });
+      $('#onePoupancaSemNenhuma').hidden = true;
+    }
   }
 
   function buildPoupancaPageRow(p){
@@ -4572,7 +4592,7 @@
   $('#assinFreq').addEventListener('change', updateAssinFreqFieldsVisibility);
 
   // ---- "+ Lançamento" com categorias: Contas/Compras/Assinaturas/Parcelas/Dívidas (saída) e
-  // Salário/Bônus/Renda Extra/Investimento/Outros (entrada) — a categoria escolhida decide se o
+  // Salário/Bônus/Renda Extra/Rendimento/Outros (entrada) — a categoria escolhida decide se o
   // lançamento vira um avulso normal (state.oneTime) ou uma recorrente (state.recorrentes, igual às
   // que já existiam nas páginas de Contas fixas/Assinaturas/Parcelados/Dívidas), sem duplicar
   // nenhuma lógica de cálculo de data — só reaproveita freqValueToInterval/addDays/addMonthsISO que
@@ -4582,8 +4602,8 @@
   let oneCategoriaEntrada = 'bonus';
   let oneComprasParcelada = false;
 
-  const ONE_CATEGORIA_LABELS_SAIDA = { contas:'Contas', compras:'Gastos', assinaturas:'Assinaturas', parcelas:'Parcelas', dividas:'Dívidas' };
-  const ONE_CATEGORIA_LABELS_ENTRADA = { salario:'Salário', bonus:'Bônus', rendaextra:'Renda Extra', investimento:'Investimento', outros:'Outros' };
+  const ONE_CATEGORIA_LABELS_SAIDA = { contas:'Contas', compras:'Gastos', assinaturas:'Assinaturas', parcelas:'Parcelas', dividas:'Dívidas', poupanca:'Poupança' };
+  const ONE_CATEGORIA_LABELS_ENTRADA = { salario:'Salário', bonus:'Bônus', rendaextra:'Renda Extra', investimento:'Rendimento', outros:'Outros' };
   const ONE_DESC_PLACEHOLDERS = {
     saida: {
       contas: 'Ex.: Internet, conta de luz...',
@@ -4591,6 +4611,7 @@
       assinaturas: 'Ex.: Netflix, ChatGPT, Spotify...',
       parcelas: 'Ex.: Geladeira, celular, tênis...',
       dividas: 'Ex.: Empréstimo banco X, empréstimo da geladeira...',
+      poupanca: 'Ex.: Reserva de emergência, Viagem...',
     },
     entrada: {
       salario: 'Ex.: Salário',
@@ -4636,7 +4657,13 @@
 
   function updateOneCategoriaVisibility(){
     const isEditing = !!$('#oneEditId').value;
-    const tipo = $('#oneSeg').querySelector('.active').dataset.tipo;
+    // "Enviar poupança" é um atalho do Tipo, não um tipo de verdade: por baixo dos panos ele vira
+    // uma Saída normal com uma poupança de destino obrigatória (mesmo mecanismo de "mandar para
+    // poupança" que já existe em Gasto) — assim o resto do app (saldo, calendário, totais) não
+    // precisa saber que esse terceiro botão existe, só reconhece entrada/saida de sempre.
+    const tipoRaw = $('#oneSeg').querySelector('.active').dataset.tipo;
+    const isPoupanca = tipoRaw === 'poupanca';
+    const tipo = isPoupanca ? 'saida' : tipoRaw;
     const isSaida = tipo === 'saida';
     const isEntrada = tipo === 'entrada';
 
@@ -4657,16 +4684,16 @@
       $('#oneDescLabel').textContent = 'Descrição (opcional)';
       $('#oneDesc').placeholder = 'Ex.: Freelance, conta de luz...';
       updateOneFormaPagamentoVisibility(tipo);
-      updateOnePoupancaVisibility(tipo);
+      updateOnePoupancaVisibility(tipo, false);
       return;
     }
 
     const cat = oneCategoria;
-    const isContas = isSaida && cat === 'contas';
-    const isCompras = isSaida && cat === 'compras';
-    const isAssinaturas = isSaida && cat === 'assinaturas';
-    const isParcelas = isSaida && cat === 'parcelas';
-    const isDividas = isSaida && cat === 'dividas';
+    const isContas = isSaida && !isPoupanca && cat === 'contas';
+    const isCompras = isSaida && !isPoupanca && cat === 'compras';
+    const isAssinaturas = isSaida && !isPoupanca && cat === 'assinaturas';
+    const isParcelas = isSaida && !isPoupanca && cat === 'parcelas';
+    const isDividas = isSaida && !isPoupanca && cat === 'dividas';
 
     $('#oneCategoriaEntradaField').style.display = isEntrada ? '' : 'none';
 
@@ -4709,17 +4736,21 @@
     updateOneParcFreqFieldsVisibility();
 
     updateOneFormaPagamentoVisibility(tipo);
+    // "Enviar poupança" não tem forma de pagamento — é sempre um valor saindo da própria conta
+    // direto pra poupança escolhida, então esconde esse campo mesmo com tipo mapeado pra "saida"
+    if (isPoupanca) $('#oneFormaPagamentoField').style.display = 'none';
 
     // poupança só faz sentido em fluxo avulso (Compras sempre, Contas/Entrada quando "Uma vez") —
-    // nunca em recorrente/assinatura/parcelado/dívida
-    updateOnePoupancaVisibility(tipo);
+    // nunca em recorrente/assinatura/parcelado/dívida. Em "Enviar poupança" (isPoupanca) o campo
+    // vira a própria razão de ser da tela, então fica sempre visível e obrigatório.
+    updateOnePoupancaVisibility(tipo, isPoupanca);
     if (!mostraDataAvulsa) $('#onePoupancaField').style.display = 'none';
 
     $('#oneValorLabel').textContent = (isParcelas || isDividas || comprasParceladaAtiva) ? 'Valor da parcela (R$)' : 'Valor (R$)';
 
     $('#oneDescLabel').textContent = 'Descrição (opcional)';
     const placeholders = isSaida ? ONE_DESC_PLACEHOLDERS.saida : ONE_DESC_PLACEHOLDERS.entrada;
-    const catKey = isSaida ? cat : oneCategoriaEntrada;
+    const catKey = isPoupanca ? 'poupanca' : (isSaida ? cat : oneCategoriaEntrada);
     $('#oneDesc').placeholder = (placeholders && placeholders[catKey]) || 'Ex.: Freelance, conta de luz...';
 
     if (mostraParcFields) updateOneParcResumoEFim();
@@ -5622,7 +5653,12 @@
   $('#btnSaidasMes').addEventListener('click', ()=> openMesDetalheModal('saida'));
   $('#oneForm').addEventListener('submit', e=>{
     e.preventDefault();
-    const tipo = $('#oneSeg').querySelector('.active').dataset.tipo;
+    // "Enviar poupança" é um atalho de Tipo que por baixo dos panos vira uma Saída normal com
+    // poupança de destino obrigatória (ver updateOneCategoriaVisibility) — o resto do app só
+    // conhece entrada/saida.
+    const tipoRaw = $('#oneSeg').querySelector('.active').dataset.tipo;
+    const isPoupanca = tipoRaw === 'poupanca';
+    const tipo = isPoupanca ? 'saida' : tipoRaw;
     const isSaida = tipo === 'saida';
     const isEntrada = tipo === 'entrada';
     const editId = $('#oneEditId').value;
@@ -5670,16 +5706,16 @@
     // uma recorrente (state.recorrentes), reaproveitando os mesmos campos/cálculos das páginas
     // dedicadas de Contas fixas/Assinaturas/Parcelados/Dívidas
     const cat = oneCategoria;
-    const isAssinaturas = isSaida && cat === 'assinaturas';
-    const isParcelas = isSaida && cat === 'parcelas';
-    const isDividas = isSaida && cat === 'dividas';
-    const isCompras = isSaida && cat === 'compras';
+    const isAssinaturas = isSaida && !isPoupanca && cat === 'assinaturas';
+    const isParcelas = isSaida && !isPoupanca && cat === 'parcelas';
+    const isDividas = isSaida && !isPoupanca && cat === 'dividas';
+    const isCompras = isSaida && !isPoupanca && cat === 'compras';
     // "recorrente" foi tirado do + Lançamento: aqui é sempre avulso, tanto em Saída quanto em
     // Entrada — quem quiser algo recorrente usa o "+" dedicado no menu lateral
     const recorrenteAtiva = false;
     const comprasParceladaAtiva = isCompras && !!$('#oneFormaPagamento').value && oneComprasParcelada;
 
-    const categoriaSalva = isSaida ? cat : oneCategoriaEntrada;
+    const categoriaSalva = isPoupanca ? 'poupanca' : (isSaida ? cat : oneCategoriaEntrada);
     const catLabels = isSaida ? ONE_CATEGORIA_LABELS_SAIDA : ONE_CATEGORIA_LABELS_ENTRADA;
     const desc = $('#oneDesc').value.trim() || catLabels[categoriaSalva] || 'Lançamento';
 
@@ -5772,12 +5808,15 @@
       return;
     }
 
-    // ----- Compras, Contas avulsa, ou Entrada avulsa: lançamento único de sempre -----
+    // ----- Compras, Contas avulsa, Entrada avulsa, ou Enviar poupança: lançamento único de sempre -----
     const valor = parseFloat($('#oneValor').value);
     const data = $('#oneData').value;
     const poupancaId = $('#onePoupanca').value || null;
     const formaPagamento = (isSaida && !poupancaId) ? ($('#oneFormaPagamento').value || null) : null;
     if (isNaN(valor) || !data) return;
+    // "Enviar poupança" sem nenhuma poupança escolhida (ou sem nenhuma cadastrada ainda) não
+    // submete — o campo já fica obrigatório, isso aqui é só a trava de segurança
+    if (isPoupanca && !poupancaId) return;
     if (poupancaId && isEntrada){
       const p = state.poupancas.find(x=>x.id===poupancaId);
       if (p){

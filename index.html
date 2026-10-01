@@ -1202,7 +1202,7 @@
     </div>
     <div class="nm-intro">
       <span class="icon">💡</span>
-      <span>Este é o seu espaço de consulta: guarde aqui as contas que não são do dia a dia — aquelas que aparecem de vez em quando e é fácil esquecer, como IPTU, seguro ou IPVA — ou use pra organizar objetivos e anotações soltas. Tudo visual, num lugar só.</span>
+      <span>Nunca mais esqueça uma conta! (principalmente aquelas que aparecem de vez em quando, como IPTU) ou use esse espaço para organizar seus objetivos. Deixe tudo visual, em um só lugar.</span>
     </div>
     <div class="nm-card">
       <div class="nm-header-row">
@@ -1306,30 +1306,12 @@
       <button class="nm-back-btn" id="parceladosDividasBackBtn" aria-label="Voltar">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
       </button>
-      <h2>Parcelados/Dívidas</h2>
+      <h2>Dívidas/Compras parceladas</h2>
     </div>
 
-    <h3 class="nm-subhead">Parcelados</h3>
     <div class="nm-intro">
       <span class="icon">🧾</span>
-      <span>Compras parceladas em andamento. Veja quando começou, quando termina e quantas parcelas ao todo, e marque você mesma o status de pagamento — o app não tem como confirmar isso sozinho.</span>
-    </div>
-    <div class="nm-card">
-      <div class="pc-header-row">
-        <span>Compra</span><span>Valor da parcela</span><span>Início</span><span>Fim</span><span>Parcelas</span><span>Pagamento</span><span></span>
-      </div>
-      <div id="parceladosPageList"></div>
-    </div>
-    <div class="nm-total-bar">
-      <span class="lbl">Valor total em parcelas no mês</span>
-      <span class="val mono" id="parceladosTotalVal">R$ 0,00</span>
-    </div>
-    <button class="btn primary nm-add-btn" id="addParceladoBtn" type="button">+ Novo parcelado</button>
-
-    <h3 class="nm-subhead">Dívidas</h3>
-    <div class="nm-intro">
-      <span class="icon">🧾</span>
-      <span>Dívidas parceladas em andamento. Veja quando começou, quando termina e quantas parcelas ao todo, e marque você mesma o status de pagamento — o app não tem como confirmar isso sozinho.</span>
+      <span>Tenha mais clareza sobre suas dívidas e compras parceladas. Anote todas aqui. Assim, se um dia você quiser renegociá-las, basta voltar aqui pra ver qual vale mais a pena atacar primeiro.</span>
     </div>
     <div class="nm-card">
       <div class="pc-header-row">
@@ -1341,7 +1323,7 @@
       <span class="lbl">Valor total em parcelas no mês</span>
       <span class="val mono" id="dividasTotalVal">R$ 0,00</span>
     </div>
-    <button class="btn primary nm-add-btn" id="addDividaBtn" type="button">+ Nova dívida</button>
+    <button class="btn primary nm-add-btn" id="addDividaBtn" type="button">+ Nova dívida/compra parcelada</button>
   </div>
 
   <!-- Cartão de crédito: página cheia (substitui o pop-up antigo) -->
@@ -1354,7 +1336,7 @@
     </div>
     <div class="nm-intro">
       <span class="icon">💳</span>
-      <span>Seus cartões cadastrados, com o dia do fechamento e do pagamento da fatura de cada um.</span>
+      <span>Adicione aqui seus cartões de crédito, assim eles vão aparecer como opção de forma de pagamento.</span>
     </div>
     <div class="nm-card">
       <div class="ct-header-row">
@@ -1377,7 +1359,7 @@
     </div>
     <div class="nm-intro">
       <span class="icon">🐷</span>
-      <span>Guarde o que sobrar num mês numa conta separada. Esse valor sai do seu saldo principal (pra você não achar que ainda tem esse dinheiro disponível), mas não conta como gasto — só como economia. Você também pode mandar esse dinheiro de volta pro saldo principal quando quiser — por exemplo, pra usar essa reserva pra pagar uma fatura do cartão.</span>
+      <span>Sobrou dinheiro no fim do mês? Mande para uma conta poupança/objetivo financeiro! Esse valor vai sair do seu saldo principal (assim você não acha que tem ele disponível, e consegue economizar para alcançar seus objetivos). Você também pode mandar esse dinheiro de volta pro saldo principal quando quiser — por exemplo, pra usar essa reserva pra pagar uma fatura do cartão.</span>
     </div>
     <div class="row2" style="margin-bottom:14px;">
       <button type="button" class="btn primary" id="poupancaGuardarBtn">Guardar na poupança</button>
@@ -2067,7 +2049,7 @@
 <div class="overlay" id="overlayDivida" hidden>
   <div class="modal">
     <button class="modal-close" data-close="overlayDivida" aria-label="Fechar">&times;</button>
-    <h3 id="dividaModalTitle">Nova dívida</h3>
+    <h3 id="dividaModalTitle">Nova dívida/compra parcelada</h3>
     <form id="dividaForm">
       <div class="field">
         <label for="dividaDesc">Qual é a dívida</label>
@@ -2084,6 +2066,11 @@
           <span class="suffix-badge">% ao ano</span>
         </div>
         <p class="piso-data-hint">Opcional, só pra você anotar — o app não usa isso em nenhuma conta.</p>
+      </div>
+      <div class="field">
+        <label for="dividaValorAtrasado" style="line-height:1.3;">Atrasou?<br>Valor atual total a pagar (R$)</label>
+        <input type="number" step="0.01" min="0" id="dividaValorAtrasado" class="mono" placeholder="(opcional)">
+        <p class="piso-data-hint">Preencha só se estiver atrasada — pra você lembrar quanto falta pagar hoje, já com juros/multa.</p>
       </div>
       <div class="row2">
         <div class="field">
@@ -3475,7 +3462,12 @@
           parcelaAtual = Math.min(rec.numParcelas, Math.max(1, Math.floor(((yy*12+mm) - (sy*12+sm)) / interval) + 1));
         }
         const cardNote = rec.formaPagamento ? ` · no cartão ${getCardById(rec.formaPagamento)?.nome || 'removido'}` : '';
-        const tipoLabel = rec.isDivida ? 'dívida' : 'compra parcelada';
+        // itens criados pelo formulário dedicado (agora unificado — "Dívidas/Compras parceladas")
+        // sempre vêm com isDivida:true, mesmo quando são só uma compra parcelada comum, já que não
+        // tem mais como distinguir os dois ali; por isso o rótulo aqui fica genérico pra esses. Só
+        // os parcelados criados pelo atalho de cartão no "+ Gasto" (isDivida nunca marcado) continuam
+        // com o rótulo específico "compra parcelada", que ainda é sempre verdade pra eles.
+        const tipoLabel = rec.isDivida ? 'dívida/compra parcelada' : 'compra parcelada';
         return `${tipoLabel} · parcela ${parcelaAtual} de ${rec.numParcelas} (${parcelaFreqLabel(rec)})${cardNote}`;
       }
       const kindLabel = rec && rec.kind === 'assinatura' ? 'assinatura' : (rec && rec.tipo === 'entrada' ? 'receita fixa' : 'conta fixa');
@@ -3928,12 +3920,15 @@
     return row;
   }
 
+  // pedido da Tabata: juntar Parcelados dentro de Dívidas numa lista só ("Dívidas/Compras
+  // parceladas") — agora mostra TODO mundo com kind:'parcelado', seja dívida (isDivida:true) ou
+  // compra parcelada comum, sem mais separar em duas listas
   function renderDividasPage(){
     const wrap = $('#dividasPageList');
     wrap.innerHTML = '';
-    const dividas = state.recorrentes.filter(r=>r.kind==='parcelado' && r.isDivida).sort((a,b)=>a.dataInicio.localeCompare(b.dataInicio));
+    const dividas = state.recorrentes.filter(r=>r.kind==='parcelado').sort((a,b)=>a.dataInicio.localeCompare(b.dataInicio));
     if (dividas.length===0){
-      wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma dívida em andamento.</div>';
+      wrap.innerHTML = '<div class="nm-empty-hint">Nenhuma dívida ou compra parcelada em andamento.</div>';
     } else {
       for (const r of dividas) wrap.appendChild(buildDividaPageRow(r));
     }
@@ -4274,7 +4269,7 @@
     contasfixas: { viewId:'#contasFixasView', render:renderContasFixasPage },
     receitasfixas: { viewId:'#receitasFixasView', render:renderReceitasFixasPage },
     assinaturas: { viewId:'#assinView', render:renderAssinPage },
-    parceladosdividas: { viewId:'#parceladosDividasView', render:()=>{ renderParceladosPage(); renderDividasPage(); } },
+    parceladosdividas: { viewId:'#parceladosDividasView', render:()=>{ renderDividasPage(); } },
     cartoes: { viewId:'#cartoesView', render:renderCartoesPage },
     poupanca: { viewId:'#poupancaView', render:renderPoupancaPage },
   };
@@ -5019,13 +5014,14 @@
     $('#dividaForm').reset();
     $('#dividaEditId').value = '';
     if (editItem){
-      $('#dividaModalTitle').textContent = 'Editar dívida';
+      $('#dividaModalTitle').textContent = 'Editar dívida/compra parcelada';
       $('#dividaDesc').value = editItem.desc;
       $('#dividaValorTotalInicial').value = editItem.valorTotalInicial;
       // remove o "%" pra caber de volta no campo numérico (que já mostra o símbolo fixo do lado);
       // se for um valor antigo que a pessoa tinha escrito por extenso (ex.: "R$ 50 por parcela",
       // de antes desse campo virar só número), não tem como converter, então fica em branco
       $('#dividaJuros').value = (editItem.juros || '').replace('%', '').trim();
+      $('#dividaValorAtrasado').value = editItem.valorAtrasado != null ? editItem.valorAtrasado : '';
       $('#dividaValor').value = editItem.valor;
       $('#dividaQtd').value = editItem.numParcelas;
       $('#dividaFreq').value = freqToSelectValue(editItem);
@@ -5034,7 +5030,7 @@
       $('#dividaEditId').value = editItem.id;
       populateFormaPagamentoSelect('#dividaFormaPagamento', editItem.formaPagamento);
     } else {
-      $('#dividaModalTitle').textContent = 'Nova dívida';
+      $('#dividaModalTitle').textContent = 'Nova dívida/compra parcelada';
       $('#dividaFreq').value = '1';
       $('#dividaIntervaloDias').value = '';
       $('#dividaInicio').value = todayISO;
@@ -5616,7 +5612,9 @@
   $('#addContaFixaBtn').addEventListener('click', ()=> openRecurModal(null, 'saida'));
   $('#addReceitaFixaBtn').addEventListener('click', ()=> openRecurModal(null, 'entrada'));
   $('#addAssinaturaBtn').addEventListener('click', ()=> openAssinModal(null));
-  $('#addParceladoBtn').addEventListener('click', ()=> openParceladoModal(null));
+  // o botão "+ Novo parcelado" dedicado saiu da página (Parcelados virou parte de Dívidas); a
+  // função/modal openParceladoModal continua existindo só porque o "editar" de um item antigo vindo
+  // do calendário ainda pode chamá-la (ver txnMetaText/editBtn)
   $('#addDividaBtn').addEventListener('click', ()=> openDividaModal(null));
   $('#addCartaoBtn').addEventListener('click', ()=> openCartaoModal(null));
   $('#openDashboardBtn').addEventListener('click', ()=> setViewMode('month'));
@@ -6025,6 +6023,10 @@
     // pra guardar com o símbolo junto, senão ficava sem contexto nenhum ("Juros: 5")
     let juros = $('#dividaJuros').value.trim();
     juros = juros ? juros + '%' : null;
+    // "Atrasou? Valor atual total a pagar" — opcional, só pra pessoa anotar quanto falta pagar hoje
+    // (já com juros/multa) quando está atrasada; o app não usa isso em nenhuma conta
+    const valorAtrasadoRaw = $('#dividaValorAtrasado').value.trim();
+    const valorAtrasado = valorAtrasadoRaw ? parseFloat(valorAtrasadoRaw) : null;
     const valor = parseFloat($('#dividaValor').value);
     const numParcelas = Math.max(1, parseInt($('#dividaQtd').value, 10));
     const { freqType, intervalMeses, intervalDias } = freqValueToInterval($('#dividaFreq').value, $('#dividaIntervaloDias').value);
@@ -6039,11 +6041,11 @@
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
         const cartaoAntigo = r.formaPagamento;
-        r.desc=desc; r.valorTotalInicial=valorTotalInicial; r.juros=juros; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
+        r.desc=desc; r.valorTotalInicial=valorTotalInicial; r.juros=juros; r.valorAtrasado=valorAtrasado; r.valor=valor; r.numParcelas=numParcelas; r.freqType=freqType; r.intervalMeses=intervalMeses; r.intervalDias=intervalDias; r.dataInicio=dataInicio; r.dia=dia; r.dataFim=dataFim; r.formaPagamento=formaPagamento;
         reconcileFaturaPagamentos(cartaoAntigo);
       }
     } else {
-      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, juros, tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso' });
+      state.recorrentes.push({ id: nextId(), kind:'parcelado', isDivida:true, valorTotalInicial, juros, valorAtrasado, tipo:'saida', desc, valor, dia, freqType, intervalMeses, intervalDias, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso' });
     }
     closeOverlay('#overlayDivida');
     renderAll();

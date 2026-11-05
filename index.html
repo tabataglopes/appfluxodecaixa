@@ -247,6 +247,10 @@
   .limite-box.estourado .limite-txt .disp{ color:var(--expense); }
   .limite-alerta{ font-size:12.5px; font-weight:700; color:var(--warn); }
   .limite-box.estourado .limite-alerta{ color:var(--expense); }
+  .rotativo-alerta{ font-size:12.5px; font-weight:700; color:var(--expense); }
+  .juros-box{ margin:0 0 18px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
+  .juros-box summary{ cursor:pointer; font-size:13.5px; font-weight:600; }
+  .juros-box[open] summary{ margin-bottom:6px; }
   .limite-hint{ font-size:12px; margin:2px 0 0; line-height:1.35; color:var(--ink-muted); }
   .limite-hint.baixo{ color:var(--warn); font-weight:700; }
   .limite-hint.estourado{ color:var(--expense); font-weight:700; }
@@ -1530,6 +1534,11 @@
         <input type="number" step="0.01" min="0.01" id="cartaoLimite" class="mono" placeholder="Ex.: 3000,00" required>
         <p class="piso-data-hint">O Maré usa esse valor para mostrar quanto do limite você já usou e quanto ainda tem, e para avisar quando um gasto passar dele.</p>
       </div>
+      <div class="field">
+        <label for="cartaoJuros">Juros do rotativo (% ao mês) <span style="font-weight:400; color:var(--ink-muted);">— opcional</span></label>
+        <input type="number" step="0.01" min="0" max="100" id="cartaoJuros" class="mono" placeholder="Ex.: 12">
+        <p class="piso-data-hint">Se você deixar de pagar a fatura, o banco cobra juros sobre o que ficou devendo. Aqui você diz a taxa do seu banco para o Maré <b>estimar</b> esse valor. A taxa muda de banco para banco e pode mudar com o tempo — por isso é só uma estimativa, e dá para corrigir com o valor real na fatura. Em branco = o Maré não calcula juros.</p>
+      </div>
       <input type="hidden" id="cartaoEditId">
       <div class="modal-actions">
         <button type="button" class="btn" data-close="overlayCartao">Cancelar</button>
@@ -1624,6 +1633,19 @@
       <h4 style="font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:14px; margin:0 0 8px;">Pagamentos registrados</h4>
       <div class="fatura-list" id="faturaDetPagamentosList"></div>
     </div>
+
+    <details id="faturaDetJurosBox" class="juros-box" hidden>
+      <summary>Juros ou multa do banco nesta fatura</summary>
+      <p class="piso-data-hint" id="faturaDetJurosInfo"></p>
+      <div class="row2" style="align-items:end;">
+        <div class="field" style="margin-bottom:0;">
+          <label for="faturaDetJurosValor">Valor cobrado pelo banco (R$)</label>
+          <input type="number" step="0.01" min="0" id="faturaDetJurosValor" class="mono" placeholder="0,00">
+        </div>
+        <button type="button" class="btn" style="height:38px;" id="faturaDetJurosSalvarBtn">Salvar</button>
+      </div>
+      <button type="button" class="btn small" id="faturaDetJurosResetBtn" style="margin-top:8px;" hidden>Voltar à estimativa</button>
+    </details>
 
     <h4 style="font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:14px; margin:0 0 8px;">Compras dessa fatura</h4>
     <div class="fatura-list" id="faturaDetList"></div>
@@ -2184,6 +2206,9 @@
     // o resto do saldo de cada uma vem dos lançamentos com poupancaId apontando pra ela
     poupancas: [],
     faturaPagamentos: [],
+    // juros/multa que o banco realmente cobrou numa fatura (informado pela pessoa): { id, cardId, cycleEnd, valor }.
+    // Quando existe, substitui a estimativa automática do rotativo daquela fatura.
+    jurosFaturas: [],
     faturaPromptSeen: {},
     view: { year: now.getFullYear(), month: now.getMonth() },
     selectedDate: todayISO,
@@ -2491,6 +2516,21 @@
   // após mês mesmo estando tudo em dia (ex.: compra 10x de R$100 mostrando R$200 no 2º mês, R$300 no
   // 3º, etc.), quando cada fatura deveria mostrar só a sua própria parcela + o resto do cartão daquele
   // ciclo, a não ser que uma fatura anterior realmente tenha vencido sem ser paga (ou paga só em parte).
+  // taxa de juros do rotativo (% ao mês) que vale para a fatura que fecha em cycleEnd. A taxa muda de
+  // banco pra banco e com o tempo; por isso cada alteração guarda a data da mudança (taxasJuros) e só
+  // vale para as faturas que ainda não tinham fechado nesse dia — o que já fechou não é recalculado.
+  function jurosTaxaPara(card, cycleEnd){
+    let t = 0;
+    const lista = (card.taxasJuros || []).slice().sort((a,b) => a.desde.localeCompare(b.desde));
+    for (const e of lista) if (e.desde <= cycleEnd) t = e.taxa;
+    return t;
+  }
+  // valor de juros/encargos que a pessoa informou (do extrato do banco) para uma fatura; null = nenhum
+  function jurosOverride(cardId, cycleEnd){
+    for (const j of state.jurosFaturas) if (j.cardId === cardId && j.cycleEnd === cycleEnd) return j.valor;
+    return null;
+  }
+
   function cardLedgerThrough(card, targetCycleEnd, capLastAtToday){
     const cyclesWithP = cyclesWithPurchases(card);
     if (cyclesWithP.length === 0) return [];
@@ -2513,10 +2553,18 @@
       const isLast = cycleEnd === targetCycleEnd;
       const hi = (capLastAtToday && isLast && cycleEnd > todayISO) ? todayISO : cycleEnd;
       const purchasesRaw = sumCardPurchases(card.id, cycleStart, hi);
-      const devido = -purchasesRaw + carry;
+      // juros do rotativo: incidem sobre o saldo que ficou sem pagar da fatura anterior (carry) e entram
+      // nesta fatura. Se a pessoa informou o valor real do banco, vale o dela; senão é só uma estimativa
+      // (taxa do cartão × saldo não pago) — e como o que sobrar vira carry da próxima, os juros se acumulam.
+      const jurosTaxa = jurosTaxaPara(card, cycleEnd);
+      const jurosInf = jurosOverride(card.id, cycleEnd);
+      let juros = 0, jurosEstimado = false, jurosManual = false;
+      if (jurosInf != null){ juros = jurosInf; jurosManual = true; }
+      else if (carry > 0.005 && jurosTaxa > 0){ juros = Math.round(carry * jurosTaxa) / 100; jurosEstimado = true; }
+      const devido = -purchasesRaw + carry + juros;
       const pago = pagoParaCiclo(card.id, cycleEnd);
       const pendente = devido - pago;
-      ledger.push({ cardId: card.id, cardName: card.nome, cycleStart, cycleEnd, paymentISO, devido, pago, pendente, carryIn: carry });
+      ledger.push({ cardId: card.id, cardName: card.nome, cycleStart, cycleEnd, paymentISO, devido, pago, pendente, carryIn: carry, juros, jurosEstimado, jurosManual, jurosTaxa });
       // só arrasta pra fatura seguinte depois que o dia de pagamento desta já passou de fato
       carry = (paymentISO <= todayISO) ? pendente : 0;
     }
@@ -2532,7 +2580,7 @@
       cardId: card.id, cardName: card.nome,
       cycleStart: cycleStartForClosing(card, cycleEnd), cycleEnd,
       paymentISO: paymentDateForClosing(card, cycleEnd),
-      devido: 0, pago: 0, pendente: 0, carryIn: 0,
+      devido: 0, pago: 0, pendente: 0, carryIn: 0, juros: 0, jurosEstimado: false, jurosManual: false, jurosTaxa: 0,
     };
   }
 
@@ -2558,6 +2606,8 @@
         pendente: det.pendente,
         pago: det.pago,
         carryIn: det.carryIn,
+        juros: det.juros,
+        jurosEstimado: det.jurosEstimado,
       });
     }
     return out;
@@ -2630,8 +2680,9 @@
     }
     const ledger = cardLedgerThrough(card, cycleEnd);
     const carry = ledger.length ? ledger[ledger.length-1].carryIn : 0;
+    const jurosCiclo = ledger.length ? ledger[ledger.length-1].juros : 0;
     const pago = pagoParaCiclo(card.id, cycleEnd);
-    const usado = Math.max(0, compras + carry + reservado - pago);
+    const usado = Math.max(0, compras + carry + jurosCiclo + reservado - pago);
     return { limite, usado, disponivel: limite - usado, cycleStart, cycleEnd };
   }
 
@@ -2685,6 +2736,17 @@
       al.className = 'limite-alerta';
       al.textContent = aviso;
       box.appendChild(al);
+    }
+    // rotativo: fatura anterior vencida e não paga (+ juros estimados ou informados nesta fatura)
+    const ledRot = cardLedgerThrough(card, info.cycleEnd);
+    const atualRot = ledRot.length ? ledRot[ledRot.length-1] : null;
+    if (atualRot && (atualRot.carryIn > 0.005 || atualRot.juros > 0.005)){
+      const ro = document.createElement('div');
+      ro.className = 'rotativo-alerta';
+      let t = atualRot.carryIn > 0.005 ? `Rotativo: ${fmtBRL(atualRot.carryIn)} da fatura anterior ainda não foi pago.` : 'Juros nesta fatura.';
+      if (atualRot.juros > 0.005) t += ` Juros ${atualRot.jurosEstimado ? 'estimados ' : ''}de ${fmtBRL(atualRot.juros)} já somados.`;
+      ro.textContent = t;
+      box.appendChild(ro);
     }
     return box;
   }
@@ -2767,6 +2829,8 @@
         pendente: det.pendente,
         pago: det.pago,
         carryIn: det.carryIn,
+        juros: det.juros,
+        jurosEstimado: det.jurosEstimado,
       });
     }
     return list;
@@ -3058,7 +3122,7 @@
 
   // monta uma seção do popup de detalhe do cartão (ciclo atual ou próximo ciclo): cabeçalho com
   // nome do período + total, e a lista de compras daquele período, da mais antiga pra mais recente
-  function buildCicloSecao(label, itemsList, carryValor){
+  function buildCicloSecao(label, itemsList, carryValor, jurosValor, jurosEstimado){
     const secao = document.createElement('div');
     secao.className = 'ciclo-secao';
 
@@ -3083,7 +3147,19 @@
       itemsWrap.appendChild(row);
     }
 
-    if (itemsList.length === 0 && !(carryValor > 0.005)){
+    if (jurosValor > 0.005){
+      const row = document.createElement('div'); row.className = 'fatura-row carry';
+      const desc = document.createElement('div'); desc.className = 'desc';
+      const name = document.createElement('div'); name.className = 'name'; name.textContent = jurosEstimado ? 'Juros do rotativo (estimado)' : 'Juros e encargos do banco';
+      const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = jurosEstimado ? 'estimativa — corrija na fatura com o valor do banco' : 'informado por você';
+      desc.appendChild(name); desc.appendChild(meta);
+      row.appendChild(desc);
+      const amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtBRL(jurosValor);
+      row.appendChild(amt);
+      itemsWrap.appendChild(row);
+    }
+
+    if (itemsList.length === 0 && !(carryValor > 0.005) && !(jurosValor > 0.005)){
       itemsWrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px; padding:6px 0;">Nenhuma compra lançada.</div>';
     } else {
       for (const it of itemsList){
@@ -3117,10 +3193,10 @@
     body.appendChild(limBox);
 
     const ledgerAtual = cardLedgerThrough(card, w.curClose);
-    const detAtual = ledgerAtual.length ? ledgerAtual[ledgerAtual.length-1] : { pendente: 0, carryIn: 0 };
+    const detAtual = ledgerAtual.length ? ledgerAtual[ledgerAtual.length-1] : { pendente: 0, carryIn: 0, juros: 0, jurosEstimado: false };
     const itemsAtual = faturaPurchaseItems(card, w.curStart, w.curClose);
     const labelAtual = `Ciclo atual (${fmtDateShort(w.curStart)} – ${fmtDateShort(w.curClose)})`;
-    body.appendChild(buildCicloSecao(labelAtual, itemsAtual, detAtual.carryIn));
+    body.appendChild(buildCicloSecao(labelAtual, itemsAtual, detAtual.carryIn, detAtual.juros, detAtual.jurosEstimado));
 
     const itemsProximo = faturaPurchaseItems(card, w.nextStart, w.nextClose);
     const labelProximo = `Próximo ciclo (${fmtDateShort(w.nextStart)} – ${fmtDateShort(w.nextClose)})`;
@@ -3263,7 +3339,8 @@
   function txnMetaText(o){
     if (o.isInvoice){
       const periodo = `${fmtDateShort(o.cycleStart)} a ${fmtDateShort(o.cycleEnd)}`;
-      const carryNote = o.carryIn > 0.005 ? ` · inclui ${fmtBRL(o.carryIn)} não pago de fatura anterior` : '';
+      let carryNote = o.carryIn > 0.005 ? ` · inclui ${fmtBRL(o.carryIn)} não pago de fatura anterior` : '';
+      if (o.juros > 0.005) carryNote += ` · inclui ${fmtBRL(o.juros)} de juros${o.jurosEstimado ? ' (estimado)' : ''}`;
       if (o.pendente > 0.005){
         return (o.pago > 0
           ? `fatura pendente · período ${periodo} · já confirmado ${fmtBRL(o.pago)}`
@@ -4335,6 +4412,7 @@
       // de agora. Manter esses registros de pagamento faria o valor ser descontado DUAS VEZES do saldo
       // atual (uma pela compra virando dinheiro, outra pelo pagamento da fatura que ainda ficaria contando).
       state.faturaPagamentos = state.faturaPagamentos.filter(p => p.cardId !== id);
+      state.jurosFaturas = state.jurosFaturas.filter(j => j.cardId !== id);
       state.cartoes.splice(idx,1);
       renderAll();
       showToast(`Cartão "${nome}" removido. Os gastos lançados nele passam a contar como dinheiro/pix/débito.`);
@@ -5098,6 +5176,7 @@
       $('#cartaoFechamento').value = editItem.diaFechamento;
       $('#cartaoPagamento').value = editItem.diaPagamento;
       $('#cartaoLimite').value = editItem.limite != null ? editItem.limite : '';
+      { const tx = jurosTaxaPara(editItem, '9999-12-31'); $('#cartaoJuros').value = tx > 0 ? tx : ''; }
       $('#cartaoEditId').value = editItem.id;
     } else {
       $('#cartaoModalTitle').textContent = 'Novo cartão';
@@ -5237,6 +5316,7 @@
       let info = `Falta pagar ${fmtBRL(det.pendente)} de ${fmtBRL(det.devido)} no total.`;
       if (det.pago > 0.005) info = `Já confirmado ${fmtBRL(det.pago)} de ${fmtBRL(det.devido)} · falta ${fmtBRL(det.pendente)}.`;
       if (det.carryIn > 0.005) info += ` Inclui ${fmtBRL(det.carryIn)} que ficou pendente da fatura anterior.`;
+      if (det.juros > 0.005) info += ` Inclui ${fmtBRL(det.juros)} de juros${det.jurosEstimado ? ' (estimado)' : ''}.`;
       $('#faturaDetPagInfo').textContent = info;
     } else {
       pagamentoBox.hidden = true;
@@ -5259,8 +5339,37 @@
       wrap.appendChild(row);
     }
 
+    if (det.juros > 0.005){
+      const row = document.createElement('div');
+      row.className = 'fatura-row carry';
+      const desc = document.createElement('div'); desc.className = 'desc';
+      const name = document.createElement('div'); name.className = 'name'; name.textContent = det.jurosEstimado ? 'Juros do rotativo (estimado)' : 'Juros e encargos do banco';
+      const meta = document.createElement('div'); meta.className = 'meta';
+      meta.textContent = det.jurosEstimado ? `${String(det.jurosTaxa).replace('.', ',')}% ao mês sobre o saldo não pago` : 'informado por você';
+      desc.appendChild(name); desc.appendChild(meta);
+      row.appendChild(desc);
+      const amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = fmtBRL(det.juros);
+      row.appendChild(amt);
+      wrap.appendChild(row);
+    }
+
+    // caixinha "juros ou multa do banco": aparece quando faz sentido (saldo anterior não pago, juros já
+    // somados, valor informado, ou fatura já vencida) — fechada por padrão, aberta se houver juros/rotativo
+    const jurosBox = $('#faturaDetJurosBox');
+    const mostraJuros = det.carryIn > 0.005 || det.juros > 0.005 || det.jurosManual || paymentISO <= todayISO;
+    jurosBox.hidden = !mostraJuros;
+    jurosBox.open = det.carryIn > 0.005 || det.juros > 0.005;
+    let infoJ;
+    if (det.jurosManual) infoJ = 'Valor informado por você. Pode corrigir quando quiser.';
+    else if (det.jurosEstimado) infoJ = `Estimativa: ${String(det.jurosTaxa).replace('.', ',')}% ao mês sobre ${fmtBRL(det.carryIn)} não pagos. A taxa real do banco pode ser diferente — quando a fatura chegar, confira o extrato e informe o valor exato.`;
+    else if (det.carryIn > 0.005) infoJ = 'Você não informou a taxa de juros do rotativo deste cartão, então o Maré não estimou juros. Se o banco cobrou, informe o valor aqui (ou cadastre a taxa em Editar cartão).';
+    else infoJ = 'Se o banco cobrou juros, multa ou IOF nesta fatura, informe o valor aqui.';
+    $('#faturaDetJurosInfo').textContent = infoJ;
+    $('#faturaDetJurosValor').value = det.juros > 0.005 || det.jurosManual ? det.juros.toFixed(2) : '';
+    $('#faturaDetJurosResetBtn').hidden = !det.jurosManual;
+
     const items = faturaPurchaseItems(card, cycleStart, cycleEnd);
-    if (items.length === 0 && det.carryIn <= 0.005){
+    if (items.length === 0 && det.carryIn <= 0.005 && det.juros <= 0.005){
       wrap.innerHTML = '<div class="empty-hint" style="color:var(--ink-muted); font-size:13.5px;">Nenhuma compra lançada nesse período.</div>';
     } else {
       for (const it of items){
@@ -5405,6 +5514,22 @@
     if (isNaN(valor) || valor <= 0) return;
     registrarPagamentoFatura($('#faturaDetCardId').value, $('#faturaDetCycleEnd').value, valor);
   });
+  // juros/multa reais cobrados pelo banco nesta fatura: substitui a estimativa; "voltar à estimativa" apaga
+  function aplicarJurosFatura(valorOuNull){
+    const cardId = $('#faturaDetCardId').value;
+    const cycleEnd = $('#faturaDetCycleEnd').value;
+    state.jurosFaturas = state.jurosFaturas.filter(j => !(j.cardId === cardId && j.cycleEnd === cycleEnd));
+    if (valorOuNull != null) state.jurosFaturas.push({ id: nextId(), cardId, cycleEnd, valor: valorOuNull });
+    reconcileFaturaPagamentos(cardId);
+    renderAll();
+    openFaturaDetalheModal(cardId, cycleEnd);
+  }
+  $('#faturaDetJurosSalvarBtn').addEventListener('click', () => {
+    const v = parseFloat($('#faturaDetJurosValor').value);
+    if (isNaN(v) || v < 0) return;
+    aplicarJurosFatura(Math.round(v * 100) / 100);
+  });
+  $('#faturaDetJurosResetBtn').addEventListener('click', () => aplicarJurosFatura(null));
   $('#faturaDetNaoPagueiBtn').addEventListener('click', () => {
     markFaturaPromptSeen($('#faturaDetCardId').value, $('#faturaDetCycleEnd').value);
     closeOverlay('#overlayFaturaDetalhe');
@@ -5674,13 +5799,19 @@
     const diaFechamento = Math.min(31, Math.max(1, parseInt($('#cartaoFechamento').value,10)));
     const diaPagamento = Math.min(31, Math.max(1, parseInt($('#cartaoPagamento').value,10)));
     const limite = parseFloat($('#cartaoLimite').value);
+    const jurosTxt = $('#cartaoJuros').value.trim();
+    const juros = jurosTxt === '' ? 0 : parseFloat(jurosTxt);
     const editId = $('#cartaoEditId').value;
-    if (!nome || isNaN(diaFechamento) || isNaN(diaPagamento) || isNaN(limite) || limite <= 0) return;
+    if (!nome || isNaN(diaFechamento) || isNaN(diaPagamento) || isNaN(limite) || limite <= 0 || isNaN(juros) || juros < 0) return;
     if (editId){
       const c = getCardById(editId);
-      if (c){ c.nome=nome; c.diaFechamento=diaFechamento; c.diaPagamento=diaPagamento; c.limite=limite; }
+      if (c){
+        c.nome=nome; c.diaFechamento=diaFechamento; c.diaPagamento=diaPagamento; c.limite=limite;
+        // mudou a taxa: vale só para as faturas que ainda não fecharam (as antigas não são recalculadas)
+        if (Math.abs(jurosTaxaPara(c, '9999-12-31') - juros) > 1e-9) c.taxasJuros = (c.taxasJuros || []).concat([{ desde: todayISO, taxa: juros }]);
+      }
     } else {
-      state.cartoes.push({ id: nextId(), nome, diaFechamento, diaPagamento, limite });
+      state.cartoes.push({ id: nextId(), nome, diaFechamento, diaPagamento, limite, taxasJuros: [{ desde: '0000-01-01', taxa: juros }] });
     }
     closeOverlay('#overlayCartao');
     renderAll();

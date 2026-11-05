@@ -26,10 +26,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Maré">
-<!-- cliente oficial do Supabase (login com Google). Bloqueado no preview do Artifact (que só libera
-     scripts externos de fontes do Google) — nesse ambiente o app abre direto, sem exigir login, só
-     pra dar pra continuar testando o resto por aqui; no site publicado (Vercel) carrega normal. -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root{
     --bg:#F3F5EF;
@@ -856,77 +852,6 @@
   }
   .modal{ position:relative; }
 
-  /* ---------- onboarding progressivo: escolha inicial + configuração rápida (3 passos) ---------- */
-  .onboarding-title{ font-size:26px; margin:0 0 6px; }
-  .onboarding-sub{ font-size:13.5px; color:var(--ink-muted); margin:0 0 22px; line-height:1.5; }
-  .choice-btn{
-    display:block; width:100%; text-align:left; border:1px solid var(--border); background:var(--surface);
-    border-radius:12px; padding:14px 16px; margin-bottom:10px; cursor:pointer; font-family:inherit;
-  }
-  .choice-btn.primary{ border-color:var(--accent); background:var(--accent-soft); }
-  .choice-btn .t{ display:block; font-weight:700; font-size:14.5px; color:var(--ink); font-family:"Fraunces", serif; }
-  .choice-btn .d{ display:block; font-size:12px; color:var(--ink-muted); margin-top:3px; line-height:1.4; }
-
-  .step-progress{ display:flex; gap:5px; margin-bottom:18px; }
-  /* mesmo motivo do .tile[hidden] lá em cima: .step-progress já define display:flex, então o
-     [hidden] sozinho (regra do navegador) não bastaria pra esconder nos passos 4-6 (sem bolinha) */
-  .step-progress[hidden]{ display:none; }
-  .step-progress .dot{ flex:1; height:4px; border-radius:2px; background:var(--surface-2); }
-  .step-progress .dot.done{ background:var(--accent); }
-  .step-kicker{ font-size:11.5px; font-weight:700; color:var(--accent-strong); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:6px; }
-  .step-q{ font-size:19px; margin:0 0 6px; line-height:1.3; }
-  .step-hint{ font-size:12.5px; color:var(--ink-muted); margin:0 0 18px; line-height:1.4; }
-  .step-actions{ display:flex; flex-direction:column; gap:8px; margin-top:4px; }
-  .skip-link{ text-align:center; font-size:12.5px; color:var(--ink-muted); text-decoration:underline; cursor:pointer; }
-
-  .qs-step[hidden]{ display:none; }
-  .bill-row{
-    display:flex; gap:8px; align-items:center; border:1px solid var(--border); border-radius:10px;
-    padding:9px 10px; margin-bottom:8px; background:var(--surface);
-  }
-  .bill-row .nm{ flex:1; font-size:13.5px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .bill-row .vl{ font-size:13.5px; font-weight:600; color:var(--expense); font-family:"JetBrains Mono", monospace; white-space:nowrap; }
-  .bill-row-remove{
-    border:none; background:transparent; color:var(--ink-muted); font-size:16px; line-height:1; cursor:pointer; padding:0 2px;
-  }
-  .add-bill-btn{
-    display:block; width:100%; border:1px dashed var(--border); background:transparent; color:var(--accent);
-    border-radius:10px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; text-align:center;
-    margin-bottom:8px; font-family:inherit;
-  }
-  .qs-bill-form[hidden]{ display:none; }
-
-  /* passos 4/5 do assistente rápido: mini-calendário ilustrativo (só cor, sem números/datas de
-     verdade) pra explicar de cara o que o verde/laranja do calendário real do Maré significam —
-     a frase "calendário verde/laranja = ..." vai dentro do .step-hint, em cima da imagem, como
-     continuação do mesmo texto (em vez de legenda separada embaixo) */
-  .qs-explain-cal{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px; margin:16px 0 18px; }
-  .qs-explain-cal .c{ aspect-ratio:1; border-radius:6px; background:var(--cal-ok-bg); }
-  .qs-explain-cal .c.negative{ background:var(--cal-negative-bg); }
-
-  /* ---------- banner "projeção incompleta" (aparece no app depois da configuração rápida) ---------- */
-  .onboarding-banner{
-    background:var(--accent-soft); border:1px solid var(--accent); border-radius:14px; padding:16px 18px;
-  }
-  .onboarding-banner[hidden]{ display:none; }
-  .onboarding-banner-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-  .onboarding-banner-head h3{ font-size:15px; color:var(--accent-strong); margin:0; }
-  .onboarding-banner-msg{ font-size:13px; color:var(--accent-strong); line-height:1.45; margin:8px 0 0; }
-  .mini-checklist{ display:flex; flex-wrap:wrap; gap:9px 20px; margin-top:12px; }
-  /* align-items:flex-start (em vez de center) porque o item de "Receitas fixas" agora tem uma
-     explicação de várias linhas — com center, a bolinha ficava flutuando no meio do texto todo */
-  .mini-checklist .item{ display:flex; align-items:flex-start; gap:7px; font-size:12.5px; color:var(--accent-strong); font-weight:600; line-height:1.4; max-width:320px; }
-  .mini-checklist .item .circ{ width:15px; height:15px; border-radius:50%; border:1.5px solid var(--accent); flex-shrink:0; box-sizing:border-box; position:relative; margin-top:2px; }
-  .mini-checklist .item.done .circ{ background:var(--accent); }
-  .mini-checklist .item.done .circ::after{
-    content:''; position:absolute; left:4px; top:1px; width:4px; height:8px;
-    border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
-  }
-  .mini-checklist .item.done{ text-decoration:line-through; opacity:0.75; }
-  /* "E mais: ..." — só um lembrete de que tem mais coisa no menu além da checklist, não é um item
-     marcável (sem bolinha, sem checagem, nunca fica riscado) */
-  .mini-checklist .item-more{ font-size:12.5px; color:var(--accent-strong); opacity:0.75; font-style:italic; max-width:320px; }
-
   /* ---------- menu lateral (drawer) ---------- */
   .drawer-overlay{ justify-content:flex-start; padding:0; }
   .modal.drawer{
@@ -973,123 +898,12 @@
 
   .empty-cell-fill{ visibility:hidden; }
 
-  /* login com Google (Supabase) */
   #appShell[hidden]{ display:none; }
-  .auth-gate{
-    position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center;
-    background:var(--bg); padding:24px;
-  }
-  .auth-gate[hidden]{ display:none; }
-  .auth-card{
-    width:100%; max-width:380px; background:var(--surface); border:1px solid var(--border);
-    border-radius:16px; box-shadow:var(--shadow); padding:36px 32px; text-align:center;
-  }
-  .auth-card h1{
-    font-family:'Fraunces', Georgia, serif; font-weight:600; font-size:28px; margin:0 0 6px; color:var(--ink);
-  }
-  .auth-card .auth-sub{ font-size:14px; color:var(--ink-muted); margin:0 0 28px; }
-  .google-btn{
-    display:flex; align-items:center; justify-content:center; gap:10px; width:100%;
-    padding:11px 16px; border-radius:10px; border:1px solid var(--border); background:var(--surface);
-    color:var(--ink); font-family:'Public Sans', sans-serif; font-size:14.5px; font-weight:600;
-    cursor:pointer; transition:background 0.15s;
-  }
-  .google-btn:hover{ background:var(--surface-2); }
-  .auth-error{ margin:16px 0 0; font-size:13px; color:var(--expense); font-weight:600; }
-  .auth-error[hidden]{ display:none; }
-  .auth-loading-text{ font-family:'Public Sans', sans-serif; font-size:14px; color:var(--ink-muted); }
-  /* ---------- menu da pessoa logada: nome como botão, abre um popup com nome+lápis, e-mail,
-     configurações (revela excluir conta) e sair ---------- */
-  .user-menu{ position:relative; display:flex; align-items:center; gap:8px; }
-  .user-menu[hidden]{ display:none; }
-  .user-menu-trigger{
-    display:flex; align-items:center; gap:6px; font-size:13px; max-width:170px; min-width:0;
-    border:1px solid var(--border); border-radius:20px; padding:6px 14px; background:var(--surface);
-    cursor:pointer; font-family:'Public Sans', sans-serif; font-weight:600;
-  }
-  .user-menu-trigger:hover{ border-color:var(--accent); }
-  .user-menu-trigger .user-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; color:var(--ink); }
-  .user-menu .sync-status{ font-size:11px; color:var(--ink-muted); white-space:nowrap; }
-  .user-menu .sync-status.error{ color:var(--expense); font-weight:600; }
-
-  /* login/conta dentro do menu lateral: fica bem embaixo, separado do resto por uma linha (antes
-     ficava sozinho no canto superior da tela) — o chip vira largura cheia igual aos outros botões
-     do menu, e o painel que abre por cima dele fica travado dentro da largura do próprio menu, pra
-     nunca vazar pra fora da gaveta em telas pequenas */
-  .drawer-nav .user-menu{
-    margin-top:8px; padding-top:14px; border-top:1px solid var(--border); flex-wrap:wrap;
-  }
-  .drawer-nav .user-menu-trigger{ flex:1; max-width:none; }
-  .drawer-nav .user-menu-panel{ left:0; right:0; width:auto; box-sizing:border-box; }
-  @media (max-width:480px){ .drawer-nav .user-menu-panel{ right:0; width:auto; } }
-
-  .user-menu-panel{
-    position:absolute; top:calc(100% + 8px); right:0; z-index:40; width:230px;
-    background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
-    padding:14px; display:flex; flex-direction:column; gap:2px;
-  }
-  .user-menu-panel[hidden]{ display:none; }
-  @media (max-width:480px){ .user-menu-panel{ right:-10px; width:210px; } }
-
-  .user-menu-name-row{ display:flex; align-items:center; gap:6px; cursor:pointer; padding:4px 2px; border-radius:8px; }
-  .user-menu-name-row:hover{ background:var(--surface-2); }
-  .user-menu-name-row .user-name-display{
-    font-weight:700; font-size:14px; color:var(--ink); overflow:hidden; text-overflow:ellipsis;
-    white-space:nowrap; min-width:0;
-  }
-  .user-menu-name-row .edit-icon{ font-size:11px; color:var(--ink-muted); flex-shrink:0; }
-  .user-menu-panel .user-name-input{
-    width:100%; border:1px solid var(--border); border-radius:8px; padding:6px 8px; font-size:13.5px;
-    background:var(--bg); color:var(--ink); font-family:inherit; margin:2px 0 4px;
-  }
-  .user-menu-email{
-    font-size:12px; color:var(--ink-muted); padding:2px 2px 10px; margin-bottom:6px;
-    border-bottom:1px solid var(--border); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .user-menu-item{
-    display:block; width:100%; text-align:left; border:none; background:transparent; color:var(--ink);
-    font-size:13.5px; font-weight:600; padding:8px 4px; border-radius:8px; cursor:pointer;
-    font-family:'Public Sans', sans-serif;
-  }
-  .user-menu-item:hover{ background:var(--surface-2); }
-  .user-menu-item.danger{ color:var(--expense); }
-  .user-menu-config{ padding-left:6px; margin:2px 0; border-left:2px solid var(--border); }
-  .user-menu-config[hidden]{ display:none; }
 </style>
 </head>
 <body>
 
-<div class="auth-gate" id="authLoading" hidden>
-  <p class="auth-loading-text">Carregando…</p>
-</div>
-<div class="auth-gate" id="authGate" hidden>
-  <div class="auth-card">
-    <h1>Maré</h1>
-    <p class="auth-sub">Seu fluxo de caixa pessoal, organizado dia a dia.</p>
-    <button type="button" class="google-btn" id="googleLoginBtn">
-      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.69 9c0-.6.1-1.18.28-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
-      Entrar com Google
-    </button>
-    <p class="auth-error" id="authError" hidden></p>
-    <p class="auth-error" id="sessionKickedMsg" hidden>Sua sessão foi encerrada porque essa conta acabou de ser acessada em outro celular/computador ou outra aba. Só dá pra ficar logado num lugar por vez.</p>
-  </div>
-</div>
 
-<!-- Tela de "sem conexão": o Maré é de propósito só-online (sem cache de dados), pra nunca mostrar
-     (nem deixar mexer em) informação desatualizada. Fica por cima de tudo (até da tela de login) e
-     aparece/some sozinha conforme a internet cai/volta — sem recarregar a página e sem perder nada
-     que já estava em memória (ver watchConnection). -->
-<div class="auth-gate" id="offlineGate" hidden style="z-index:90;">
-  <div class="auth-card">
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--ink-muted)" stroke-width="2" stroke-linecap="round" style="margin-bottom:8px;" aria-hidden="true">
-      <circle cx="12" cy="12" r="9"></circle>
-      <line x1="8" y1="8" x2="16" y2="16"></line>
-      <line x1="16" y1="8" x2="8" y2="16"></line>
-    </svg>
-    <h1>Sem conexão</h1>
-    <p class="auth-sub">O Maré funciona só online, pra manter seus dados sempre atualizados e sincronizados com segurança. Assim que a internet voltar, o app libera sozinho — não precisa recarregar a página.</p>
-  </div>
-</div>
 
 <div class="shell" id="appShell" hidden>
 
@@ -1116,27 +930,6 @@
     </div>
   </div>
 
-  <!-- Banner "projeção incompleta": só aparece pra quem entrou pela Configuração rápida
-       (state.configRapida) e ainda não cadastrou as 4 categorias que tornam a projeção completa
-       (receitas fixas, contas fixas, assinaturas, cartão) — ver renderOnboardingBanner(). Fica
-       fixo no topo, acima dos tiles, em qualquer página do app; some sozinho (e desliga
-       configRapida) assim que as 4 categorias tiverem pelo menos um item. -->
-  <div class="onboarding-banner" id="onboardingBanner" hidden>
-    <div class="onboarding-banner-head">
-      <h3>Sua projeção ainda está incompleta</h3>
-      <button type="button" class="btn primary" id="onboardingCompleteBtn">Completar minha projeção</button>
-    </div>
-    <p class="onboarding-banner-msg">Você começou pela configuração rápida — quanto mais você adicionar, mais precisa fica a projeção.</p>
-    <div class="mini-checklist" id="onboardingChecklist">
-      <div class="item" data-check="receitas"><span class="circ"></span> Receitas fixas — no menu (logo Maré, canto superior esquerdo), vá em Receitas e troque o que você lançou pra recorrente: assim o Maré lança sozinho todo mês</div>
-      <div class="item" data-check="contas"><span class="circ"></span> Contas fixas</div>
-      <div class="item" data-check="assinaturas"><span class="circ"></span> Assinaturas</div>
-      <div class="item" data-check="cartoes"><span class="circ"></span> Cartão de crédito</div>
-      <div class="item" data-check="parcelados"><span class="circ"></span> Parcelados</div>
-      <div class="item" data-check="dividas"><span class="circ"></span> Dívidas</div>
-      <div class="item-more">E mais: poupança e outras opções, todas ali no mesmo menu.</div>
-    </div>
-  </div>
 
   <div class="tiles" id="tilesRow">
     <div class="tile balance-combo">
@@ -1470,28 +1263,6 @@
            estado do Maré, só um atalho -->
       <a class="btn drawer-item" href="https://www.valemeudinheiro.site/" target="_blank" rel="noopener noreferrer" title="Compare preços antes de comprar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle; margin-right:6px;" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="12" y1="10" x2="12" y2="10.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="12" y1="14" x2="12" y2="14.01"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="8" y1="18" x2="16" y2="18"></line></svg>Calculadora de economia</a>
 
-      <!-- login/conta: fica bem embaixo do menu lateral, separado do resto por uma linha, já que
-           não é algo que a pessoa mexe no dia a dia (mesmos elementos de antes, só que agora aqui
-           em vez de ficar no topo da tela) -->
-      <div class="user-menu" id="userMenu" hidden>
-        <button type="button" class="user-menu-trigger" id="userChip">
-          <span class="user-name" id="userNameLbl"></span>
-        </button>
-        <span class="sync-status" id="syncStatus"></span>
-        <div class="user-menu-panel" id="userMenuPanel" hidden>
-          <div class="user-menu-name-row" id="userNameWrap" title="Clique para mudar seu nome de exibição">
-            <span class="user-name-display" id="userNameDisplay"></span>
-            <span class="edit-icon" aria-hidden="true">&#9998;</span>
-          </div>
-          <input type="text" class="user-name-input" id="userNameInput" maxlength="40" hidden>
-          <div class="user-menu-email" id="userEmailLbl"></div>
-          <button type="button" class="user-menu-item" id="userMenuConfigBtn">Configurações</button>
-          <div class="user-menu-config" id="userMenuConfigPanel" hidden>
-            <button type="button" class="user-menu-item danger" id="deleteAccountBtn">Excluir conta</button>
-          </div>
-          <button type="button" class="user-menu-item" id="logoutBtn">Sair</button>
-        </div>
-      </div>
     </nav>
   </div>
 </div>
@@ -1847,55 +1618,8 @@
   </div>
 </div>
 
-<!-- Modal: excluir conta e dados (só existe quando há login com Google/Supabase) -->
-<div class="overlay" id="overlayDeleteAccount" hidden>
-  <div class="modal" style="max-width:420px;">
-    <button class="modal-close" data-close="overlayDeleteAccount" aria-label="Fechar">&times;</button>
-    <h3 style="color:var(--expense); margin-bottom:10px;">Excluir conta e dados</h3>
-    <p style="font-size:13.5px; color:var(--ink-muted); margin:0 0 16px;">
-      Isso vai apagar <strong>permanentemente</strong> sua conta e todos os lançamentos, cartões e saldos
-      cadastrados no Maré. Não tem como desfazer nem recuperar depois.
-    </p>
-    <div class="field">
-      <label for="deleteConfirmInput">Pra confirmar, escreva EXCLUIR no campo abaixo</label>
-      <input type="text" id="deleteConfirmInput" placeholder="EXCLUIR" autocomplete="off">
-    </div>
-    <p class="auth-error" id="deleteAccountError" hidden></p>
-    <div class="modal-actions">
-      <button type="button" class="btn" data-close="overlayDeleteAccount">Cancelar</button>
-      <button type="button" class="btn" id="confirmDeleteAccountBtn" style="background:var(--expense); border-color:var(--expense); color:#fff;">Excluir permanentemente</button>
-    </div>
-  </div>
-</div>
 
-<!-- Modal: confirmação ao clicar em "Sair" com alguma gravação ainda salvando/falhando — só aparece
-     nesse caso específico; se já estava tudo salvo, o "Sair" funciona direto, sem esse aviso -->
-<div class="overlay" id="overlayConfirmLogout" hidden>
-  <div class="modal" style="max-width:380px;">
-    <button class="modal-close" data-close="overlayConfirmLogout" aria-label="Fechar">&times;</button>
-    <h3 style="margin-bottom:10px;">Ainda não salvou tudo</h3>
-    <p id="confirmLogoutMsg" style="font-size:13.5px; color:var(--ink-muted); margin:0 0 18px;"></p>
-    <div class="modal-actions">
-      <button type="button" class="btn" data-close="overlayConfirmLogout">Esperar</button>
-      <button type="button" class="btn danger" id="confirmLogoutAnywayBtn">Sair mesmo assim</button>
-    </div>
-  </div>
-</div>
 
-<!-- Modal: confirma se a pessoa quer mesmo sair do Maré ao apertar o botão "voltar" do celular —
-     sem isso, o gesto de "voltar" (usado, por exemplo, pra sair de uma página interna como
-     Parcelados achando que só vai fechar aquela página) tira ela do site direto, sem aviso. Sem
-     botão de fechar (×) nem clique fora pra dispensar — só decide clicando numa das duas opções
-     (ver podeFechar e a "armadilha" de histórico logo no fim do script) -->
-<div class="overlay" id="overlaySairConfirm" hidden>
-  <div class="modal" style="max-width:340px; text-align:center;">
-    <h3 style="margin-bottom:18px;">Quer mesmo sair do Maré?</h3>
-    <div class="modal-actions" style="justify-content:center;">
-      <button type="button" class="btn" id="sairConfirmCancelBtn">Cancelar</button>
-      <button type="button" class="btn primary" id="sairConfirmSimBtn">Sim, sair</button>
-    </div>
-  </div>
-</div>
 
 <!-- Modal: conta fixa -->
 <div class="overlay" id="overlayRecur" hidden>
@@ -2291,24 +2015,6 @@
   </div>
 </div>
 
-<!-- Modal: escolha inicial de configuração (onboarding progressivo) — primeira coisa que quem
-     nunca usou o Maré vê. Obrigatório (sem X, sem fechar por fora, sem Esc — ver podeFechar), tem
-     que aparecer ANTES de #overlayBase no documento porque é dela que se abre tanto #overlayBase
-     ("Configuração completa") quanto #overlayQuickSetup ("Configuração rápida"). -->
-<div class="overlay" id="overlayOnboardingChoice" hidden>
-  <div class="modal onboarding-choice-modal" style="max-width:380px; text-align:center;">
-    <h1 class="onboarding-title">Maré</h1>
-    <p class="onboarding-sub">Seu fluxo de caixa pessoal, organizado dia a dia. Como você quer começar?</p>
-    <button type="button" class="choice-btn primary" id="choiceQuickBtn">
-      <span class="t">⚡ Configuração rápida</span>
-      <span class="d">Veja sua primeira projeção em menos de 2 minutos. Você completa o resto depois.</span>
-    </button>
-    <button type="button" class="choice-btn" id="choiceFullBtn">
-      <span class="t">📋 Configuração completa</span>
-      <span class="d">Cadastre contas fixas, assinaturas e cartões antes de começar (como é hoje).</span>
-    </button>
-  </div>
-</div>
 
 <!-- Modal: saldo em conta inicial -->
 <div class="overlay" id="overlayBase" hidden>
@@ -2336,128 +2042,6 @@
   </div>
 </div>
 
-<!-- Modal: configuração rápida (onboarding progressivo) — 2 passos: próximo recebimento
-     (opcional/pulável) e contas até lá. Não pergunta mais saldo inicial (começa em R$0 e o app
-     recalcula sozinho — ver recomputeDataBase). Obrigatório enquanto aberto (ver podeFechar).
-     Ao terminar, fecha e cai direto no calendário real, com o banner #onboardingBanner mostrando
-     o checklist do que falta cadastrar pra projeção ficar completa. -->
-<div class="overlay" id="overlayQuickSetup" hidden>
-  <div class="modal" style="max-width:380px;">
-    <div class="step-progress" id="qsProgress">
-      <div class="dot" data-step="1"></div><div class="dot" data-step="2"></div><div class="dot" data-step="3"></div>
-    </div>
-
-    <div class="qs-step" id="qsStep1">
-      <div class="step-kicker">Passo 1 de 3</div>
-      <h3 class="step-q">Quando e quanto você vai receber?</h3>
-      <p class="step-hint">Pode ser salário, freela, o que for — o próximo dinheiro que vai cair na conta.</p>
-      <div class="field">
-        <label for="qsRecebData">Data</label>
-        <input type="date" id="qsRecebData">
-      </div>
-      <div class="field">
-        <label for="qsRecebValor">Valor (R$)</label>
-        <input type="number" step="0.01" id="qsRecebValor" class="mono">
-      </div>
-      <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep1Next">Continuar</button>
-        <span class="skip-link" id="qsStep1Skip">Ainda não sei / pular</span>
-      </div>
-    </div>
-
-    <div class="qs-step" id="qsStep2" hidden>
-      <div class="step-kicker">Passo 2 de 3</div>
-      <h3 class="step-q" id="qsStep2Question">O que ainda precisa ser pago até lá?</h3>
-      <p class="step-hint">Adicione os principais — dá pra completar o resto depois.</p>
-      <div id="qsBillsList"></div>
-      <div class="qs-bill-form" id="qsBillForm" hidden>
-        <div class="row2">
-          <div class="field">
-            <label for="qsBillNome">Nome</label>
-            <input type="text" id="qsBillNome" placeholder="Ex.: Aluguel">
-          </div>
-          <div class="field">
-            <label for="qsBillValor">Valor (R$)</label>
-            <input type="number" step="0.01" id="qsBillValor" class="mono">
-          </div>
-        </div>
-        <div class="modal-actions" style="margin-bottom:12px;">
-          <button type="button" class="btn" id="qsBillCancelBtn">Cancelar</button>
-          <button type="button" class="btn primary" id="qsBillConfirmBtn">Adicionar</button>
-        </div>
-      </div>
-      <button type="button" class="add-bill-btn" id="qsAddBillBtn">+ Adicionar outro pagamento</button>
-      <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep2Next">Continuar</button>
-      </div>
-    </div>
-
-    <!-- passo 3: cartão de crédito — puramente pra pessoa já ficar sabendo que essa opção existe;
-         totalmente pulável, sem nenhum campo obrigatório (ver required ausente nos inputs abaixo).
-         Só cria o cartão de verdade no #qsFinishBtn, se nome+fechamento+pagamento tiverem sido
-         preenchidos; senão, segue em frente sem criar nada, sem erro nenhum. -->
-    <div class="qs-step" id="qsStepCartao" hidden>
-      <div class="step-kicker">Passo 3 de 3</div>
-      <h3 class="step-q">Você usa cartão de crédito?</h3>
-      <p class="step-hint">Se quiser, já cadastre um agora — assim o Maré calcula a fatura sozinho. Se não quiser, pode pular e fazer isso depois, no menu.</p>
-      <div class="field">
-        <label for="qsCartaoNome">Nome do cartão</label>
-        <input type="text" id="qsCartaoNome" placeholder="Ex.: Nubank, Inter, Itaú...">
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label for="qsCartaoFechamento">Dia do fechamento</label>
-          <input type="number" min="1" max="31" id="qsCartaoFechamento" class="mono" placeholder="1-31">
-        </div>
-        <div class="field">
-          <label for="qsCartaoPagamento">Dia do pagamento</label>
-          <input type="number" min="1" max="31" id="qsCartaoPagamento" class="mono" placeholder="1-31">
-        </div>
-      </div>
-      <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStepCartaoNext">Continuar</button>
-        <span class="skip-link" id="qsStepCartaoSkip">Ainda não tenho / pular</span>
-      </div>
-    </div>
-
-    <!-- passos 4 e 5 (qsStep3/qsStep4 no DOM): não coletam dado nenhum, só explicam de cara pra que serve o calendário do
-         Maré (verde = tem dinheiro, laranja = a partir dali falta) antes da pessoa ver o resultado
-         de verdade — por isso não têm "Passo X de 2"/bolinhas, é um intervalo à parte -->
-    <div class="qs-step" id="qsStep3" hidden>
-      <h3 class="step-q">Como funciona o calendário</h3>
-      <p class="step-hint">O calendário vai te mostrar quando você vai ficar sem dinheiro, se for o caso. Calendário verde = tem dinheiro naquele dia.</p>
-      <div class="qs-explain-cal">
-        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
-        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
-        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
-      </div>
-      <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep3Next">Continuar</button>
-      </div>
-    </div>
-
-    <div class="qs-step" id="qsStep4" hidden>
-      <h3 class="step-q">E quando o dinheiro acaba?</h3>
-      <p class="step-hint">Calendário laranja = a partir daquele dia vai faltar dinheiro. Assim que vir o laranja, já dá pra saber que precisa se planejar antes daquela data.</p>
-      <div class="qs-explain-cal">
-        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c ok"></div>
-        <div class="c ok"></div><div class="c ok"></div><div class="c ok"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div>
-        <div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div><div class="c negative"></div>
-      </div>
-      <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsStep4Next">Continuar</button>
-      </div>
-    </div>
-
-    <div class="qs-step" id="qsStep5" hidden>
-      <h3 class="step-q">Sua primeira projeção está pronta</h3>
-      <p class="step-hint">Veja seu resultado de acordo com os dados fornecidos até agora.</p>
-      <div class="step-actions">
-        <button type="button" class="btn primary block" id="qsFinishBtn">Ver minha projeção</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <div class="toast" id="toast" hidden>
   <span id="toastMsg"></span>
@@ -2552,10 +2136,6 @@
     // null = pessoa nunca usou esse ajuste; o app continua ancorando sozinho pelo lançamento mais
     // antigo cadastrado (ver recomputeDataBase), sem nenhum bloqueio de data.
     saldoRefData: null,
-    // true quando a pessoa entrou pela "Configuração rápida" (onboarding progressivo) — liga o
-    // banner de "projeção incompleta" até ela cadastrar receitas fixas, contas fixas, assinaturas
-    // e cartão; some sozinho (e volta pra false) assim que as 4 categorias tiverem algo
-    configRapida: false,
     dataBase: todayISO,
     oneTime: [],
     recorrentes: [],
@@ -2566,7 +2146,6 @@
     poupancas: [],
     faturaPagamentos: [],
     faturaPromptSeen: {},
-    nomeExibicao: '',
     view: { year: now.getFullYear(), month: now.getMonth() },
     selectedDate: todayISO,
     viewMode: 'month',
@@ -3223,34 +2802,6 @@
     }
   }
 
-  // liga/desliga e atualiza o banner "projeção incompleta" (só existe pra quem entrou pela
-  // Configuração rápida) — as 4 categorias "obrigatórias" (receitas, contas, assinaturas, cartão)
-  // vêm dos mesmos filtros usados nas páginas de Receitas fixas / Contas fixas / Assinaturas /
-  // Cartões. Quando essas 4 têm pelo menos 1 item, o banner some pra sempre (desliga configRapida
-  // também, então nem recalcula mais depois). Parcelados e Dívidas aparecem na checklist só pra
-  // avisar que existem (marcam certinho quando a pessoa usa), mas NÃO entram na conta de "completo"
-  // — nem todo mundo tem parcela ou dívida, não faria sentido travar o banner nisso.
-  function renderOnboardingBanner(){
-    const banner = $('#onboardingBanner');
-    if (!state.configRapida){ banner.hidden = true; return; }
-    const checks = {
-      receitas: state.recorrentes.some(r => r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='entrada'),
-      contas: state.recorrentes.some(r => r.kind!=='assinatura' && r.kind!=='parcelado' && r.tipo==='saida'),
-      assinaturas: state.recorrentes.some(r => r.kind==='assinatura'),
-      cartoes: state.cartoes.length > 0,
-      parcelados: state.recorrentes.some(r => r.kind==='parcelado' && !r.isDivida),
-      dividas: state.recorrentes.some(r => r.kind==='parcelado' && r.isDivida),
-    };
-    if (checks.receitas && checks.contas && checks.assinaturas && checks.cartoes){
-      banner.hidden = true;
-      state.configRapida = false;
-      return;
-    }
-    banner.hidden = false;
-    document.querySelectorAll('#onboardingChecklist .item').forEach(el => {
-      el.classList.toggle('done', !!checks[el.dataset.check]);
-    });
-  }
 
   function renderTiles(){
     const occ = occurrencesInMonth(state.view.year, state.view.month);
@@ -4501,7 +4052,6 @@
   function renderAll(){
     recomputeDataBase();
     renderBaseChip();
-    renderOnboardingBanner();
     renderTiles();
     if (state.viewMode === 'year'){
       renderYearGrid();
@@ -4515,7 +4065,6 @@
     // editar ou apagar um item de dentro dele reflete na hora, sem precisar fechar e abrir de novo
     if (!$('#overlayMesDetalhe').hidden) openMesDetalheModal(mesDetalheTipoAtual);
     if (!anyOverlayOpen()) showFaturaPendingPromptIfAny();
-    schedulePersist();
   }
 
   function anyOverlayOpen(){
@@ -4706,11 +4255,6 @@
   // configuração rápida — nenhum dos dois tem botão de fechar, só sai escolhendo/terminando.
   function podeFechar(id){
     if (id === 'overlayBase') return state.saldoDefinido;
-    if (id === 'overlayOnboardingChoice') return false;
-    if (id === 'overlayQuickSetup') return false;
-    // só fecha pelos dois botões dela mesma (Cancelar/Sim, sair) — não pelo × (nem existe aqui),
-    // clique fora ou Esc, pra nunca ficar destravado sem rearmar a "armadilha" de histórico
-    if (id === 'overlaySairConfirm') return false;
     return true;
   }
 
@@ -5326,184 +4870,16 @@
   /* ---------------- onboarding progressivo: escolha inicial + configuração rápida ----------------
      Primeira tela que quem nunca usou o Maré vê, no lugar do antigo #overlayBase direto (chamado
      agora só pela opção "Configuração completa", com comportamento 100% igual ao de antes). */
-  function openOnboardingChoice(){
-    openOverlay('#overlayOnboardingChoice');
-  }
 
-  $('#choiceFullBtn').addEventListener('click', () => {
-    closeOverlay('#overlayOnboardingChoice');
-    // não pergunta mais saldo inicial aqui — começa em R$0 e o app recalcula tudo sozinho conforme
-    // a pessoa for cadastrando contas fixas, assinaturas etc. pelo menu lateral (ver
-    // recomputeDataBase). Quem quiser informar um saldo pode fazer isso depois, a qualquer
-    // momento, pelo chip "Saldo em conta inicial" no menu.
-    state.saldoDefinido = true;
-    renderAll();
-  });
-  $('#choiceQuickBtn').addEventListener('click', () => {
-    closeOverlay('#overlayOnboardingChoice');
-    openQuickSetup();
-  });
 
-  // estado local do assistente de 2 passos — só existe enquanto o pop-up está aberto, some junto
-  // com ele (não faz parte de state porque nada aqui é definitivo até "Ver minha projeção")
-  let qsBills = [];
 
-  function openQuickSetup(){
-    qsBills = [];
-    $('#qsRecebData').value = '';
-    $('#qsRecebValor').value = '';
-    $('#qsBillForm').hidden = true;
-    $('#qsBillNome').value = '';
-    $('#qsBillValor').value = '';
-    $('#qsCartaoNome').value = '';
-    $('#qsCartaoFechamento').value = '';
-    $('#qsCartaoPagamento').value = '';
-    renderQsBills();
-    showQsStep(1);
-    openOverlay('#overlayQuickSetup');
-    $('#qsRecebData').focus();
-  }
 
-  // "done" no indicador de passos marca o passo já alcançado (inclusive o atual), não só os
-  // concluídos — é assim que o protótipo aprovado mostra (passo 1 já vem com a 1ª bolinha cheia)
-  // passos 1-3 coletam dado (recebimento, contas, cartão) e têm as bolinhas de progresso; os passos
-  // seguintes (DOM #qsStep3/#qsStep4, aqui n=4/5) só explicam o verde/laranja do calendário (sem
-  // bolinha, sem coletar nada); n=6 (DOM #qsStep5) é o "clique pra ver o resultado" —
-  // closeOverlay+dashboard só acontece de verdade no clique do #qsFinishBtn. Não pergunta mais saldo
-  // inicial (começa em R$0 e o app recalcula sozinho — recomputeDataBase). O passo do cartão (n=3)
-  // é totalmente opcional/pulável — ver #qsStepCartaoNext/#qsStepCartaoSkip.
-  function showQsStep(n){
-    $('#qsStep1').hidden = n !== 1;
-    $('#qsStep2').hidden = n !== 2;
-    $('#qsStepCartao').hidden = n !== 3;
-    $('#qsStep3').hidden = n !== 4;
-    $('#qsStep4').hidden = n !== 5;
-    $('#qsStep5').hidden = n !== 6;
-    $('#qsProgress').hidden = n > 3;
-    document.querySelectorAll('#qsProgress .dot').forEach(dot => {
-      dot.classList.toggle('done', Number(dot.dataset.step) <= n);
-    });
-    if (n === 2){
-      const dataLimite = $('#qsRecebData').value;
-      $('#qsStep2Question').textContent = dataLimite
-        ? `O que ainda precisa ser pago até ${fmtDateFull(dataLimite)}?`
-        : 'O que ainda precisa ser pago nos próximos dias?';
-    }
-  }
 
-  $('#qsStep1Next').addEventListener('click', () => showQsStep(2));
-  // "pular": mesmo efeito de deixar os campos em branco e seguir — só um atalho mais claro pra
-  // quem realmente não sabe ainda quando/quanto vai receber
-  $('#qsStep1Skip').addEventListener('click', () => {
-    $('#qsRecebData').value = '';
-    $('#qsRecebValor').value = '';
-    showQsStep(2);
-  });
 
-  function renderQsBills(){
-    const list = $('#qsBillsList');
-    list.innerHTML = '';
-    for (const b of qsBills){
-      const row = document.createElement('div');
-      row.className = 'bill-row';
-      const nm = document.createElement('span');
-      nm.className = 'nm';
-      nm.textContent = b.nome;
-      const vl = document.createElement('span');
-      vl.className = 'vl';
-      vl.textContent = fmtBRL(b.valor);
-      const rm = document.createElement('button');
-      rm.type = 'button';
-      rm.className = 'bill-row-remove';
-      rm.setAttribute('aria-label', 'Remover');
-      rm.innerHTML = '&times;';
-      rm.addEventListener('click', () => {
-        qsBills = qsBills.filter(x => x.id !== b.id);
-        renderQsBills();
-      });
-      row.appendChild(nm); row.appendChild(vl); row.appendChild(rm);
-      list.appendChild(row);
-    }
-  }
 
-  $('#qsAddBillBtn').addEventListener('click', () => {
-    $('#qsBillForm').hidden = false;
-    $('#qsBillNome').focus();
-  });
-  $('#qsBillCancelBtn').addEventListener('click', () => {
-    $('#qsBillForm').hidden = true;
-    $('#qsBillNome').value = '';
-    $('#qsBillValor').value = '';
-  });
-  $('#qsBillConfirmBtn').addEventListener('click', () => {
-    const nome = $('#qsBillNome').value.trim();
-    const valor = parseFloat($('#qsBillValor').value);
-    if (!nome || isNaN(valor)) return;
-    qsBills.push({ id: nextId(), nome, valor });
-    $('#qsBillForm').hidden = true;
-    $('#qsBillNome').value = '';
-    $('#qsBillValor').value = '';
-    renderQsBills();
-  });
 
-  // continua do passo 2 (contas) pro passo 3 (cartão, opcional/pulável)
-  $('#qsStep2Next').addEventListener('click', () => showQsStep(3));
-  // "continuar" e "pular" do passo do cartão dão no mesmo lugar (passo 4) — os campos só viram um
-  // cartão de verdade lá no #qsFinishBtn, se tiverem sido preenchidos; "pular" só limpa os campos
-  // antes, pra não deixar meio preenchido por engano
-  $('#qsStepCartaoNext').addEventListener('click', () => showQsStep(4));
-  $('#qsStepCartaoSkip').addEventListener('click', () => {
-    $('#qsCartaoNome').value = '';
-    $('#qsCartaoFechamento').value = '';
-    $('#qsCartaoPagamento').value = '';
-    showQsStep(4);
-  });
-  // passos 4 e 5 (explicação do verde/laranja do calendário) e a virada pro passo 6 ("veja o
-  // resultado") — nenhum dos três mexe em dado nenhum, só navega
-  $('#qsStep3Next').addEventListener('click', () => showQsStep(5));
-  $('#qsStep4Next').addEventListener('click', () => showQsStep(6));
 
-  // finaliza a configuração rápida: lança o próximo recebimento e cada conta do passo 2 como
-  // lançamentos avulsos (não recorrentes — a pessoa pode depois torná-los fixos/assinaturas quando
-  // completar a configuração pelo banner), liga configRapida (pro banner de checklist aparecer) e
-  // cai direto no calendário real. Não define mais saldo inicial (fica em R$0 — ver
-  // recomputeDataBase).
-  $('#qsFinishBtn').addEventListener('click', () => {
-    // saldoInicial fica no padrão R$0 — não pergunta mais isso aqui. state.dataBase também não é
-    // setado: o renderAll() no fim desse handler chama recomputeDataBase(), que recalcula sozinho
-    // a partir dos lançamentos abaixo
-    state.saldoDefinido = true;
-    state.configRapida = true;
 
-    const recebData = $('#qsRecebData').value;
-    const recebValor = parseFloat($('#qsRecebValor').value);
-    if (recebData && !isNaN(recebValor)){
-      state.oneTime.push({ id: nextId(), tipo:'entrada', desc:'Recebimento', valor: recebValor, data: recebData, formaPagamento: null });
-    }
-    for (const b of qsBills){
-      state.oneTime.push({ id: nextId(), tipo:'saida', desc: b.nome, valor: b.valor, data: recebData || todayISO, formaPagamento: null });
-    }
-    // cartão do passo 3: só cria de verdade se nome+fechamento+pagamento foram preenchidos — se a
-    // pessoa pulou (ou preencheu só uma parte), não cria nada, sem erro nenhum
-    const qsCartaoNome = $('#qsCartaoNome').value.trim();
-    const qsCartaoFechamento = parseInt($('#qsCartaoFechamento').value, 10);
-    const qsCartaoPagamento = parseInt($('#qsCartaoPagamento').value, 10);
-    if (qsCartaoNome && !isNaN(qsCartaoFechamento) && !isNaN(qsCartaoPagamento)){
-      state.cartoes.push({
-        id: nextId(),
-        nome: qsCartaoNome,
-        diaFechamento: Math.min(31, Math.max(1, qsCartaoFechamento)),
-        diaPagamento: Math.min(31, Math.max(1, qsCartaoPagamento)),
-      });
-    }
-
-    closeOverlay('#overlayQuickSetup');
-    renderAll();
-  });
-
-  // botão do banner "projeção incompleta": leva a pessoa pro menu lateral, de onde ela alcança
-  // qualquer uma das 4 páginas do checklist (Receitas fixas, Contas fixas, Assinaturas, Cartões)
-  $('#onboardingCompleteBtn').addEventListener('click', () => openOverlay('#overlayMenu'));
 
   function openCartaoModal(editItem){
     $('#cartaoForm').reset();
@@ -6422,468 +5798,20 @@
     renderAnoInOutTile();
   });
 
-  /* ---------------- login (Google via Supabase) ----------------
-     SUPABASE_ANON_KEY é a "publishable key" — feita pra ir no código do cliente, não é segredo.
-     Se a lib do Supabase não carregou (bloqueada no preview do Artifact), o app abre direto,
-     sem exigir login, só pra dar pra continuar testando o resto por aqui; no site publicado
-     (Vercel) a lib carrega normal e o login com Google passa a valer de verdade. */
-  const SUPABASE_URL = 'https://cakfnimyezflvphhzdsm.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_FVO5a9pKCTGtD1RprEQXPA_uU_fx3QC';
-  const hasSupabase = typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function';
-  // guarda a sessão em sessionStorage (em vez do padrão, localStorage) — assim, quando a pessoa
-  // fecha a aba/janela do navegador, a sessão morre junto. Isso evita que, num computador
-  // compartilhado, a próxima pessoa que abrir o site continue logada com a conta de quem usou
-  // antes; só dar F5/recarregar a página não desloga (a sessão sobrevive à atualização, só não
-  // sobrevive a fechar a aba).
-  const sbClient = hasSupabase
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { storage: window.sessionStorage } })
-    : null;
-  let appStarted = false;
-  let currentUserId = null;
-  let loadingFromCloud = false;
-  let mySessionId = null;
-  let sessionWatchTimer = null;
-  let sessionKicked = false;
-
+  /* ---------------- início ----------------
+     Sem login e sem salvar nada: todos os dados ficam só em memória e somem ao recarregar a página
+     (o tema claro/escuro é a única coisa lembrada, só neste aparelho). */
   function startApp(){
-    renderAll();
-    if (!state.saldoDefinido) openOnboardingChoice();
-  }
-
-  /* ---------------- persistência na nuvem (tabela user_data no Supabase) ----------------
-     guarda tudo num único registro por usuário (coluna jsonb "data"), em vez de criar uma
-     tabela por tipo de lançamento — mais simples de manter e já cobre bem um app pessoal.
-     campos de UI (mês em exibição, dia selecionado etc.) ficam de fora de propósito: sempre
-     que a pessoa entra de novo, faz mais sentido abrir já no mês/dia de hoje. */
-  function getPersistableState(){
-    return {
-      saldoInicial: state.saldoInicial,
-      saldoDefinido: state.saldoDefinido,
-      saldoRefData: state.saldoRefData,
-      dataBase: state.dataBase,
-      oneTime: state.oneTime,
-      recorrentes: state.recorrentes,
-      cartoes: state.cartoes,
-      poupancas: state.poupancas,
-      faturaPagamentos: state.faturaPagamentos,
-      faturaPromptSeen: state.faturaPromptSeen,
-      nomeExibicao: state.nomeExibicao || '',
-      contasNaoMensais: state.contasNaoMensais,
-    };
-  }
-
-  function applyPersistedState(saved){
-    if (!saved) return;
-    Object.assign(state, saved);
-    // idCounter sempre começa do 1 a cada vez que a página carrega — sem isso, ao criar um cartão
-    // (ou compra, recorrente, pagamento) novo depois de carregar dados salvos, o novo registro podia
-    // ganhar um id "idN" que já tinha sido usado por outro registro salvo antes (ex.: um cartão antigo
-    // já tinha "id1", e o novo cartão criado nessa sessão também virava "id1"), fazendo as compras do
-    // cartão antigo aparecerem misturadas no cartão novo. Aqui recalculamos o próximo id livre a partir
-    // do maior número já usado em qualquer lista que usa nextId().
-    let maxUsed = 0;
-    const scan = (list) => {
-      if (!Array.isArray(list)) return;
-      for (const item of list){
-        const m = item && typeof item.id === 'string' && /^id(\d+)$/.exec(item.id);
-        if (m) maxUsed = Math.max(maxUsed, parseInt(m[1], 10));
-      }
-    };
-    scan(state.cartoes);
-    scan(state.oneTime);
-    scan(state.recorrentes);
-    scan(state.faturaPagamentos);
-    scan(state.contasNaoMensais);
-    scan(state.poupancas);
-    idCounter = Math.max(idCounter, maxUsed + 1);
-  }
-
-  // 'idle' (tudo salvo) | 'saving' (gravando agora) | 'error' (falhou e ainda não conseguiu de novo)
-  // — usado tanto pro textinho ao lado do nome quanto pra decidir se pode sair sem avisar
-  let syncState = 'idle';
-  function setSyncStatus(text, state){
-    syncState = state || 'idle';
-    const el = $('#syncStatus');
-    if (el){
-      el.textContent = text;
-      el.classList.toggle('error', syncState === 'error');
-    }
-  }
-  // true sempre que tiver algo gravando ou que falhou gravar — usado pro aviso antes de sair
-  function hasUnsyncedChanges(){ return syncState !== 'idle'; }
-
-  let saveTimer = null;
-  let retryTimer = null;
-  function schedulePersist(){
-    if (!hasSupabase || !currentUserId || loadingFromCloud) return;
-    setSyncStatus('salvando…', 'saving');
-    clearTimeout(saveTimer);
-    clearTimeout(retryTimer);
-    saveTimer = setTimeout(persistStateNow, 700);
-  }
-
-  // se falhar (geralmente por falta de internet), tenta de novo sozinha depois de um tempo — sem
-  // precisar que a pessoa mexa em algo ou clique em algum botão pra disparar uma nova tentativa
-  function scheduleRetry(){
-    clearTimeout(retryTimer);
-    retryTimer = setTimeout(persistStateNow, 15000);
-  }
-
-  async function persistStateNow(){
-    if (!hasSupabase || !currentUserId) return;
-    try {
-      const { error } = await sbClient.from('user_data').upsert({
-        user_id: currentUserId,
-        data: getPersistableState(),
-        updated_at: new Date().toISOString(),
-      });
-      if (error) throw error;
-      setSyncStatus('', 'idle');
-    } catch(e){
-      console.error('Falha ao salvar dados na nuvem:', e);
-      // fica visível (não some sozinho) até conseguir salvar de verdade — assim a pessoa sempre
-      // sabe, olhando ali do lado do nome, se é seguro sair ou não
-      setSyncStatus('não foi possível salvar', 'error');
-      scheduleRetry();
-    }
-  }
-
-  /* ---------------- só-online: tela de bloqueio quando cai a internet ----------------
-     o Maré não guarda nada localmente de propósito (ver comentário do sw.js) — então, sem
-     conexão, não tem como garantir que o que está na tela é o dado mais atual. Em vez de deixar a
-     pessoa ver (ou mexer em) algo potencialmente desatualizado, a tela de "sem conexão" cobre tudo
-     até a internet voltar. Nada do que já estava em memória (lançamentos digitados, tela aberta
-     etc.) se perde nesse meio tempo — é só uma cortina visual por cima. */
-  function updateConnectionGate(){
-    const el = $('#offlineGate');
-    if (el) el.hidden = navigator.onLine;
-  }
-  updateConnectionGate();
-  window.addEventListener('online', () => {
-    updateConnectionGate();
-    // conexão voltou: se tinha uma gravação pendente/falha, tenta salvar na hora, sem esperar
-    // o próximo retry automático
-    if (syncState === 'error'){ clearTimeout(retryTimer); persistStateNow(); }
-  });
-  window.addEventListener('offline', updateConnectionGate);
-
-  // fechar a aba/navegador com algo ainda não salvo: o navegador não deixa escrever uma mensagem
-  // personalizada por segurança, mas dá pra pedir pra ele mostrar o aviso genérico dele mesmo
-  // ("alterações que você fez podem não ser salvas") só quando realmente tiver algo pendente
-  window.addEventListener('beforeunload', (e) => {
-    if (hasUnsyncedChanges()){
-      e.preventDefault();
-      e.returnValue = '';
-    }
-  });
-
-  // nome que vem pronto da conta Google (nome de exibição do perfil) — usado só como sugestão
-  // inicial; a pessoa pode trocar por qualquer nome que quiser clicando em cima dele
-  function googleDisplayName(session){
-    const meta = session && session.user && session.user.user_metadata;
-    return (meta && (meta.full_name || meta.name)) || (session && session.user && session.user.email) || '';
-  }
-
-  // o nome aparece em dois lugares (o botão do topo e a 1ª linha do popup) — sempre os dois juntos
-  function renderUserName(){
-    const nome = state.nomeExibicao || '';
-    $('#userNameLbl').textContent = nome;
-    $('#userNameDisplay').textContent = nome;
-  }
-
-  function closeUserMenu(){
-    const panel = $('#userMenuPanel');
-    if (panel) panel.hidden = true;
-    const configPanel = $('#userMenuConfigPanel');
-    if (configPanel) configPanel.hidden = true;
-    // se a pessoa tinha aberto o campo de editar nome e fechou o menu sem confirmar, volta pro modo exibição
-    const input = $('#userNameInput');
-    if (input && !input.hidden){ input.hidden = true; $('#userNameWrap').hidden = false; }
-  }
-
-  /* ---------------- só uma sessão ativa por vez ----------------
-     a pessoa pediu pra não deixar a conta logada em 2 lugares ao mesmo tempo (2 abas, ou celular
-     + computador). Como cada aba guarda sua sessão sozinha (sessionStorage), isso só dá pra
-     garantir com uma "trava" do lado do servidor: toda vez que este app termina de carregar já
-     logado, ele registra um código aleatório novo na tabela user_sessions (que sobrescreve
-     qualquer código anterior); a cada 20s ele confere se o código lá no banco ainda é o mesmo que
-     ele registrou — se não for (porque outro lugar acabou de logar por cima), essa aba se desloga
-     sozinha e avisa o motivo. */
-  function claimSession(){
-    mySessionId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id' + Date.now() + Math.random());
-    sbClient.from('user_sessions').upsert({
-      user_id: currentUserId, session_id: mySessionId, updated_at: new Date().toISOString(),
-    }).then(({ error }) => { if (error) console.error('Falha ao registrar sessão ativa:', error); });
-    startSessionWatch();
-  }
-
-  function startSessionWatch(){
-    clearInterval(sessionWatchTimer);
-    sessionWatchTimer = setInterval(async () => {
-      if (!currentUserId || !mySessionId) return;
-      try {
-        const { data, error } = await sbClient.from('user_sessions').select('session_id').eq('user_id', currentUserId).maybeSingle();
-        if (error) throw error;
-        if (data && data.session_id && data.session_id !== mySessionId){
-          clearInterval(sessionWatchTimer);
-          sessionStorage.setItem('mareSessaoEncerrada', '1');
-          await sbClient.auth.signOut();
-        }
-      } catch(e){
-        // sem internet num instante, etc. — não desloga por causa de um erro passageiro, só tenta de novo depois
-        console.error('Falha ao checar sessão ativa:', e);
-      }
-    }, 20000);
-  }
-
-  async function showApp(session){
-    currentUserId = (session && session.user && session.user.id) || null;
-    $('#authGate').hidden = true;
-    const menu = $('#userMenu');
-    if (menu){
-      menu.hidden = false;
-      renderUserName();
-      $('#userEmailLbl').textContent = (session && session.user && session.user.email) || '';
-    }
-    if (!appStarted){
-      appStarted = true;
-      $('#authLoading').hidden = false;
-      if (currentUserId){
-        loadingFromCloud = true;
-        try {
-          const { data, error } = await sbClient.from('user_data').select('data').eq('user_id', currentUserId).maybeSingle();
-          if (error) throw error;
-          if (data && data.data) applyPersistedState(data.data);
-        } catch(e){
-          // tabela ainda não criada, sem internet momentânea etc. — o app segue funcionando
-          // com os dados em memória; a pessoa só não vai ter o histórico salvo dessa vez
-          console.error('Falha ao carregar dados salvos:', e);
-        }
-        loadingFromCloud = false;
-      }
-      if (!state.nomeExibicao) state.nomeExibicao = googleDisplayName(session);
-      renderUserName();
-      if (currentUserId) claimSession();
-      $('#authLoading').hidden = true;
-      $('#appShell').hidden = false;
-      startApp();
-    } else {
-      $('#authLoading').hidden = true;
-      $('#appShell').hidden = false;
-    }
-  }
-
-  function showAuthGate(){
-    $('#appShell').hidden = true;
-    $('#authLoading').hidden = true;
-    $('#authGate').hidden = false;
-    const menu = $('#userMenu');
-    if (menu){ menu.hidden = true; closeUserMenu(); }
-    clearInterval(sessionWatchTimer);
-    if (sessionKicked){
-      $('#sessionKickedMsg').hidden = false;
-      sessionKicked = false;
-    }
-  }
-
-  if (!hasSupabase){
     $('#appShell').hidden = false;
-    startApp();
-  } else {
-    $('#authLoading').hidden = false;
-
-    // se essa aba acabou de ser desconectada por outro lugar ter logado na mesma conta (ver
-    // startSessionWatch), o aviso fica guardado no sessionStorage pra sobreviver ao reload que o
-    // signOut() dispara, e é mostrado assim que a tela de login aparecer
-    if (sessionStorage.getItem('mareSessaoEncerrada')){
-      sessionStorage.removeItem('mareSessaoEncerrada');
-      sessionKicked = true;
-    }
-
-    // rede de segurança contra um bug real que já aconteceu em produção: se o link que a pessoa
-    // abre já tem um "#" sobrando na URL (por exemplo, de uma tentativa de login anterior que
-    // falhou), o retorno do Google gera uma URL com "##access_token=..." (hash duplicado) — e a
-    // detecção automática do supabase-js (que só remove UM "#" antes de ler os parâmetros) não
-    // reconhece o token nesse caso, então a pessoa fica presa na tela de login mesmo com um
-    // login do Google que deu certo. Por isso, além de deixar o supabase-js tentar detectar
-    // sozinho, também conferimos a URL na mão, tolerando qualquer quantidade de "#" repetidos.
-    function extrairTokensDaURL(){
-      const m = location.hash.match(/access_token=([^&]+)/);
-      const r = location.hash.match(/refresh_token=([^&]+)/);
-      if (!m || !r) return null;
-      return { access_token: decodeURIComponent(m[1]), refresh_token: decodeURIComponent(r[1]) };
-    }
-
-    async function tentarRecuperarSessaoDaURL(){
-      const tokens = extrairTokensDaURL();
-      if (!tokens) return false;
-      try {
-        const { data, error } = await sbClient.auth.setSession(tokens);
-        history.replaceState(null, '', location.pathname + location.search);
-        if (!error && data && data.session){ showApp(data.session); return true; }
-      } catch(e){
-        console.error('Falha ao recuperar sessão da URL (fallback):', e);
-        history.replaceState(null, '', location.pathname + location.search);
-      }
-      return false;
-    }
-
-    sbClient.auth.getSession().then(async ({ data }) => {
-      if (data && data.session) showApp(data.session);
-      else if (await tentarRecuperarSessaoDaURL()) { /* showApp já chamado dentro */ }
-      else showAuthGate();
-    }).catch(async () => { if (!(await tentarRecuperarSessaoDaURL())) showAuthGate(); });
-
-    sbClient.auth.onAuthStateChange((_event, session) => {
-      if (session) showApp(session);
-      else if (appStarted) location.reload(); // depois de sair, recarrega pra não deixar dados da sessão anterior na tela
-      else showAuthGate();
-    });
-
-    $('#googleLoginBtn').addEventListener('click', async () => {
-      $('#authError').hidden = true;
-      // manda o Google de volta pra URL "limpa" (sem nenhum # sobrando) — evita o hash duplicado
-      // descrito acima, que é a causa raiz do bug
-      const redirectLimpo = window.location.origin + window.location.pathname + window.location.search;
-      const { error } = await sbClient.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: redirectLimpo }
-      });
-      if (error){
-        $('#authError').textContent = 'Não foi possível entrar: ' + error.message;
-        $('#authError').hidden = false;
-      }
-    });
-
-    // botão do topo abre/fecha o popup do menu; clicar fora fecha também
-    $('#userChip').addEventListener('click', (e) => {
-      e.stopPropagation();
-      const panel = $('#userMenuPanel');
-      if (panel.hidden) panel.hidden = false; else closeUserMenu();
-    });
-    document.addEventListener('click', (e) => {
-      const menu = $('#userMenu');
-      if (menu && !menu.hidden && !$('#userMenuPanel').hidden && !menu.contains(e.target)) closeUserMenu();
-    });
-    // "Configurações" só revela a opção de excluir conta — não faz mais nada sozinho
-    $('#userMenuConfigBtn').addEventListener('click', () => {
-      const configPanel = $('#userMenuConfigPanel');
-      configPanel.hidden = !configPanel.hidden;
-    });
-
-    async function doSignOut(){
-      clearInterval(sessionWatchTimer);
-      await sbClient.auth.signOut();
-    }
-
-    const logoutBtn = $('#logoutBtn');
-    if (logoutBtn) logoutBtn.addEventListener('click', () => {
-      closeUserMenu();
-      if (hasUnsyncedChanges()){
-        // avisa em vez de deixar sair direto, só nesse caso específico (algo ainda salvando ou
-        // que falhou salvar) — se já estava tudo salvo, nem passa por aqui
-        $('#confirmLogoutMsg').textContent = syncState === 'error'
-          ? 'Não foi possível salvar sua última alteração (sem internet). Se sair agora, ela vai se perder.'
-          : 'Ainda estamos salvando suas últimas alterações. Se sair agora, elas podem se perder.';
-        openOverlay('#overlayConfirmLogout');
-      } else {
-        doSignOut();
-      }
-    });
-    $('#confirmLogoutAnywayBtn').addEventListener('click', () => {
-      closeOverlay('#overlayConfirmLogout');
-      doSignOut();
-    });
-
-    // excluir conta: apaga a conta de login (auth.users) via função no banco, que por sua vez
-    // arrasta junto (on delete cascade) a linha de dados salvos dessa pessoa em user_data
-    $('#deleteAccountBtn').addEventListener('click', () => {
-      closeUserMenu();
-      $('#deleteConfirmInput').value = '';
-      $('#deleteAccountError').hidden = true;
-      openOverlay('#overlayDeleteAccount');
-    });
-    $('#confirmDeleteAccountBtn').addEventListener('click', async () => {
-      const val = $('#deleteConfirmInput').value.trim().toUpperCase();
-      if (val !== 'EXCLUIR'){
-        $('#deleteAccountError').textContent = 'Escreva EXCLUIR (em maiúsculas) pra confirmar.';
-        $('#deleteAccountError').hidden = false;
-        return;
-      }
-      const btn = $('#confirmDeleteAccountBtn');
-      btn.disabled = true;
-      btn.textContent = 'Excluindo…';
-      try {
-        const { error } = await sbClient.rpc('delete_own_account');
-        if (error) throw error;
-        clearInterval(sessionWatchTimer);
-        await sbClient.auth.signOut();
-        location.reload();
-      } catch(e){
-        console.error('Falha ao excluir conta:', e);
-        $('#deleteAccountError').textContent = 'Não foi possível excluir sua conta agora. Tente de novo em instantes.';
-        $('#deleteAccountError').hidden = false;
-        btn.disabled = false;
-        btn.textContent = 'Excluir permanentemente';
-      }
-    });
-
-    // clicar no nome (ao lado do lápis) deixa trocar por qualquer nome de exibição — fica
-    // salvo na nuvem junto com o resto dos dados dessa conta
-    $('#userNameWrap').addEventListener('click', () => {
-      const input = $('#userNameInput');
-      input.value = state.nomeExibicao || $('#userNameDisplay').textContent;
-      $('#userNameWrap').hidden = true;
-      input.hidden = false;
-      input.focus();
-      input.select();
-    });
-    $('#userNameInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') $('#userNameInput').blur();
-    });
-    $('#userNameInput').addEventListener('blur', () => {
-      const input = $('#userNameInput');
-      const val = input.value.trim();
-      if (val) state.nomeExibicao = val;
-      renderUserName();
-      input.hidden = true;
-      $('#userNameWrap').hidden = false;
-      schedulePersist();
-    });
+    renderAll();
+    // abre direto no calendário (vazio), sem tela de escolha inicial
+    state.saldoDefinido = true;
+    renderAll();
   }
-
-  // evita que a pessoa saia sem querer do site ao apertar o botão "voltar" do celular — é comum
-  // usar esse "voltar" do celular (em vez do botão de voltar de dentro do próprio Maré) pra sair de
-  // uma página interna, tipo Parcelados, achando que só vai fechar aquela página; mas como o Maré é
-  // um site de página única (sem rotas), isso tirava a pessoa do site direto, sem nenhum aviso.
-  //
-  // o truque: mantemos sempre uma entrada "extra" empilhada no histórico do navegador (via
-  // pushState) por cima da entrada real da página. Assim, o PRIMEIRO "voltar" só consome essa
-  // entrada extra — o que dispara o evento popstate aqui, sem sair do site de verdade — e a gente
-  // aproveita pra mostrar o popup de confirmação em vez de deixar navegar. Se a pessoa cancelar,
-  // empilhamos a entrada extra de novo, rearmando a "armadilha" pro próximo "voltar". Se ela
-  // confirmar que quer mesmo sair, aí sim deixamos o navegador voltar de verdade (history.back()),
-  // já sem nenhuma entrada extra no caminho.
-  function armarGuardaDeSaida(){
-    history.pushState({ mareGuardaSaida: true }, '', location.href);
-  }
-  armarGuardaDeSaida();
-  let sairDoMareConfirmado = false;
-  window.addEventListener('popstate', () => {
-    if (sairDoMareConfirmado) return; // decisão já tomada — deixa a navegação de verdade acontecer
-    openOverlay('#overlaySairConfirm');
-  });
-  $('#sairConfirmCancelBtn').addEventListener('click', () => {
-    closeOverlay('#overlaySairConfirm');
-    armarGuardaDeSaida();
-  });
-  $('#sairConfirmSimBtn').addEventListener('click', () => {
-    sairDoMareConfirmado = true;
-    closeOverlay('#overlaySairConfirm');
-    history.back();
-  });
+  startApp();
 })();
 </script>
+
 
 </body>
 </html>

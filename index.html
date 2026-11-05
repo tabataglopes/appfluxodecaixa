@@ -234,6 +234,24 @@
   .ciclo-tag{ font-size:10.5px; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.03em; }
   .cartao-ciclo-atual, .cartao-ciclo-prox{ font-size:13.5px; font-weight:600; color:var(--expense); }
 
+  /* ---------- limite do cartão: barrinha de uso + texto "usado / disponível" ---------- */
+  .limite-box{ display:flex; flex-direction:column; gap:5px; margin-top:8px; min-width:0; }
+  .cartao-ciclo-row .limite-box{ flex:0 0 100%; margin-top:2px; cursor:default; }
+  .limite-bar{ height:7px; border-radius:4px; background:var(--border); overflow:hidden; }
+  .limite-bar-fill{ height:100%; width:0; border-radius:4px; background:var(--income); transition:width .2s ease; }
+  .limite-box.baixo .limite-bar-fill{ background:var(--warn); }
+  .limite-box.estourado .limite-bar-fill{ background:var(--expense); }
+  .limite-txt{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 12px; font-size:12px; color:var(--ink-muted); }
+  .limite-txt .disp{ font-weight:700; color:var(--ink); }
+  .limite-box.baixo .limite-txt .disp{ color:var(--warn); }
+  .limite-box.estourado .limite-txt .disp{ color:var(--expense); }
+  .limite-alerta{ font-size:12.5px; font-weight:700; color:var(--warn); }
+  .limite-box.estourado .limite-alerta{ color:var(--expense); }
+  .limite-hint{ font-size:12px; margin:2px 0 0; line-height:1.35; color:var(--ink-muted); }
+  .limite-hint.baixo{ color:var(--warn); font-weight:700; }
+  .limite-hint.estourado{ color:var(--expense); font-weight:700; }
+  #toastUndo[hidden]{ display:none; }
+
   .ciclo-secao{ padding-bottom:16px; margin-bottom:16px; border-bottom:1px solid var(--border); }
   .ciclo-secao:last-child{ padding-bottom:0; margin-bottom:0; border-bottom:none; }
   .ciclo-secao-header{ margin-bottom:6px; }
@@ -1335,6 +1353,7 @@
       <div class="field" id="oneFormaPagamentoField">
         <label for="oneFormaPagamento">Forma de pagamento</label>
         <select id="oneFormaPagamento"></select>
+        <p class="limite-hint" id="oneLimiteHint" hidden></p>
       </div>
       <div class="field" id="onePoupancaField">
         <label for="onePoupanca" id="onePoupancaLabel">Mandar para poupança</label>
@@ -1505,6 +1524,11 @@
           <label for="cartaoPagamento">Dia do pagamento</label>
           <input type="number" min="1" max="31" id="cartaoPagamento" class="mono" placeholder="1-31" required>
         </div>
+      </div>
+      <div class="field">
+        <label for="cartaoLimite">Limite do cartão (R$)</label>
+        <input type="number" step="0.01" min="0.01" id="cartaoLimite" class="mono" placeholder="Ex.: 3000,00" required>
+        <p class="piso-data-hint">O Maré usa esse valor para mostrar quanto do limite você já usou e quanto ainda tem, e para avisar quando um gasto passar dele.</p>
       </div>
       <input type="hidden" id="cartaoEditId">
       <div class="modal-actions">
@@ -2062,6 +2086,21 @@
   </div>
 </div>
 
+<!-- Pop-up "este gasto vai estourar o limite do cartão": aparece ao salvar qualquer gasto/parcelado/
+     assinatura num cartão cuja compra passa do limite disponível. Não bloqueia: a pessoa escolhe
+     "Sim, continuar" (salva mesmo assim) ou "Não, voltar" (volta pro formulário). Fica depois do
+     #overlayConfirmDelete, ou seja, por cima de qualquer outro pop-up já aberto. -->
+<div class="overlay" id="overlayLimiteConfirm" hidden>
+  <div class="modal" style="max-width:380px;">
+    <h3>Este gasto vai estourar o limite do cartão. Tem certeza?</h3>
+    <p class="piso-data-hint" id="limiteConfirmMsg" style="font-size:13.5px; margin:0 0 18px;"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close="overlayLimiteConfirm" id="limiteConfirmNo">Não, voltar</button>
+      <button type="button" class="btn danger" id="limiteConfirmYes">Sim, continuar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -2559,6 +2598,108 @@
     return -sumCardPurchases(card.id, w.nextStart, w.nextClose);
   }
 
+  /* ---------------- limite do cartão ----------------
+     usado = tudo que já foi lançado nesse cartão (avulsos + TODAS as parcelas de compras parceladas,
+     inclusive as futuras — é assim que o banco reserva o limite; contas fixas/assinaturas só contam
+     até o ciclo atual, porque não são um valor fechado) menos o que a pessoa já PAGOU de faturas
+     (pagar fatura devolve o limite). disponível = limite − usado (negativo = limite estourado).
+     excl ignora um item específico (ao EDITAR um lançamento, pra não contar ele duas vezes). */
+  const LIMITE_AVISO_BAIXO = 10; // avisa "você só tem mais R$ X de crédito" quando sobra até esse valor
+
+  function cartaoLimiteInfo(card, excl){
+    excl = excl || {};
+    const limite = card.limite || 0;
+    let compras = 0;
+    for (const t of state.oneTime) if (t.formaPagamento === card.id && t.id !== excl.oneId) compras += -signed(t);
+    const curClose = closingDateForCycleContaining(card, todayISO);
+    for (const r of state.recorrentes){
+      if (r.formaPagamento !== card.id || r.id === excl.recId) continue;
+      const hi = (r.kind === 'parcelado' && r.dataFim) ? r.dataFim : curClose;
+      if (r.dataInicio > hi) continue;
+      for (const o of occurrencesForRecInRange(r, r.dataInicio, hi)) compras += -signed(o);
+    }
+    let pago = 0;
+    for (const p of state.faturaPagamentos) if (p.cardId === card.id) pago += p.valorPago;
+    const usado = Math.max(0, compras - pago);
+    return { limite, usado, disponivel: limite - usado };
+  }
+
+  // 'ok' | 'baixo' (sobra até R$10) | 'estourado' (passou do limite)
+  function limiteStatus(info){
+    if (info.disponivel < -0.005) return 'estourado';
+    if (info.disponivel <= LIMITE_AVISO_BAIXO + 0.005) return 'baixo';
+    return 'ok';
+  }
+
+  function textoAvisoLimite(info){
+    const st = limiteStatus(info);
+    if (st === 'estourado') return `Limite estourado em ${fmtBRL(-info.disponivel)}.`;
+    if (st === 'baixo') return `Você só tem mais ${fmtBRL(Math.max(0, info.disponivel))} de crédito.`;
+    return '';
+  }
+
+  // caixinha com barra de uso + "usado de limite · disponível" — usada na página de cartões, no
+  // resumo por ciclo do dashboard e no detalhe do cartão
+  function buildLimiteBox(card){
+    const info = cartaoLimiteInfo(card);
+    const st = limiteStatus(info);
+    const box = document.createElement('div');
+    box.className = 'limite-box' + (st === 'ok' ? '' : ' ' + st);
+    box.addEventListener('click', e => e.stopPropagation());
+    const bar = document.createElement('div');
+    bar.className = 'limite-bar';
+    const fill = document.createElement('div');
+    fill.className = 'limite-bar-fill';
+    fill.style.width = (info.limite > 0 ? Math.min(100, info.usado / info.limite * 100) : 0) + '%';
+    bar.appendChild(fill);
+    box.appendChild(bar);
+    const txt = document.createElement('div');
+    txt.className = 'limite-txt mono';
+    const l = document.createElement('span');
+    l.textContent = `Usado ${fmtBRL(info.usado)} de ${fmtBRL(info.limite)}`;
+    const r = document.createElement('span');
+    r.className = 'disp';
+    r.textContent = `Disponível ${fmtBRL(info.disponivel)}`;
+    txt.appendChild(l); txt.appendChild(r);
+    box.appendChild(txt);
+    const aviso = textoAvisoLimite(info);
+    if (aviso){
+      const al = document.createElement('div');
+      al.className = 'limite-alerta';
+      al.textContent = aviso;
+      box.appendChild(al);
+    }
+    return box;
+  }
+
+  // chamada ANTES de salvar um gasto no cartão. Se a compra (totalCompra) passa do limite
+  // disponível, abre o pop-up "este gasto vai estourar o limite" e devolve true (quem chamou
+  // interrompe o salvamento). "Sim, continuar" reenvia o formulário já confirmado. Se não
+  // estoura, devolve false e agenda, depois do salvamento, o aviso de "só tem mais R$ X de crédito"
+  // quando o que sobrar for pouco.
+  let limiteConfirmadoOnce = false;
+  let limiteFormPendente = null;
+  function limiteGuard(formSel, cardId, totalCompra, excl){
+    if (limiteConfirmadoOnce){ limiteConfirmadoOnce = false; setTimeout(() => avisarLimiteBaixo(cardId), 0); return false; }
+    const card = cardId ? getCardById(cardId) : null;
+    if (!card || !(card.limite > 0) || !(totalCompra > 0)) return false;
+    const info = cartaoLimiteInfo(card, excl);
+    if (totalCompra > info.disponivel + 0.005){
+      limiteFormPendente = formSel;
+      $('#limiteConfirmMsg').textContent = `No cartão ${card.nome}: limite de ${fmtBRL(info.limite)}, disponível ${fmtBRL(Math.max(0, info.disponivel))}. Este gasto é de ${fmtBRL(totalCompra)}.`;
+      openOverlay('#overlayLimiteConfirm');
+      return true;
+    }
+    setTimeout(() => avisarLimiteBaixo(cardId), 0);
+    return false;
+  }
+  function avisarLimiteBaixo(cardId){
+    const card = cardId ? getCardById(cardId) : null;
+    if (!card || !(card.limite > 0)) return;
+    const info = cartaoLimiteInfo(card);
+    if (limiteStatus(info) === 'baixo') showToast(`${textoAvisoLimite(info)} (${card.nome})`, { noUndo:true });
+  }
+
   // fatura em aberto (dia de pagamento já chegou) e ainda com saldo pendente — no máximo uma por
   // cartão: a mais recente, já que o que não foi pago de uma fatura mais antiga já está embutido nela
   function getPendingInvoices(){
@@ -2892,6 +3033,7 @@
       vals.appendChild(valProx);
 
       row.appendChild(vals);
+      row.appendChild(buildLimiteBox(card));
       row.addEventListener('click', () => openCartaoCicloModal(card.id));
       wrap.appendChild(row);
     }
@@ -2953,6 +3095,9 @@
     $('#cartaoCicloTitle').textContent = card.nome;
     const body = $('#cartaoCicloBody');
     body.innerHTML = '';
+    const limBox = buildLimiteBox(card);
+    limBox.style.marginBottom = '16px';
+    body.appendChild(limBox);
 
     const ledgerAtual = cardLedgerThrough(card, w.curClose);
     const detAtual = ledgerAtual.length ? ledgerAtual[ledgerAtual.length-1] : { pendente: 0, carryIn: 0 };
@@ -3804,6 +3949,7 @@
     mobileLine.className = 'nm-valor-inline nm-mobile-only';
     mobileLine.textContent = `Fecha dia ${c.diaFechamento} · Paga dia ${c.diaPagamento}`;
     nomeWrap.appendChild(mobileLine);
+    nomeWrap.appendChild(buildLimiteBox(c));
     row.appendChild(nomeWrap);
 
     const fechCol = document.createElement('div');
@@ -4224,9 +4370,19 @@
     if (cb) cb();
   });
   $('#confirmDeleteNo').addEventListener('click', () => { confirmDeleteCallback = null; });
+  $('#limiteConfirmYes').addEventListener('click', () => {
+    const sel = limiteFormPendente;
+    limiteFormPendente = null;
+    closeOverlay('#overlayLimiteConfirm');
+    if (!sel) return;
+    limiteConfirmadoOnce = true;
+    $(sel).requestSubmit();
+    limiteConfirmadoOnce = false;
+  });
 
-  function showToast(msg){
+  function showToast(msg, opts){
     $('#toastMsg').textContent = msg;
+    $('#toastUndo').hidden = !!(opts && opts.noUndo);
     const toast = $('#toast');
     toast.hidden = false;
     clearTimeout(showToast._t);
@@ -4392,7 +4548,39 @@
     }
   }
 
+  // texto embaixo de "Forma de pagamento": limite disponível do cartão escolhido e, quando já tem
+  // valor digitado, o que acontece com o limite depois desse gasto
+  function oneTotalCompra(){
+    const valor = parseFloat($('#oneValor').value);
+    if (isNaN(valor)) return 0;
+    const parcelada = oneComprasParcelada && !$('#oneEditId').value;
+    const qtd = parseInt($('#oneComprasQtdParcelas').value, 10);
+    return parcelada && qtd > 0 ? valor * qtd : valor;
+  }
+  function updateOneLimiteHint(){
+    const el = $('#oneLimiteHint');
+    const tipo = $('#oneSeg').querySelector('.active').dataset.tipo;
+    const card = tipo === 'saida' && $('#oneFormaPagamento').value ? getCardById($('#oneFormaPagamento').value) : null;
+    if (!card || !(card.limite > 0)){ el.hidden = true; return; }
+    const excl = $('#oneEditId').value ? { oneId: $('#oneEditId').value } : {};
+    const info = cartaoLimiteInfo(card, excl);
+    const total = oneTotalCompra();
+    let msg = `Limite disponível no ${card.nome}: ${fmtBRL(Math.max(0, info.disponivel))}.`;
+    let cls = 'limite-hint';
+    if (total > 0){
+      const depois = info.disponivel - total;
+      if (depois < -0.005){ msg += ` Este gasto passa do limite em ${fmtBRL(-depois)}.`; cls += ' estourado'; }
+      else if (depois <= LIMITE_AVISO_BAIXO + 0.005){ msg += ` Depois dele você só terá mais ${fmtBRL(depois)} de crédito.`; cls += ' baixo'; }
+    } else if (limiteStatus(info) !== 'ok'){
+      cls += limiteStatus(info) === 'estourado' ? ' estourado' : ' baixo';
+    }
+    el.className = cls;
+    el.textContent = msg;
+    el.hidden = false;
+  }
+
   function updateOneCategoriaVisibility(){
+    updateOneLimiteHint();
     const isEditing = !!$('#oneEditId').value;
     // "Enviar poupança" é um atalho do Tipo, não um tipo de verdade: por baixo dos panos ele vira
     // uma Saída normal com uma poupança de destino obrigatória (mesmo mecanismo de "mandar para
@@ -4567,7 +4755,9 @@
   });
   $('#oneValor').addEventListener('input', () => {
     if (!$('#oneParcFields').hidden) updateOneParcResumoEFim();
+    updateOneLimiteHint();
   });
+  $('#oneComprasQtdParcelas').addEventListener('input', updateOneLimiteHint);
 
   function openOneModal(prefillDate, editItem){
     $('#oneForm').reset();
@@ -4889,6 +5079,7 @@
       $('#cartaoNome').value = editItem.nome;
       $('#cartaoFechamento').value = editItem.diaFechamento;
       $('#cartaoPagamento').value = editItem.diaPagamento;
+      $('#cartaoLimite').value = editItem.limite != null ? editItem.limite : '';
       $('#cartaoEditId').value = editItem.id;
     } else {
       $('#cartaoModalTitle').textContent = 'Novo cartão';
@@ -5305,6 +5496,7 @@
           return;
         }
       }
+      if (formaPagamento && limiteGuard('#oneForm', formaPagamento, valor, { oneId: editId })) return;
       const t = state.oneTime.find(x=>x.id===editId);
       if (t){
         const cartaoAntigo = t.formaPagamento;
@@ -5416,6 +5608,7 @@
       if (isNaN(valor) || isNaN(numParcelas) || !dataInicio) return;
       const dia = Number(dataInicio.split('-')[2]);
       const dataFim = addMonthsISO(dataInicio, numParcelas-1);
+      if (limiteGuard('#oneForm', formaPagamento, valor * numParcelas)) return;
       state.recorrentes.push({ id: nextId(), kind:'parcelado', tipo:'saida', desc, valor, dia, freqType:'meses', intervalMeses:1, intervalDias:null, numParcelas, dataInicio, dataFim, formaPagamento, statusPagamento:'em_curso', categoria: categoriaSalva });
       closeOverlay('#overlayOne');
       renderAll();
@@ -5450,6 +5643,7 @@
         return;
       }
     }
+    if (formaPagamento && limiteGuard('#oneForm', formaPagamento, valor)) return;
     state.oneTime.push({ id: nextId(), tipo, desc, valor, data, formaPagamento, poupancaId, categoria: categoriaSalva });
     state.selectedDate = data;
     closeOverlay('#overlayOne');
@@ -5461,13 +5655,14 @@
     const nome = $('#cartaoNome').value.trim();
     const diaFechamento = Math.min(31, Math.max(1, parseInt($('#cartaoFechamento').value,10)));
     const diaPagamento = Math.min(31, Math.max(1, parseInt($('#cartaoPagamento').value,10)));
+    const limite = parseFloat($('#cartaoLimite').value);
     const editId = $('#cartaoEditId').value;
-    if (!nome || isNaN(diaFechamento) || isNaN(diaPagamento)) return;
+    if (!nome || isNaN(diaFechamento) || isNaN(diaPagamento) || isNaN(limite) || limite <= 0) return;
     if (editId){
       const c = getCardById(editId);
-      if (c){ c.nome=nome; c.diaFechamento=diaFechamento; c.diaPagamento=diaPagamento; }
+      if (c){ c.nome=nome; c.diaFechamento=diaFechamento; c.diaPagamento=diaPagamento; c.limite=limite; }
     } else {
-      state.cartoes.push({ id: nextId(), nome, diaFechamento, diaPagamento });
+      state.cartoes.push({ id: nextId(), nome, diaFechamento, diaPagamento, limite });
     }
     closeOverlay('#overlayCartao');
     renderAll();
@@ -5560,6 +5755,7 @@
     if (!desc || isNaN(valor) || !dataInicio) return;
     if (freqType === 'meses' && isNaN(dia)) return;
     if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
+    if (formaPagamento && limiteGuard('#recurForm', formaPagamento, valor, editId ? { recId: editId } : {})) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
@@ -5588,6 +5784,7 @@
     if (!desc || isNaN(valor) || !dataInicio) return;
     if (freqType === 'meses' && isNaN(dia)) return;
     if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
+    if (formaPagamento && limiteGuard('#assinForm', formaPagamento, valor, editId ? { recId: editId } : {})) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
@@ -5615,6 +5812,7 @@
     if (freqType === 'dias' && (!intervalDias || intervalDias < 1)) return;
     const dia = freqType === 'dias' ? null : Number(dataInicio.split('-')[2]);
     const dataFim = freqType === 'dias' ? addDays(dataInicio, (numParcelas-1)*intervalDias) : addMonthsISO(dataInicio, (numParcelas-1)*intervalMeses);
+    if (formaPagamento && limiteGuard('#parceladoForm', formaPagamento, valor * numParcelas, editId ? { recId: editId } : {})) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
@@ -5660,6 +5858,7 @@
     // "última atualização": data de hoje, registrada toda vez que a pessoa salva mudanças aqui —
     // pedido da Tabata pra ela saber se os valores (parcela atual, valor atrasado etc) estão em dia
     const hojeISO = new Date().toISOString().slice(0,10);
+    if (formaPagamento && limiteGuard('#dividaForm', formaPagamento, valor * numParcelas, editId ? { recId: editId } : {})) return;
     if (editId){
       const r = state.recorrentes.find(x=>x.id===editId);
       if (r){
